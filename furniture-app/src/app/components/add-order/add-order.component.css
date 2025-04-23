@@ -1,0 +1,129 @@
+body {
+    font-family: Arial, sans-serif;
+    background: #f4f4f4;
+    padding: 20px;
+}
+
+.order-container {
+    width: 80%;
+    margin: auto;
+    background: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+.form-container {
+    display: flex;
+    gap: 20px; /* Adjust the spacing between fields */
+}
+
+.form-group {
+    flex: 1; /* Ensures both fields take equal space */
+    min-width: 200px; /* Adjust based on preference */
+}
+
+
+h2, h3 {
+    text-align: center;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    font-weight: bold;
+}
+
+input, select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+.product-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+.product-table th, .product-table td {
+    padding: 10px;
+    border: 1px solid #ddd;
+    text-align: center;
+}
+
+.add-btn, .submit-btn, .delete-btn {
+    background: #28a745;
+    color: white;
+    padding: 10px 15px;
+    border: none;
+    cursor: pointer;
+    margin-top: 10px;
+}
+
+.add-btn:hover, .submit-btn:hover {
+    background: #218838;
+}
+
+.delete-btn {
+    background: red;
+}
+
+.delete-btn:hover {
+    background: darkred;
+}
+
+.order-summary {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.summary-column {
+    width: 48%;
+}
+
+@media (max-width: 768px) {
+    .order-summary {
+        flex-direction: column;
+    }
+    .summary-column {
+        width: 100%;
+    }
+}
+ 
+.button-group {
+  display: flex;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.submit-btn, .print-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.submit-btn {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.submit-btn:hover {
+  background-color: #45a049;
+}
+
+.print-btn {
+  background-color: #2196F3;
+  color: white;
+}
+
+.print-btn:hover {
+  background-color: #0b7dda;
+}

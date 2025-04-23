@@ -1,0 +1,43 @@
+<div class="purchase-container">
+    <div class="header">
+        <h2>Home / Product Receive</h2>
+    </div>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Supplier</th>
+                    <th>Pick up date</th>
+                    <th>PO Number</th>
+                    <th>Product</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                <tr *ngFor="let received of receiveProducts">
+                    <td>{{ received?.SupplierCode }}</td>
+                    <td>{{ received?.Supplier_Date | date:'mediumDate' }}</td>
+                    <td>{{ received?.PONumber }}</td>
+                    <td>{{ received?.ProductName }}</td>
+                    <td class="status">
+                        <select [(ngModel)]="received.POStatus" (change)="updateStatus(received)">
+                            <!-- <option value="Confirmed">Confirmed</option> -->
+                            <option value="Received">Received</option>
+                        </select>
+                    </td>
+                    <td class="actions">
+                        <button class="print-btn" (click)="printDetails(received)">
+                            Print
+                        </button>
+                    </td>
+                </tr>
+                <tr *ngIf="receiveProducts.length === 0">
+                    <td colspan="6" class="no-data">No receiving products found</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>

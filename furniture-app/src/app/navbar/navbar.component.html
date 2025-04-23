@@ -1,0 +1,63 @@
+<nav>
+  <div class="nav-container">
+    <div class="logo">
+      <img src="assets/logo.png" alt="Company Logo">
+    </div>
+
+    <!-- Mobile toggle button -->
+    <button class="mobile-nav-toggle" (click)="toggleMobileMenu()" *ngIf="mobileView">
+      <i class="fas" [ngClass]="{'fa-bars': !isMobileMenuOpen, 'fa-times': isMobileMenuOpen}"></i>
+    </button>
+
+    <div class="nav-links" [ngClass]="{'active': isMobileMenuOpen}">
+      <a [routerLink]="['/u/dashboard']" routerLinkActive="active">
+        <i class="fas fa-home"></i> Dashboard
+      </a>
+      <a [routerLink]="['/u/supplier']" routerLinkActive="active">
+        <i class="fas fa-truck"></i> Supplier
+      </a>
+      <a [routerLink]="['/u/purchase']" routerLinkActive="active">
+        <i class="fas fa-shopping-cart"></i> Purchase
+      </a>
+      <a [routerLink]="['/u/products']" routerLinkActive="active">
+        <i class="fas fa-box"></i> Products
+      </a>
+      <a [routerLink]="['/u/receive']" routerLinkActive="active">
+        <i class="fas fa-truck"></i> Receive
+      </a>
+      <a [routerLink]="['/u/delivery']" routerLinkActive="active">
+        <i class="fas fa-truck"></i> Delivery
+      </a>
+
+      <!-- Orders Dropdown -->
+      <div class="dropdown" (click)="toggleDropdown()">
+        <a class="dropdown-toggle">
+          <i class="fas fa-receipt"></i> Orders
+        </a>
+        <div class="dropdown-menu" *ngIf="isDropdownOpen || (!mobileView && isDropdownOpen)">
+          <a [routerLink]="['/u/addOrders']" routerLinkActive="active">
+            <i class="fas fa-plus-circle"></i> Add Orders
+          </a>
+          <a [routerLink]="['/u/manageOrders']" routerLinkActive="active">
+            <i class="fas fa-list-check"></i> Manage Orders
+          </a>
+        </div>
+      </div>
+
+      <!-- User Dropdown -->
+      <div class="user-dropdown">
+        <a class="dropdown-toggle" (click)="toggleUserDropdown()">
+          <i class="fas fa-user-circle"></i>  
+        </a>
+        <div class="dropdown-menu" *ngIf="isUserDropdownOpen">
+          <a *ngIf="!isLoggedIn" (click)="login()">
+            <i class="fas fa-sign-in-alt"></i> Login
+          </a>
+          <a *ngIf="isLoggedIn" (click)="logout()">
+            <i class="fas fa-sign-out-alt"></i> Logout
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</nav>

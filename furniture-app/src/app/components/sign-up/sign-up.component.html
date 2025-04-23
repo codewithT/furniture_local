@@ -1,0 +1,41 @@
+<div class="login-container">
+    <form [formGroup]="signUpForm" (ngSubmit)="onSubmit()" class="login-form">
+        <img src="assets/logo.png" alt="Signup Icon" class="login-icon" />
+        <h2>Sign Up</h2>
+
+        <div class="input-group">
+            <label for="name">Full Name</label>
+            <input id="name" type="text" formControlName="name" placeholder="Enter your full name" />
+            <small *ngIf="isSubmitted && signUpForm.controls['name'].invalid">
+                Name is required.
+            </small>
+        </div>
+
+        <div class="input-group">
+            <label for="email">Email</label>
+            <input id="email" type="email" formControlName="email" placeholder="Enter your email" />
+            <small *ngIf="isSubmitted && signUpForm.controls['email'].invalid">
+                Valid email is required.
+            </small>
+        </div>
+
+        <div class="input-group">
+            <label for="password">Password</label>
+            <input id="password" type="password" formControlName="password" placeholder="Enter your password" />
+            <small *ngIf="isSubmitted && signUpForm.controls['password'].invalid">
+                Password must be at least 6 characters.
+            </small>
+        </div>
+
+        <div class="input-group">
+            <label for="confirmPassword">Confirm Password</label>
+            <input id="confirmPassword" type="password" formControlName="confirmPassword" placeholder="Confirm your password" />
+            <small *ngIf="isSubmitted && signUpForm.controls['confirmPassword'].invalid">
+                Passwords must match.
+            </small>
+        </div>
+
+        <button type="submit">Sign Up</button>
+        <p class="register-text">Already have an account?  <span (click)="login()" class="login-link">Login</span> </p>
+    </form>
+</div>

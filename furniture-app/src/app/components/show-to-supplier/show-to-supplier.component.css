@@ -1,0 +1,169 @@
+/* Main container styling */
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1.5rem;
+    font-family: 'Roboto', 'Segoe UI', sans-serif;
+  }
+  
+  /* Header styling */
+  h2 {
+    color: #304165;
+    font-size: 1.8rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #e0e0e0;
+  }
+  
+  /* Loading indicator */
+  .loading {
+    text-align: center;
+    font-size: 1.2rem;
+    color: #666;
+    padding: 2rem 0;
+  }
+  
+  /* Success message styling */
+  .success-message {
+    background-color: #d4edda;
+    color: #155724;
+    padding: 1rem;
+    border-radius: 4px;
+    margin-bottom: 1.5rem;
+    animation: fadeOut 5s forwards;
+    animation-delay: 3s;
+  }
+  
+  @keyframes fadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+  
+  /* Empty state message */
+  div:not(.loading):not(.success-message) + div {
+    padding: 2rem 0;
+    text-align: center;
+    color: #666;
+    font-style: italic;
+  }
+  
+  /* Table styling */
+  .mat-elevation-z8 {
+    width: 100%;
+    overflow-x: auto;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+  }
+  
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  
+  th {
+    background-color: #f5f7fa;
+    color: #304165;
+    text-align: left;
+    padding: 1rem;
+    white-space: nowrap;
+    font-weight: 500;
+  }
+  
+  td {
+    padding: 1rem;
+    border-top: 1px solid #e0e0e0;
+    vertical-align: middle;
+  }
+  
+  tr:hover {
+    background-color: #f9f9f9;
+  }
+  
+  /* Form controls styling */
+  select, input[type="date"] {
+    padding: 0.5rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-family: inherit;
+    background-color: white;
+    min-width: 120px;
+  }
+  
+  select:focus, input[type="date"]:focus {
+    outline: none;
+    border-color: #304165;
+    box-shadow: 0 0 0 2px rgba(48, 65, 101, 0.2);
+  }
+  
+  /* Button container and button styling */
+  .button-container {
+    margin-top: 1.5rem;
+    text-align: right;
+  }
+  
+  button {
+    background-color: #304165;
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 4px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+  
+  button:hover {
+    background-color: #253655;
+  }
+  
+  button:disabled {
+    background-color: #a0a0a0;
+    cursor: not-allowed;
+  }
+  
+  /* Responsive adjustments */
+  @media (max-width: 768px) {
+    .container {
+      padding: 1rem;
+    }
+    
+    h2 {
+      font-size: 1.5rem;
+    }
+    
+    th, td {
+      padding: 0.75rem 0.5rem;
+      font-size: 0.9rem;
+    }
+    
+    select, input[type="date"] {
+      min-width: 100px;
+      padding: 0.4rem;
+    }
+    
+    .button-container {
+      text-align: center;
+    }
+  }
+  
+  /* Extra small screens */
+  @media (max-width: 480px) {
+    .mat-elevation-z8 {
+      margin: 0 -1rem;
+      width: calc(100% + 2rem);
+      border-radius: 0;
+    }
+    
+    th, td {
+      padding: 0.5rem 0.4rem;
+      font-size: 0.8rem;
+    }
+    
+    select {
+      min-width: 80px;
+    }
+    
+    input[type="date"] {
+      max-width: 120px;
+    }
+  }

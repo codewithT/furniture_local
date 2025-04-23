@@ -1,0 +1,26 @@
+<div class="login-container">
+    <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="login-form">
+        <img src="assets/logo.png" alt="Login Icon" class="login-icon" />
+      <h2>Login</h2>
+  
+      <div class="input-group">
+        <label for="email">Email</label>
+        <input id="email" type="email" formControlName="email" placeholder="Enter your email" />
+        <small *ngIf="isSubmitted && loginForm.controls['email'].invalid">
+          Valid email is required.
+        </small>
+      </div>
+  
+      <div class="input-group">
+        <label for="password">Password</label>
+        <input id="password" type="password" formControlName="password" placeholder="Enter your password" />
+        <small *ngIf="isSubmitted && loginForm.controls['password'].invalid">
+          Password must be at least 6 characters.
+        </small>
+      </div>
+  
+      <button type="submit">Login</button>
+
+    </form>
+  </div>
+  

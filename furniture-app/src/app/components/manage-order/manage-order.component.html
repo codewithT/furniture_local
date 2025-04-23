@@ -1,0 +1,121 @@
+<div class="container">
+  <h2>Manage Orders</h2>
+
+  <!-- Search Input -->
+  <mat-form-field appearance="outline">
+    <mat-label>Search Orders</mat-label>
+    <input matInput [(ngModel)]="searchTerm" (keyup)="applySearchFilter()" placeholder="Search by ProductId, Date">
+  </mat-form-field>
+  <button mat-raised-button color="accent" (click)="sendEmailsToCustomers()" class="send-email-btn">
+    <mat-icon>email</mat-icon> Send Email
+  </button>
+  
+  <!-- Table wrapped in scrollable container -->
+  <div class="mat-table-container">
+    <table mat-table [dataSource]="dataSource" matSort class="mat-elevation-z8">
+      
+      <!-- Checkbox Column -->
+      <ng-container matColumnDef="select">
+        <th mat-header-cell *matHeaderCellDef>
+          <mat-checkbox (change)="toggleAllSelection($event)"></mat-checkbox>
+        </th>
+        <td mat-cell *matCellDef="let order">
+          <mat-checkbox [(ngModel)]="order.selected"></mat-checkbox>
+        </td>
+      </ng-container>
+
+      <!-- Order ID Column -->
+      <ng-container matColumnDef="SONumber">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header> SO Number </th>
+        <td mat-cell *matCellDef="let order"> {{ order.SONumber }} </td>
+      </ng-container>
+
+      <!-- Order Date Column -->
+      <ng-container matColumnDef="Created_date">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header> Created Date </th>
+        <td mat-cell *matCellDef="let order"> {{ order.Created_date }} </td>
+      </ng-container>
+
+      <!-- Client Name Column -->
+      <!-- <ng-container matColumnDef="ProductID">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header> ProductID</th>
+        <td mat-cell *matCellDef="let order"> {{ order.ProductID }} </td>
+      </ng-container> -->
+
+      <ng-container matColumnDef="ProductName">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header> Product Name </th>
+        <td mat-cell *matCellDef="let order"> {{ order.ProductName }} </td>
+      </ng-container>
+   
+      <ng-container matColumnDef="CustomerEmail">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header> Customer Email </th>
+        <td mat-cell *matCellDef="let order"> {{ order.CustomerEmail }} </td>
+      </ng-container>
+      <ng-container matColumnDef="Customer_name">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header> Customer Name </th>
+        <td mat-cell *matCellDef="let order"> {{ order.Customer_name }} </td>
+      </ng-container>
+      <ng-container matColumnDef="Qty">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header> Total Items </th>
+        <td mat-cell *matCellDef="let order"> {{ order.Qty }} </td>
+      </ng-container>
+
+      <ng-container matColumnDef="Delivery_date">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header> Cust Del Date </th>
+        <td mat-cell *matCellDef="let order"> {{ order.Delivery_date }} </td>
+      </ng-container>
+      <ng-container matColumnDef="POStatus">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header> PO Status </th>
+        <td mat-cell *matCellDef="let order"> {{ order.POStatus }} </td>
+      </ng-container>
+      <!-- Payment Status Column -->
+      <ng-container matColumnDef="Payment_Status">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header> Payment Status </th>
+        <td mat-cell *matCellDef="let order" class="payment-status-column">
+          <mat-form-field appearance="outline">
+            <mat-select [(ngModel)]="order.Payment_Status" (selectionChange)="updatePaymentStatus(order)">
+              <mat-option value="Full Paid">Full Paid</mat-option>
+              <mat-option value="Pending">Pending</mat-option>
+              <mat-option value="Partial">Partial</mat-option>
+            </mat-select>
+          </mat-form-field>
+        </td>
+      </ng-container>
+
+      <!-- Action Column -->
+      <ng-container matColumnDef="action">
+        <th mat-header-cell *matHeaderCellDef> Action </th>
+        <td mat-cell *matCellDef="let order">
+          <button mat-button [matMenuTriggerFor]="menu" color="primary">
+            Action <mat-icon>arrow_drop_down</mat-icon>
+          </button>
+          <mat-menu #menu="matMenu">
+            <button mat-menu-item (click)="showOrderDetails(order)">
+              <mat-icon>visibility</mat-icon>
+              <span>Show Details</span>
+            </button>  
+            <button mat-menu-item (click)="showSaleDetails(order)">
+              <mat-icon>visibility</mat-icon>
+              <span>Show Complete Details</span>
+            </button>         
+            <button mat-menu-item (click)="removeOrder(order)">
+              <mat-icon>delete</mat-icon>
+              <span>Remove</span>
+            </button>
+          </mat-menu>
+        </td>
+      </ng-container>
+
+      <!-- Table Header Row -->
+      <tr mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></tr>
+      
+      <!-- Table Data Rows -->
+      <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+    </table>
+  </div>
+
+  <!-- Paginator -->
+  <mat-paginator [length]="dataSource.data.length" [pageSize]="pageSize" [pageSizeOptions]="pageSizeOptions"
+    (page)="onPageChange($event)">
+  </mat-paginator>
+</div>

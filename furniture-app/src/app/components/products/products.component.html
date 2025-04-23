@@ -1,0 +1,214 @@
+<!-- components/products/products.component.html -->
+<div class="container mt-4">
+
+  <h2>Home / product</h2>
+ 
+  <!-- Search Bar -->
+  <div class="search-container">
+    <input type="text" class="form-control search-bar mb-3" placeholder="Search by Product Name or Code" [(ngModel)]="searchTerm"
+    (input)="onSearchTermChange()">
+    <div class="header">
+      <button class="btn btn-primary mb-3" (click)="openAddModal()">Add Product</button>
+    </div>
+  </div> 
+  
+  <!-- Table Wrapper for Horizontal Scrolling -->
+  <div class="table-wrapper">
+    <!-- Product Table -->
+    <table class="table table-bordered table-striped">
+      <thead>
+        <tr>
+          <th (click)="sortTable('ProductCode')">
+            CFE Product Code <span *ngIf="sortColumn === 'ProductCode'">{{ sortAscending ? '▲' : '▼' }}</span>
+          </th>
+          <th (click)="sortTable('ProductName')">
+            Product Name <span *ngIf="sortColumn === 'ProductName'">{{ sortAscending ? '▲' : '▼' }}</span>
+          </th>
+          <th (click)="sortTable('SupplierCode')">
+            Supplier Code <span *ngIf="sortColumn === 'SupplierCode'">{{ sortAscending ? '▲' : '▼' }}</span>
+          </th>
+          <th (click)="sortTable('SupplierItemNumber')">
+            Supplier Item Number <span *ngIf="sortColumn === 'SupplierItemNumber'">{{ sortAscending ? '▲' : '▼' }}</span>
+          </th>
+          <th (click)="sortTable('FinalPrice')">
+            Final Price <span *ngIf="sortColumn === 'FinalPrice'">{{ sortAscending ? '▲' : '▼' }}</span>
+          </th>
+          
+          <th>Picture</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      
+      <tbody>
+        <tr *ngFor="let product of paginatedProducts">
+          <td>{{ product.ProductCode }}</td>
+          <td>{{ product.ProductName }}</td>
+          <td>{{ product.SupplierCode }}</td>
+          <td>{{ product.SupplierItemNumber }}</td>
+          <td>₹{{ product.FinalPrice | number:'1.2-2' }}</td>
+          <td>
+            <img [src]="product.Picture" alt="Product Image" class="img-thumbnail" width="50">
+          </td>
+          <td>
+            <button class="btn btn-sm btn-warning me-1" (click)="openEditModal(product)">Edit</button>
+            <button class="btn btn-sm btn-danger" (click)="deleteProduct(product.ProductID)">Delete</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  
+  <!-- Pagination Controls -->
+  <nav *ngIf="totalPages > 1">
+    <ul class="pagination">
+      <li class="page-item" [class.disabled]="currentPage === 1">
+        <button class="page-link" (click)="prevPage()">Previous</button>
+      </li>
+      <li class="page-item" *ngFor="let page of totalPagesArray" [class.active]="currentPage === page">
+        <button class="page-link" (click)="goToPage(page)">{{ page }}</button>
+      </li>
+      <li class="page-item" [class.disabled]="currentPage === totalPages">
+        <button class="page-link" (click)="nextPage()">Next</button>
+      </li>
+    </ul>
+  </nav>
+</div>
+
+<!-- Add Product Modal -->
+<div #addProductModal class="modal fade" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Add Product</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form>
+          <!-- Product Code field -->
+          <div class="mb-3">
+            <label class="form-label">Product Code</label>
+            <input type="text" class="form-control" [(ngModel)]="newProduct.ProductCode" name="ProductCode" required>
+          </div>
+          
+          <!-- Product Name field -->
+          <div class="mb-3">
+            <label class="form-label">Product Name</label>
+            <input type="text" class="form-control" [(ngModel)]="newProduct.ProductName" name="ProductName" required>
+          </div>
+          
+          <!-- Supplier Code field -->
+          <div class="mb-3">
+            <label class="form-label">Supplier Code</label>
+            <input type="text" class="form-control" [(ngModel)]="newProduct.SupplierCode" name="SupplierCode" required 
+            (input)="checkSupplierCode(newProduct.SupplierCode)">
+     <div *ngIf="supplierCodeValid === true" class="text-success mt-1">✔️ Valid Supplier Code</div>
+     <div *ngIf="supplierCodeValid === false" class="text-danger mt-1">❌ Invalid Supplier Code</div>
+     
+          </div>
+          
+          <!-- Supplier ID - hidden but needed for data structure -->
+          <input type="hidden" [(ngModel)]="newProduct.SupplierID" name="SupplierID">
+          
+          <!-- Supplier Item Number field -->
+          <div class="mb-3">
+            <label class="form-label">Supplier Item Number</label>
+            <input type="text" class="form-control" [(ngModel)]="newProduct.SupplierItemNumber" name="SupplierItemNumber" required>
+          </div>
+          
+          <!-- Supplier Price field -->
+          <div class="mb-3">
+            <label class="form-label">Supplier Price</label>
+            <input type="number" class="form-control" [(ngModel)]="newProduct.SupplierPrice" name="SupplierPrice" 
+                  (input)="calculateFinalPrice()" required>
+          </div>
+          
+          <!-- Multiplication Factor field -->
+          <div class="mb-3">
+            <label class="form-label">Multiplication Factor</label>
+            <input type="number" class="form-control" [(ngModel)]="newProduct.MultiplicationFactor" name="MultiplicationFactor" 
+                  (input)="calculateFinalPrice()" required>
+          </div>
+          
+          <!-- Final Price field -->
+          <div class="mb-3">
+            <label class="form-label">Final Price</label>
+            <input type="number" class="form-control" [(ngModel)]="newProduct.FinalPrice" name="FinalPrice" required>
+          </div>
+          
+          <!-- Product Image field -->
+          <div class="mb-3">
+            <label class="form-label">Product Image</label>
+            <input type="file" class="form-control" (change)="onFileSelected($event)">
+            <!-- Display image preview if available -->
+            <div *ngIf="newProduct.Picture" class="mt-2">
+              <img [src]="newProduct.Picture" alt="Product Image Preview" class="img-thumbnail" style="max-height: 100px;">
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" (click)="resetProduct()">Close</button>
+        <button type="button" class="btn btn-primary" (click)="addProduct()">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Product Modal -->
+<div #editProductModal class="modal fade" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Edit Product</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form>
+          <!-- Product Code field -->
+          <div class="mb-3">
+            <label class="form-label">Product Code</label>
+            <input type="text" class="form-control" [(ngModel)]="editedProduct.ProductCode" name="EditProductCode" required>
+          </div>
+          
+          <!-- Product Name field -->
+          <div class="mb-3">
+            <label class="form-label">Product Name</label>
+            <input type="text" class="form-control" [(ngModel)]="editedProduct.ProductName" name="EditProductName" required>
+          </div>
+          
+          <!-- Supplier Code field -->
+          <div class="mb-3">
+            <label class="form-label">Supplier Code</label>
+            <input type="text" class="form-control" [(ngModel)]="editedProduct.SupplierCode" name="EditSupplierCode" required>
+          </div>
+          
+          <!-- Supplier Item Number field -->
+          <div class="mb-3">
+            <label class="form-label">Supplier Item Number</label>
+            <input type="text" class="form-control" [(ngModel)]="editedProduct.SupplierItemNumber" name="EditSupplierItemNumber" required>
+          </div>
+          
+          <!-- Final Price field -->
+          <div class="mb-3">
+            <label class="form-label">Final Price</label>
+            <input type="number" class="form-control" [(ngModel)]="editedProduct.FinalPrice" name="EditFinalPrice" required>
+          </div>
+          
+          <!-- Product Image field -->
+          <div class="mb-3">
+            <label class="form-label">Product Image</label>
+            <input type="file" class="form-control" (change)="onEditFileSelected($event)">
+            <!-- Display image preview if available -->
+            <div *ngIf="editedProduct.Picture" class="mt-2">
+              <img [src]="editedProduct.Picture" alt="Product Image Preview" class="img-thumbnail" style="max-height: 100px;">
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary" (click)="updateProduct()">Update</button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,112 @@
+<div class="container mt-4">
+    <h2>Home / Supplier</h2>
+
+    <!-- Search Bar -->
+    <div class="search-container">
+        <input type="text" class="form-control search-bar mb-3" placeholder="Search by Supplier ID, Name, Address" 
+        [(ngModel)]="searchTerm" (ngModelChange)="onSearchChange()"
+        >
+        <div class="header">
+            <button class="btn btn-primary mb-3" (click)="openModal()">Add Supplier</button>
+        </div>
+        
+        <div class="file-upload-container">
+            <label for="file-upload" class="file-upload-label">Choose File</label>
+            <input id="file-upload" type="file" (change)="onFileChange($event)" accept=".xls,.xlsx" hidden />
+        
+            <!-- Display the selected file name below -->
+            <div class="file-name" *ngIf="fileName">{{ fileName }}</div>
+        </div>
+        <button class="upload-btn" type="button" (click)="uploadExcel()" [disabled]="isUploading" [hidden]="!file">Upload</button>
+    </div>
+
+    <!-- Supplier Table with Horizontal Scrolling -->
+    <div class="table-responsive">
+        <table class="table table-bordered table-striped">
+            <thead>
+                <tr>
+                    <th (click)="sortBy('SupplierID')">Serial No
+                        <span *ngIf="sortColumn === 'SupplierID'">{{ sortDirection ? '▲' : '▼' }}</span>
+                    </th>
+                    <th (click)="sortBy('SupplierCode')">Supplier Code 
+                        <span *ngIf="sortColumn === 'SupplierCode'">{{ sortDirection ? '▲' : '▼' }}</span>
+                    </th>
+                    <th (click)="sortBy('SupplierName')">Supplier Name 
+                        <span *ngIf="sortColumn === 'SupplierName'">{{ sortDirection ? '▲' : '▼' }}</span>
+                    </th>
+                    <th (click)="sortBy('SupplierAddress')">Supplier Address 
+                        <span *ngIf="sortColumn === 'SupplierAddress'">{{ sortDirection ? '▲' : '▼' }}</span>
+                    </th>
+                    <th>Email Address
+                        <span *ngIf="sortColumn === 'EmailAddress'">{{ sortDirection ? '▲' : '▼' }}</span>
+                    </th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr *ngFor="let supplier of paginatedSuppliers, let i = index">
+                    <td>{{ supplier?.SupplierID }}</td>
+                    <td *ngIf="supplier">{{ supplier.SupplierCode }}</td>
+                    <td *ngIf="supplier">{{ supplier.SupplierName }}</td>
+                    <td *ngIf="supplier">{{ supplier.SupplierAddress }}</td>     
+                    <td *ngIf="supplier">{{ supplier.EmailAddress }}</td>     
+                    <td>
+                        <button class="btn btn-sm btn-warning me-2" (click)="editSupplier(supplier)">Edit</button>
+                        <button class="btn btn-sm btn-danger" (click)="deleteSupplier(supplier.SupplierID)">Delete</button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination Controls -->
+    <nav *ngIf="totalPages > 1">
+        <ul class="pagination">
+            <li class="page-item" [class.disabled]="currentPage === 1">
+                <button class="page-link" (click)="prevPage()">Previous</button>
+            </li>
+            <li class="page-item" *ngFor="let page of totalPagesArray" [class.active]="currentPage === page">
+                <button class="page-link" (click)="goToPage(page)">{{ page }}</button>
+            </li>
+            <li class="page-item" [class.disabled]="currentPage === totalPages">
+                <button class="page-link" (click)="nextPage()">Next</button>
+            </li>
+        </ul>
+    </nav>
+</div>
+
+<!-- Supplier Modal -->
+<div class="modal fade" #supplierModal tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">{{ isEdit ? 'Edit Supplier' : 'Add Supplier' }}</h5>
+                <button type="button" class="btn-close" (click)="closeModal()"></button>
+            </div>
+            <div class="modal-body">
+                <form #supplierForm="ngForm" (ngSubmit)="saveSupplier()">
+                    <div class="mb-3">
+                        <label class="form-label">Supplier Code</label>
+                        <input type="text" class="form-control" [(ngModel)]="newSupplier.SupplierCode" name="supplierCode" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Supplier Name</label>
+                        <input type="text" class="form-control" [(ngModel)]="newSupplier.SupplierName" name="supplierName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Supplier Address</label>
+                        <input type="text" class="form-control" [(ngModel)]="newSupplier.SupplierAddress" name="supplierAddress" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Supplier Email Address</label>
+                        <input type="text" class="form-control" [(ngModel)]="newSupplier.EmailAddress" name="emailaddress" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" (click)="closeModal()">Close</button>
+                <button type="button" class="btn btn-primary" (click)="saveSupplier()">Save</button>
+            </div>
+        </div>
+    </div>
+</div>

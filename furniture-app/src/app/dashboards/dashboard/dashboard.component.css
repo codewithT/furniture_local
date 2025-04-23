@@ -1,0 +1,17 @@
+.dashboard-container {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  .stats-container {
+    display: flex;
+    justify-content: space-between;
+  }
+  
+  .widgets-container {
+    display: flex;
+    gap: 16px;
+  }
+  

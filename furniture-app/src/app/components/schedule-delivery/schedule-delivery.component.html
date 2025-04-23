@@ -1,0 +1,150 @@
+<div class="purchase-container">
+  <div class="header">
+    <h2>Schedule Delivery</h2>
+    <div class="search-add">
+      <div class="search-box">
+        <input type="text" [(ngModel)]="searchQuery"
+         placeholder="Search Delivery products..."
+          (input)="searchDelivery()" />
+      </div>
+      <button class="btn btn-primary" (click)="openCalendar(calendarDialog)">Schedule Delivery</button>
+
+     <!-- Calendar Dialog Template -->
+<ng-template #calendarDialog>
+  <div class="calendar-dialog-content">
+    <h2 class="calendar-dialog-title">Schedule Delivery Date</h2>
+    <mat-form-field appearance="fill" class="calendar-field">
+      <mat-label>Select Transfer Date</mat-label>
+      <input matInput [matDatepicker]="picker" [(ngModel)]="selectedDate">
+      <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
+      <mat-datepicker #picker></mat-datepicker>
+    </mat-form-field>
+    
+    <div class="dialog-actions">
+      <button mat-button (click)="dialog.closeAll()">Cancel</button>
+      <button mat-button [mat-dialog-close]="selectedDate">Confirm</button>
+    </div>
+  </div>
+</ng-template>
+      
+      <button class="send-button" (click)="sendTermsAndConditions()">
+        <i class="fas fa-envelope"></i> Send T&C
+      </button>
+    </div>
+  </div>
+
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th><input type="checkbox" (change)="selectAll($event)" /></th>
+          <th (click)="sortTable('ProductCode')">Product Code</th>
+          <th (click)="sortTable('ProductName')">Product Name</th>
+          <th (click)="sortTable('Qty')">Quantity</th>
+          <th (click)="sortTable('SONumber')">SO Number</th>
+          <th (click)="sortTable('Delivery_date')">Cust Exp Del Date</th>
+          <th (click)="sortTable('POStatus')">PO Status</th>
+          <th (click)="sortTable('Payment_Status')">Payment Status</th>
+          <th (click)="sortTable('Transfer_Date')">Delivery Date</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      
+      <tbody>
+        <tr *ngFor="let deliver of paginatedDeliveryProducts">
+          <td><input type="checkbox" [(ngModel)]="deliver.selected" /></td>
+          <td>{{ deliver?.ProductCode }}</td>
+          <td>{{ deliver?.ProductName }}</td>
+          <td>{{ deliver?.Qty }}</td>
+          <td>{{ deliver?.SONumber }}</td>
+          <td>{{ deliver?.Delivery_date | date:'mediumDate' }}</td>
+          <td>{{ deliver?.POStatus }}</td>
+          <td>{{ deliver?.Payment_Status }}</td>
+          <td>{{ deliver?.Transfer_Date }}</td>
+          <td class="actions">
+            <button 
+            [ngClass]="deliver.Signature ? 'btn btn-success' : 'btn btn-secondary'" 
+            (click)="openSignatureDialog(deliver)">
+            <i class="fas fa-signature"></i> Sign
+          </button>
+          
+
+            <button class="btn btn-info" (click)="viewSignature(deliver)">
+              <i class="fas fa-eye"></i> View Signature
+            </button>
+          </td>
+        </tr>
+        
+        <tr *ngIf="deliveryProducts.length === 0">
+          <td colspan="10" class="no-data">No deliveries found</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="pagination-controls">
+    <div class="page-size-selector">
+      <span>Show:</span>
+      <select [(ngModel)]="pageSize" (change)="onPageSizeChange()">
+        <option *ngFor="let size of pageSizeOptions" [value]="size">{{ size }} entries</option>
+      </select>
+    </div>
+    <div class="pagination">
+      <button [disabled]="currentPage <= 1" (click)="decrementPage()" class="page-btn">
+        <i class="fas fa-chevron-left"></i>
+      </button>
+      <span>Page {{ currentPage }} of {{ totalPages }}</span>
+      <button [disabled]="currentPage >= totalPages" (click)="incrementPage()" class="page-btn">
+        <i class="fas fa-chevron-right"></i>
+      </button>
+    </div>
+  </div>
+</div>
+
+ 
+<ng-template #signatureDialog let-dialogRef>
+  <div class="signature-dialog-content">
+    <h2>Sign for Delivery</h2>
+
+    <div class="terms">
+      <h4>Terms and Conditions</h4>
+      <p>The price of goods and services is as stated in the quotation document and is subject to change until accepted by the seller.</p>
+      <p>The buyer may be able to return goods within a certain time frame.</p>
+      <p>The seller is responsible for delivery, but the buyer is responsible for delivery costs.</p>
+      <p>The seller warrants that the goods conform to the description and specifications.</p>
+      <p>The buyer is responsible for payment, and the seller may charge interest on late payments.</p>
+      
+    </div>
+    <canvas #signatureCanvas width="400" height="200" style="border:1px solid black;"></canvas>
+    <div class="dialog-actions">
+      <button mat-button (click)="clearSignature()">Clear</button>
+      <button mat-button (click)="saveSignature(selectedProduct, dialogRef)">Confirm</button>
+    </div>
+  </div>
+</ng-template>
+
+<ng-template #signatureViewDialog let-dialogRef>
+  <div class="signature-dialog-content">
+    <h2>Signed Delivery Terms</h2>
+
+    <div class="terms">
+      <h4>Terms and Conditions</h4>
+      <p>The price of goods and services is as stated in the quotation document and is subject to change until accepted by the seller.</p>
+      <p>The buyer may be able to return goods within a certain time frame.</p>
+      <p>The seller is responsible for delivery, but the buyer is responsible for delivery costs.</p>
+      <p>The seller warrants that the goods conform to the description and specifications.</p>
+      <p>The buyer is responsible for payment, and the seller may charge interest on late payments.</p>
+    </div>
+
+    <h4>Signed by Customer:</h4>
+    <img *ngIf="selectedSignature"
+         [src]="selectedSignature"
+         alt="Customer Signature"
+         width="400" height="200"
+         style="border:1px solid #333;" />
+
+    <div class="dialog-actions">
+      <button mat-button (click)="closeSignatureDialog()">Close</button>
+    </div>
+  </div>
+</ng-template>

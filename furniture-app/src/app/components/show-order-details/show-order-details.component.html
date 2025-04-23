@@ -1,0 +1,59 @@
+<mat-dialog-content class="dialog-content">
+    <h2 class="dialog-title">Order Details</h2>
+  
+    <mat-card class="order-card">
+      <mat-card-content>
+        <table class="order-table">
+          <tr>
+            <td><b>Sales ID:</b></td>
+            <td>{{ order.SalesID }}</td>
+          </tr>
+          <tr>
+            <td><b>SO Number:</b></td>
+            <td>{{ order.SONumber }}</td>
+          </tr>
+          <tr>
+            <td><b>Product ID:</b></td>
+            <td>{{ order.ProductID }}</td>
+          </tr>
+          <tr>
+            <td><b>Customer Name:</b></td>
+            <td>{{ order.Customer_name }}</td>
+          </tr>
+          <tr>
+            <td><b>Quantity:</b></td>
+            <td>{{ order.Qty }}</td>
+          </tr>
+          <tr>
+            <td><b>Price:</b></td>
+            <td>{{ order.Price | currency }}</td>
+          </tr>
+          <tr>
+            <td><b>GST:</b></td>
+            <td>{{ order.GST }}%</td>
+          </tr>
+          <tr>
+            <td><b>Total Price:</b></td>
+            <td>{{ order.TotalPrice | currency }}</td>
+          </tr>
+          <tr>
+            <td><b>Delivery Date:</b></td>
+            <td>{{ order.Delivery_date | date }}</td>
+          </tr>
+          <tr>
+            <td><b>Payment Status:</b></td>
+            <td>{{ order.Payment_Status }}</td>
+          </tr>
+          <tr>
+            <td><b>Customer Email:</b></td>
+            <td>{{ order.CustomerEmail }}</td>
+          </tr>
+        </table>
+      </mat-card-content>
+    </mat-card>
+  
+    <mat-dialog-actions align="end">
+      <button mat-button (click)="closeDialog()" color="primary">Close</button>
+    </mat-dialog-actions>
+  </mat-dialog-content>
+  

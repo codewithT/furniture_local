@@ -76,6 +76,12 @@ router.post('/login', async (req, res) => {
 router.post('/logout', (req, res) => {
   // Check if session exists but don't return error if it doesn't
   if (!req.session) {
+    res.clearCookie('connect.sid', { 
+      path: '/',  // Make sure this matches where the cookie was set
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+    });
     return res.json({ msg: 'Logged out successfully' });
   }
   

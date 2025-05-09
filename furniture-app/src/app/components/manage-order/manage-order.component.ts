@@ -51,7 +51,7 @@ export class ManageOrderComponent implements AfterViewInit, OnInit {
   searchTerm: string = '';
   pageSize = 5;
   pageIndex = 0;
-  pageSizeOptions: number[] = [5, 10, 15];
+  pageSizeOptions: number[] = [5, 10, 20, 50, 100 ];
   // searchTerm: string = '';
   constructor(private manageOrderService: ManageOrderService, 
     private router: Router, 

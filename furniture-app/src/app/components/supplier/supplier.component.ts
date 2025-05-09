@@ -32,14 +32,27 @@ export class SupplierComponent implements OnInit, AfterViewInit, OnDestroy {
     SupplierAddress: '', 
     EmailAddress: '',
   };
-  private searchSubject = new Subject<string>(); // Helps debounce search input
+  
+  // Upload progress tracking
+  uploadProgress: number = 0;
+  isUploading: boolean = false;
+  showProgress: boolean = false;
+  uploadMessage: string = '';
+  uploadStatus: 'idle' | 'processing' | 'success' | 'error' = 'idle';
+  uploadJobId: string = '';
+  pollInterval: any = null;
+  
+  private searchSubject = new Subject<string>();
+  private uploadSubscription: Subscription | null = null;
+  private progressSubscription: Subscription | null = null;
+  
   constructor(private supplierService: SupplierService, private cdr: ChangeDetectorRef) {}
 
   ngOnInit(): void {
     this.loadSuppliers();
     this.searchSubject.pipe(
-      debounceTime(300), // Wait 300ms after the last keystroke
-      distinctUntilChanged() // Only call API if value actually changes
+      debounceTime(300),
+      distinctUntilChanged()
     ).subscribe(query => {
       this.searchSuppliers(query);
     });
@@ -48,14 +61,25 @@ export class SupplierComponent implements OnInit, AfterViewInit, OnDestroy {
   ngAfterViewInit() {
     this.modal = new Modal(this.modalElement.nativeElement);
   }
+  
   ngOnDestroy() {
-    // Clean up any subscriptions when component is destroyed
     if (this.uploadSubscription) {
       this.uploadSubscription.unsubscribe();
       this.uploadSubscription = null;
     }
+    
+    if (this.progressSubscription) {
+      this.progressSubscription.unsubscribe();
+      this.progressSubscription = null;
+    }
+    
+    if (this.pollInterval) {
+      clearInterval(this.pollInterval);
+    }
+    
     this.searchSubject.complete();
   }
+  
   loadSuppliers() {
     this.supplierService.getSupplierDetails().subscribe({
       next: (data) => {
@@ -72,65 +96,186 @@ export class SupplierComponent implements OnInit, AfterViewInit, OnDestroy {
       }
     });
   }
+  
   onFileChange(event: Event) {
     const input = event.target as HTMLInputElement;
     if (input.files && input.files.length > 0) {
-      this.file = input.files[0];  
-      this.fileName = this.file.name;  // Update the displayed file name
+      const file = input.files[0];
+      // Validate file size (limit to 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        alert('File is too large. Maximum size is 10MB.');
+        input.value = '';
+        this.file = null;
+        this.fileName = '';
+        return;
+      }
+      
+      // Validate file type
+      const validExtensions = ['.xlsx', '.xls'];
+      const fileExt = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+      if (!validExtensions.includes(fileExt)) {
+        alert('Only Excel files (.xlsx, .xls) are allowed');
+        input.value = '';
+        this.file = null;
+        this.fileName = '';
+        return;
+      }
+      
+      this.file = file;
+      this.fileName = file.name;
+      this.uploadStatus = 'idle';
+      this.uploadProgress = 0;
     }
   }
+  
   fileName: string = '';
-  isUploading = false;
   
-  uploadSubscription: Subscription | null = null;
-
-uploadExcel() {
-  if (!this.file || this.isUploading) {
-    return;
-  }
-
-  this.isUploading = true;
-
-  const formData = new FormData();
-  formData.append('file', this.file);
-
-  if (this.uploadSubscription) {
-    this.uploadSubscription.unsubscribe();
-    this.uploadSubscription = null;
-  }
-  
-  this.uploadSubscription = this.supplierService.uploadExcelFile(formData).subscribe({
-    next: () => {
-      alert("Upload Successful");
-      this.isUploading = false;
-      this.file = null;
-      this.fileName = '';
-      // Refresh the supplier list
-      this.loadSuppliers();
-      // Complete and clean up the subscription
-      if (this.uploadSubscription) {
-        this.uploadSubscription.unsubscribe();
-        this.uploadSubscription = null;
-      }
-    },
-    error: (error) => {
-      alert(`Error on uploading: ${error}`);
-      this.isUploading = false;
-      // Clean up on error too
-      if (this.uploadSubscription) {
-        this.uploadSubscription.unsubscribe();
-        this.uploadSubscription = null;
-      }
-    },
-    complete: () => {
-      // Make sure to clean up on complete too
-      if (this.uploadSubscription) {
-        this.uploadSubscription.unsubscribe();
-        this.uploadSubscription = null;
-      }
+  uploadExcel() {
+    if (!this.file || this.isUploading) {
+      return;
     }
-  });
-}
+
+    this.isUploading = true;
+    this.showProgress = true;
+    this.uploadStatus = 'processing';
+    this.uploadProgress = 0;
+    this.uploadMessage = 'Preparing file for upload...';
+
+    const formData = new FormData();
+    formData.append('file', this.file);
+
+    if (this.uploadSubscription) {
+      this.uploadSubscription.unsubscribe();
+      this.uploadSubscription = null;
+    }
+    
+    this.uploadSubscription = this.supplierService.uploadExcelFile(formData).subscribe({
+      next: (response) => {
+        if (response.jobId) {
+          // Start polling for progress if this is a background job
+          this.uploadJobId = response.jobId;
+          this.uploadMessage = 'Processing file in background...';
+          this.startProgressPolling();
+        } else {
+          // Direct response (small files)
+          this.handleUploadSuccess(response);
+        }
+      },
+      error: (error) => {
+        this.handleUploadError(error);
+      }
+    });
+  }
+  
+  startProgressPolling() {
+    // Clear any existing interval
+    if (this.pollInterval) {
+      clearInterval(this.pollInterval);
+    }
+    
+    // Poll every 2 seconds
+    this.pollInterval = setInterval(() => {
+      this.checkUploadProgress();
+    }, 2000);
+  }
+  
+  checkUploadProgress() {
+    if (!this.uploadJobId) return;
+    
+    this.supplierService.checkJobProgress(this.uploadJobId).subscribe({
+      next: (progressData : any) => {
+        this.uploadProgress = progressData.percentage || 0;
+        this.uploadMessage = progressData.message || 'Processing...';
+        
+        // Job completed
+        if (progressData.status === 'completed') {
+          this.handleUploadSuccess(progressData);
+          clearInterval(this.pollInterval);
+        } 
+        // Job failed
+        else if (progressData.status === 'failed') {
+          this.handleUploadError(new Error(progressData.error || 'Upload failed'));
+          clearInterval(this.pollInterval);
+        }
+        
+        this.cdr.detectChanges();
+      },
+      error: (error) => {
+        console.error('Error checking progress:', error);
+        // Don't stop polling on temporary errors
+      }
+    });
+  }
+  
+  handleUploadSuccess(response: any) {
+    this.uploadStatus = 'success';
+    this.isUploading = false;
+    this.uploadProgress = 100;
+    
+    const successCount = response.stats?.successful || 0;
+    const failureCount = response.stats?.failed || 0;
+    
+    if (failureCount > 0) {
+      this.uploadMessage = `Upload completed with ${successCount} successful and ${failureCount} failed records.`;
+      console.warn('Failed records:', response.failures);
+    } else {
+      this.uploadMessage = `Successfully processed ${successCount} records.`;
+    }
+    
+    this.file = null;
+    this.fileName = '';
+    
+    // Refresh the supplier list
+    this.loadSuppliers();
+    
+    // Hide progress after 5 seconds
+    setTimeout(() => {
+      this.showProgress = false;
+      this.uploadProgress = 0;
+      this.uploadStatus = 'idle';
+      this.cdr.detectChanges();
+    }, 5000);
+    
+    this.cdr.detectChanges();
+  }
+  
+  handleUploadError(error: any) {
+    this.uploadStatus = 'error';
+    this.isUploading = false;
+    this.uploadMessage = `Error: ${error.message || 'Upload failed'}`;
+    console.error('Upload error:', error);
+    
+    // Hide progress after 5 seconds
+    setTimeout(() => {
+      this.showProgress = false;
+      this.uploadStatus = 'idle';
+      this.cdr.detectChanges();
+    }, 5000);
+    
+    this.cdr.detectChanges();
+  }
+  
+  cancelUpload() {
+    if (this.uploadJobId && this.isUploading) {
+      this.supplierService.cancelJob(this.uploadJobId).subscribe({
+        next: () => {
+          this.uploadStatus = 'idle';
+          this.isUploading = false;
+          this.showProgress = false;
+          this.uploadMessage = 'Upload cancelled';
+          
+          if (this.pollInterval) {
+            clearInterval(this.pollInterval);
+          }
+          
+          this.cdr.detectChanges();
+        },
+        error: (error) => {
+          console.error('Error cancelling job:', error);
+        }
+      });
+    }
+  }
 
   openModal() {
     if (!this.isEdit) {
@@ -163,11 +308,14 @@ uploadExcel() {
 
   deleteSupplier(supplierID: number) {
     if (confirm('Are you sure you want to delete this supplier?')) {
-      this.supplierService.deleteSupplier(supplierID).subscribe(() => {
-        this.suppliers = this.suppliers.filter(p => p.SupplierID !== supplierID);
-        this.updatePagination();
-      }, (error) => {
-        console.error('Error deleting supplier', error);
+      this.supplierService.deleteSupplier(supplierID).subscribe({
+        next: () => {
+          this.suppliers = this.suppliers.filter(p => p.SupplierID !== supplierID);
+          this.updatePagination();
+        },
+        error: (error) => {
+          console.error('Error deleting supplier', error);
+        }
       });
     }
   }
@@ -179,26 +327,29 @@ uploadExcel() {
     }
 
     if (this.isEdit) {
-      this.supplierService.updateSupplier(this.newSupplier).subscribe(() => {
-        const index = this.suppliers.findIndex(s => s.SupplierID === this.newSupplier.SupplierID);
-        if (index !== -1) {
-          this.suppliers[index] = { ...this.newSupplier };  
+      this.supplierService.updateSupplier(this.newSupplier).subscribe({
+        next: () => {
+          const index = this.suppliers.findIndex(s => s.SupplierID === this.newSupplier.SupplierID);
+          if (index !== -1) {
+            this.suppliers[index] = { ...this.newSupplier };  
+          }
+          this.loadSuppliers();
+          this.closeModal();
+        },
+        error: (error) => {
+          console.error('Error updating supplier', error);
         }
-        this.loadSuppliers();
-        this.cdr.detectChanges();
-        this.closeModal();
-      }, (error) => {
-        console.error('Error updating supplier', error);
       });
     } else {
-      this.supplierService.addSupplier(this.newSupplier).subscribe((newSupplier) => {
-        
-        this.suppliers = [...this.suppliers, newSupplier]; 
-        this.cdr.detectChanges();
-        this.closeModal();
-        this.updatePagination();
-      }, (error) => {
-        console.error('Error adding supplier', error);
+      this.supplierService.addSupplier(this.newSupplier).subscribe({
+        next: (newSupplier) => {
+          this.suppliers = [...this.suppliers, newSupplier]; 
+          this.closeModal();
+          this.updatePagination();
+        },
+        error: (error) => {
+          console.error('Error adding supplier', error);
+        }
       });
     }
   }
@@ -221,8 +372,9 @@ uploadExcel() {
       (error) => console.error('Error sorting suppliers:', error)
     );
   }
+  
   onSearchChange() {
-    this.searchSubject.next(this.searchTerm); // Push value into the Subject
+    this.searchSubject.next(this.searchTerm);
   }
 
   searchSuppliers(query: string) {
@@ -234,7 +386,6 @@ uploadExcel() {
       error => console.error('Error fetching suppliers:', error)
     );
   }
-
 
   get totalPages() {
     return Math.ceil(this.suppliers.length / this.entriesPerPage);

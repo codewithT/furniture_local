@@ -15,7 +15,8 @@ router.get("/confirm/:email", async (req, res) => {
         }
 
         const query = `
-        SELECT pm.PurchaseID, pm.PONumber, st.Qty, pm.Supplier_Date, prom.SupplierItemNumber
+        SELECT pm.PurchaseID, pm.PONumber, st.Qty, pm.Supplier_Date, prom.SupplierItemNumber,
+        prom.ProductName
         FROM purchasemaster pm
         JOIN productmaster prom ON pm.ProductID = prom.ProductID
         JOIN supplier sup ON pm.SupplierID = sup.SupplierID
@@ -59,10 +60,11 @@ router.post("/confirm/:email", async (req, res) => {
                     poStatus = "Discontinued";
                     queryParams = [poStatus, purchaseID];
                 } else if (status === "DELAYED" && delayedDate) {
-                    poStatus = "Delayed";
+                    poStatus = "Arriving Late";
+
                     queryParams = [poStatus, delayedDate, purchaseID];
                     return connection.promise().query(
-                        "UPDATE purchasemaster SET POStatus = ?, Supplier_Date = ? WHERE PurchaseID = ?",
+                        "UPDATE purchasemaster SET POStatus = ?, Delayed_Date = ?, Supplier_Date = NULL WHERE PurchaseID = ?",
                         queryParams
                     );
                 }

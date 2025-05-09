@@ -6,7 +6,9 @@ import { RouterModule } from '@angular/router';
 import { Modal } from 'bootstrap';
 import { ProductService } from '../../services/product.service';
 import { Product } from '../../models/product.model';
- 
+import { Subscription } from 'rxjs';
+import { interval } from 'rxjs';
+import { takeWhile } from 'rxjs/operators';
 @Component({
   selector: 'app-products',
   templateUrl: './products.component.html',
@@ -17,15 +19,26 @@ import { Product } from '../../models/product.model';
 export class ProductsComponent implements OnInit {
   @ViewChild('addProductModal') addProductModal!: ElementRef;
   @ViewChild('editProductModal') editProductModal!: ElementRef;
-  
+  @ViewChild('uploadExcelModal') uploadExcelModal!: ElementRef;
+   
+
   private addModal: Modal | null = null;
   private editModal: Modal | null = null;
-
+  private uploadModal: Modal | null = null;
   products: Product[] = [];
  
   searchTerm: string = '';
   selectedFile: File | null = null;
   supplierCodeValid: boolean | null = null;
+// Excel upload properties
+selectedExcelFile: File | null = null;
+uploadInProgress: boolean = false;
+uploadProgress: number = 0;
+uploadStatus: string = '';
+currentJobId: string | null = null;
+progressSubscription: Subscription | null = null;
+uploadStats: any = null;
+uploadFailures: any[] = [];
 
   // Pagination properties
   entriesPerPage: number = 5;
@@ -81,8 +94,134 @@ export class ProductsComponent implements OnInit {
     if (this.editProductModal) {
       this.editModal = new Modal(this.editProductModal.nativeElement);
     }
+    if (this.uploadExcelModal) {
+      this.uploadModal = new Modal(this.uploadExcelModal.nativeElement);
+    }
   }
-  
+  // Excel upload related methods
+  openUploadExcelModal() {
+    this.resetUploadState();
+    if (this.uploadModal) {
+      this.uploadModal.show();
+    }
+  }
+  resetUploadState() {
+    this.selectedExcelFile = null;
+    this.uploadInProgress = false;
+    this.uploadProgress = 0;
+    this.uploadStatus = '';
+    this.currentJobId = null;
+    this.uploadStats = null;
+    this.uploadFailures = [];
+    
+    // Clear any existing subscription
+    if (this.progressSubscription) {
+      this.progressSubscription.unsubscribe();
+      this.progressSubscription = null;
+    }
+  }
+  onExcelFileSelected(event: any) {
+    if (event.target.files && event.target.files[0]) {
+      const file = event.target.files[0];
+      const fileExt = file.name.split('.').pop()?.toLowerCase();
+      
+      if (fileExt !== 'xlsx' && fileExt !== 'xls') {
+        alert('Please select a valid Excel file (.xlsx or .xls)');
+        return;
+      }
+      
+      this.selectedExcelFile = file;
+    }
+  }
+
+  uploadExcelFile() {
+    if (!this.selectedExcelFile) {
+      alert('Please select an Excel file first');
+      return;
+    }
+    
+    this.uploadInProgress = true;
+    this.uploadProgress = 0;
+    this.uploadStatus = 'Starting upload...';
+    
+    const formData = new FormData();
+    formData.append('file', this.selectedExcelFile);
+    
+    this.productService.uploadProductExcel(formData).subscribe({
+      next: (response: any) => {
+        this.currentJobId = response.jobId;
+        this.startProgressTracking();
+      },
+      error: (error) => {
+        console.error('Failed to upload file', error);
+        this.uploadStatus = 'Upload failed: ' + (error.error?.message || 'Unknown error');
+        this.uploadInProgress = false;
+      }
+    });
+  }
+  startProgressTracking() {
+    if (!this.currentJobId) return;
+    
+    // Check progress every 2 seconds
+    this.progressSubscription = interval(2000)
+      .pipe(takeWhile(() => this.uploadInProgress && this.uploadProgress < 100))
+      .subscribe(() => {
+        this.checkUploadProgress();
+      });
+  }
+
+  checkUploadProgress() {
+    if (!this.currentJobId) return;
+    
+    this.productService.checkUploadProgress(this.currentJobId).subscribe({
+      next: (response: any) => {
+        this.uploadProgress = response.percentage;
+        this.uploadStatus = response.message;
+        this.uploadStats = response.stats;
+        this.uploadFailures = response.failures || [];
+        
+        if (response.status === 'completed') {
+          this.uploadInProgress = false;
+          // Reload products after successful upload
+          this.loadProducts();
+          if (this.progressSubscription) {
+            this.progressSubscription.unsubscribe();
+            this.progressSubscription = null;
+          }
+        } else if (response.status === 'failed' || response.status === 'cancelled') {
+          this.uploadInProgress = false;
+          if (this.progressSubscription) {
+            this.progressSubscription.unsubscribe();
+            this.progressSubscription = null;
+          }
+        }
+      },
+      error: (error) => {
+        console.error('Failed to check upload progress', error);
+        this.uploadStatus = 'Error checking progress: ' + (error.error?.message || 'Unknown error');
+        // Don't stop progress tracking as it might be a temporary error
+      }
+    });
+  }
+
+  cancelUpload() {
+    if (!this.currentJobId || !this.uploadInProgress) return;
+    
+    this.productService.cancelUploading(this.currentJobId).subscribe({
+      next: () => {
+        this.uploadStatus = 'Upload cancelled';
+        this.uploadInProgress = false;
+        if (this.progressSubscription) {
+          this.progressSubscription.unsubscribe();
+          this.progressSubscription = null;
+        }
+      },
+      error: (error : any) => {
+        console.error('Failed to cancel upload', error);
+        alert('Failed to cancel upload: ' + (error.error?.message || 'Unknown error'));
+      }
+    });
+  }
   // Open Add Product Modal
   openAddModal() {
     this.resetProduct();
@@ -277,7 +416,7 @@ export class ProductsComponent implements OnInit {
       return 0;
     });
   }
-
+  
   // Search Filter
   get filteredProducts() {
     return this.products.filter(product =>

@@ -26,7 +26,7 @@
       <thead>
         <tr>
           <th><input type="checkbox" (change)="selectAll($event)" /></th>
-          <th (click)="sortTable('PurchaseID')">PurchaseReq ID</th>
+          <th (click)="sortTable('PurchaseID')">Purchase <br> Request <br> ID</th>
           <th (click)="sortTable('ProductCode')">Product Code</th>
           <th (click)="sortTable('SupplierCode')">Supplier Code</th>
           <th (click)="sortTable('Qty')"> Quantity</th>
@@ -58,12 +58,17 @@
     'status-not-ordered': purchase?.POStatus === 'Not Ordered',
     'status-po-created': purchase?.POStatus === 'PO created',
     'status-confirmed': purchase?.POStatus === 'Confirmed',
-    'status-delayed': purchase?.POStatus === 'Delayed'
+    'status-delayed': purchase?.POStatus === 'Arriving Late',
+    'status-discontinued': purchase?.POStatus === 'Discontinued',
+    'status-out-for-delivery': purchase?.POStatus === 'Out for Delivery',
+    'status-delivered': purchase?.POStatus === 'Delivered',
   }"
 >
   {{ purchase?.POStatus }}
 </span>
-
+<div *ngIf="purchase?.POStatus === 'Arriving Late' && purchase?.Delayed_Date" class="delayed-date">
+    {{ purchase?.Delayed_Date | date:'mediumDate' }}
+</div>
           </td>
           
           <td>{{ purchase?.Supplier_Date | date:'mediumDate' }}</td>
@@ -159,6 +164,10 @@
           <input type="date" id="Delivery_date" [(ngModel)]="selectedPurchase.Delivery_date" />
         </div>
         <div class="form-group">
+          <label for="Delayed_Date">Delayed Date</label>
+          <input type="date" id="Delayed_Date" [(ngModel)]="selectedPurchase.Delayed_Date" />
+        </div>
+        <div class="form-group">
           <label for="Supplier_Date">Pick Up date</label>
           <input 
           type="date" 
@@ -176,11 +185,14 @@
         <div class="form-group">
           <label for="POStatus">PO Status</label>
           <select id="POStatus" [(ngModel)]="selectedPurchase.POStatus">
-            <option value="Awaiting">Awaiting</option>
+           
             <option value="Not Ordered">Not Ordered</option>
             <option value="PO created">PO Created</option>
+            <option value="Awaiting">Awaiting</option>
             <option value="Confirmed">Confirmed</option>
             <option value="Received">Received</option>
+            <option value="Discontinued">Discontinued</option>
+            <option value="Arriving Late">Arriving Late</option>
           </select>
         </div>
       </div>

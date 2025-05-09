@@ -12,12 +12,13 @@ const fs = require('fs');
   
 router.get('/delivery', requireAuth, (req, res) => {
     const sql = `SELECT pm.PurchaseID, pm.SONumber, pm.POStatus, prom.ProductCode, prom.ProductName, 
+    st.Customer_name,
     st.SONumber, st.Transfer_Date, st.Qty, st.Delivery_date, st.Payment_Status, st.SalesID, st.Signature
      FROM purchasemaster pm 
     JOIN productmaster prom ON pm.ProductID  = prom.ProductID
    
     JOIN salestable st ON pm.SalesID = st.SalesID
-    WHERE pm.POStatus = 'Received'
+    WHERE pm.POStatus = 'Received' OR pm.POStatus = 'Out for Delivery' OR pm.POStatus = 'Delivered'
     `;
     db.query(sql, (err, results) => {
         // console.log(results);
@@ -63,7 +64,7 @@ router.get('/delivery/search/:query', requireAuth, (req, res) => {
 });
  
 // Update transfer date for selected products
-router.put('/delivery/updateTransferDate', (req, res) => {
+router.put('/delivery/updateTransferDate', requireAuth, (req, res) => {
     const updates = req.body;
 
     if (!Array.isArray(updates) || updates.length === 0) {
@@ -73,7 +74,15 @@ router.put('/delivery/updateTransferDate', (req, res) => {
     let queries = updates.map(update => {
         return new Promise((resolve, reject) => {
             const formattedDate = moment(update.transferDate).format('YYYY-MM-DD HH:mm:ss');
-            const sql = `UPDATE salestable SET Transfer_Date = ? WHERE SalesID = ?`;
+            const sql =
+             `UPDATE salestable 
+              JOIN purchasemaster pm ON salestable.SalesID = pm.SalesID
+              SET 
+              salestable.Transfer_Date = ?,
+             pm.POStatus = 'Out for Delivery'
+              WHERE 
+             salestable.SalesID = ?
+            `;
             db.query(sql, [formattedDate, update.SalesID], (err, result) => {
                 if (err) reject(err);
                 resolve(result);
@@ -88,7 +97,7 @@ router.put('/delivery/updateTransferDate', (req, res) => {
 
 const upload = multer({ storage: storage });
 
-router.put('/delivery/uploadSignature', upload.single('signature'), (req, res) => {
+router.put('/delivery/uploadSignature', upload.single('signature'),  requireAuth,(req, res) => {
   const soNumber = req.body.soNumber;
   const signatureBuffer = req.file?.buffer;
      console.log('sonumber :', req.body.soNumber);
@@ -96,7 +105,10 @@ router.put('/delivery/uploadSignature', upload.single('signature'), (req, res) =
     return res.status(400).json({ error: 'Missing signature or salesID' });
   }
 
-  const sql = `UPDATE salestable SET Signature = ? WHERE SONumber = ?`;
+  const sql = `UPDATE salestable st 
+    JOIN purchasemaster pm ON st.SalesID = pm.SalesID
+  SET st.Signature = ? , pm.POStatus = 'Delivered'
+   WHERE st.SONumber = ?`;
 
   db.query(sql, [signatureBuffer, soNumber], (err, result) => {
     if (err) {

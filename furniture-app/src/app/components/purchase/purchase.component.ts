@@ -135,7 +135,15 @@ export class PurchaseComponent implements OnInit {
   
   sendEmails() {
     const selectedPurchases = this.getSelectedPurchases();
-    const confirmedPurchases = selectedPurchases.filter(purchase => purchase.POStatus === "Confirmed");
+    const confirmedPurchases = selectedPurchases.filter(purchase => purchase.POStatus === "Confirmed"
+      
+    );
+    const isPickUpDateValid = selectedPurchases.filter(purchase => purchase.Supplier_Date === null ||
+       purchase.Supplier_Date === undefined || purchase.Supplier_Date === '');
+    if (isPickUpDateValid.length > 0) {
+      alert("Please select a pickup date for selected purchases before sending emails.");
+      return;
+    }
     if (confirmedPurchases.length > 0) {
       alert("Cannot send email to a Confirmed Purchase");
       return;
@@ -239,10 +247,11 @@ export class PurchaseComponent implements OnInit {
       SupplierCode: '',
       SONumber: '',
       POStatus: '',
-      Delivery_date: new Date().toISOString().split('T')[0],
+      Delivery_date: '',
       PONumber: '',
       Qty: 0,
-      Supplier_Date: new Date().toISOString().split('T')[0]
+      Supplier_Date: '',
+      Delayed_Date: '',
     };
     this.suppliers = []; // Clear suppliers
     this.showModal = true;
@@ -251,17 +260,22 @@ export class PurchaseComponent implements OnInit {
 
   editPurchase(purchase: Purchase) {
     this.isEditing = true;
+    console.log("Editing purchase", purchase);
     this.selectedPurchase = { ...purchase };
-     // Format the dates properly for date inputs
-  if (this.selectedPurchase.Delivery_date) {
-    this.selectedPurchase.Delivery_date = new Date(this.selectedPurchase.Delivery_date)
-      .toISOString().split('T')[0];
-  }
+    //  // Format the dates properly for date inputs
+    //  if (this.selectedPurchase.Delivery_date) {
+    //   const date = new Date(this.selectedPurchase.Delivery_date);
+    //   const yyyy = date.getFullYear();
+    //   const mm = String(date.getMonth() + 1).padStart(2, '0'); // Month is 0-based
+    //   const dd = String(date.getDate()).padStart(2, '0');
+    //   this.selectedPurchase.Delivery_date = `${yyyy}-${mm}-${dd}`;
+    // }
+    
   
-  if (this.selectedPurchase.Supplier_Date) {
-    this.selectedPurchase.Supplier_Date = new Date(this.selectedPurchase.Supplier_Date)
-      .toISOString().split('T')[0];
-  }
+  // if (this.selectedPurchase.Supplier_Date) {
+  //   this.selectedPurchase.Supplier_Date = new Date(this.selectedPurchase.Supplier_Date)
+  //     .toISOString().split('T')[0];
+  // }
     console.log("Selected Purchase", this.selectedPurchase);
     this.showModal = true;
     // Fetch suppliers for this product

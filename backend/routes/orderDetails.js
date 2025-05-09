@@ -60,7 +60,7 @@ router.get('/order-details/:soNumber', requireAuth,(req, res) => {
             Discount: 0, // Assuming discount isn't stored in DB
             GrandTotal: parseFloat(results[0].GrandTotal),
             Created_at: results[0].Created_at,
-            Created_by: results[0].Created_by,
+            Created_by: results[0].Created_by.email,
             Delivery_date: results[0].Delivery_date,
             Customer_Contact: results[0].Customer_Contact,
             Payment_Mode: results[0].Payment_Mode,

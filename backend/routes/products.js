@@ -2,6 +2,360 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
 const requireAuth = require('./authMiddleware');
+// file upload
+const multer = require('multer');
+const xlsx = require('xlsx');
+const fs = require('fs');
+const path = require('path');
+const { v4: uuidv4 } = require('uuid');
+
+// Configure file upload with security settings
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = './productUploads/';
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    cb(null, `product-${Date.now()}-${Math.round(Math.random() * 1000)}${path.extname(file.originalname)}`);
+  }
+});
+const fileFilter = (req, file, cb) => {
+  const allowedExtensions = ['.xlsx', '.xls'];
+  const ext = path.extname(file.originalname).toLowerCase();
+  
+  if (!allowedExtensions.includes(ext)) {
+    return cb(new Error('Only Excel files (.xlsx, .xls) are allowed'), false);
+  }
+  
+  const allowedMimeTypes = [
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  ];
+  
+  if (!allowedMimeTypes.includes(file.mimetype)) {
+    return cb(new Error('Invalid file type'), false);
+  }
+  
+  cb(null, true);
+};
+const upload = multer({
+  storage,
+  fileFilter,
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB max
+  }
+});
+
+// Excel upload endpoint with job tracking for products
+router.post('/products/upload-excel', upload.single('file'), requireAuth, async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ message: 'No file uploaded' });
+  }
+  console.log('Product file uploaded:', req.file.path);
+  
+  try {
+    // Create a job ID
+    const jobId = uuidv4();
+    const userId = req.session.user.email;
+    
+    // Initialize job in database
+    const insertJobQuery = `
+      INSERT INTO product_upload_jobs (job_id, status, percentage, message, user_id, stats, failures, job_type) 
+      VALUES (?, 'processing', 0, 'Starting product file processing...', ?, '{"total":0,"successful":0,"failed":0}', '[]', 'product')
+    `;
+    
+    await pool.promise().query(insertJobQuery, [jobId, userId]);
+    
+    // Return job ID immediately
+    res.status(202).json({ jobId });
+    
+    // Process file in background
+    processProductExcelFile(req.file.path, jobId, userId);
+    
+  } catch (error) {
+    console.error('Error initiating product upload job:', error);
+    res.status(500).json({ message: 'Error starting product upload process' });
+    
+    // Clean up the uploaded file
+    if (req.file) {
+      fs.unlink(req.file.path, (err) => {
+        if (err) console.error("Error deleting file:", err);
+      });
+    }
+  }
+});
+
+// Function to update job status in database
+async function updateJobStatus(jobId, status, percentage, message, stats = null, failures = null) {
+  try {
+    let query = `
+      UPDATE product_upload_jobs 
+      SET status = ?, percentage = ?, message = ?
+    `;
+    
+    const params = [status, percentage, message];
+    
+    if (stats !== null) {
+      query += ', stats = ?';
+      params.push(JSON.stringify(stats));
+    }
+    
+    if (failures !== null) {
+      query += ', failures = ?';
+      params.push(JSON.stringify(failures));
+    }
+    
+    query += ' WHERE job_id = ?';
+    params.push(jobId);
+    
+    await pool.promise().query(query, params);
+  } catch (error) {
+    console.error(`Error updating job ${jobId} status:`, error);
+  }
+}
+
+// Background product file processing function
+// Background product file processing function
+// Background product file processing function
+async function processProductExcelFile(filePath, jobId, userId) {
+  let connection = null;
+  
+  try {
+    // Update job status
+    await updateJobStatus(jobId, 'processing', 10, 'Reading Excel file...');
+    
+    // Read the Excel file with raw values to handle currency formatting
+    const workbook = xlsx.readFile(filePath, { cellText: false, cellDates: true, raw: true });
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    const sheetData = xlsx.utils.sheet_to_json(worksheet);
+    
+    console.log('Excel data sample:', sheetData.slice(0, 2)); // Debug: Show the first two rows
+    
+    // Update job with total records
+    const stats = { total: sheetData.length, successful: 0, failed: 0 };
+    await updateJobStatus(
+      jobId, 
+      'processing', 
+      20, 
+      `Processing ${sheetData.length} product records...`,
+      stats
+    );
+    
+    // Get database connection
+    connection = await pool.promise().getConnection();
+    await connection.beginTransaction();
+    
+    // FIXED: Remove SupplierCode from the insert query fields
+    const insertQuery = `
+      INSERT INTO productmaster
+      (ProductCode, ProductName, SupplierID, SupplierItemNumber, 
+       SupplierPrice, MultiplicationFactor, FinalPrice, Created_by, created_date, created_time)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURDATE(), CURTIME())
+    `;
+    
+    const failures = [];
+    
+    // Prepare a query to get SupplierID from SupplierCode
+    const supplierLookupQuery = `SELECT SupplierID FROM supplier WHERE SupplierCode = ?`;
+    
+    // Process each row
+    for (let i = 0; i < sheetData.length; i++) {
+      const row = sheetData[i];
+      
+      try {
+        // Extract data (with validation and cleanup)
+        const productCode = String(row.ProductCode || '').trim();
+        const productName = String(row.ProductName || '').trim();
+        const supplierCode = String(row.SupplierCode || '').trim();
+        const supplierItemNumber = String(row.SupplierItemNumber || '').trim();
+        
+        // Clean currency values - remove $ signs and commas
+        const supplierPriceString = String(row.SupplierPrice || '0').replace(/[$,]/g, '');
+        const supplierPrice = parseFloat(supplierPriceString) || 0;
+        
+        const multiplicationFactorString = String(row.MultiplicationFactor || '0').replace(/[$,]/g, '');
+        const multiplicationFactor = parseFloat(multiplicationFactorString) || 0;
+        
+        // Calculate final price or use provided value
+        let finalPrice;
+        if (row.FinalPrice) {
+          const finalPriceString = String(row.FinalPrice).replace(/[$,]/g, '');
+          finalPrice = parseFloat(finalPriceString) || 0;
+        } else {
+          finalPrice = supplierPrice * multiplicationFactor;
+        }
+        
+        // Validate required fields
+        if (!productCode || !productName || !supplierCode) {
+          throw new Error(`Missing required fields in row ${i+1}: ${JSON.stringify({productCode, productName, supplierCode})}`);
+        }
+        
+        // Look up supplierID from supplierCode
+        const [supplierRows] = await connection.query(supplierLookupQuery, [supplierCode]);
+        if (supplierRows.length === 0) {
+          throw new Error(`Invalid supplier code: ${supplierCode}`);
+        }
+        const supplierID = supplierRows[0].SupplierID;
+        
+        // Debug values
+        console.log(`Row ${i+1} values:`, {
+          productCode, productName, supplierCode, supplierID, supplierItemNumber,
+          supplierPrice, multiplicationFactor, finalPrice
+        });
+        
+        // FIXED: Remove supplierCode from the values array
+        await connection.query(insertQuery, [
+          productCode, productName, supplierID, supplierItemNumber,
+          supplierPrice, multiplicationFactor, finalPrice, userId
+        ]);
+        
+        stats.successful++;
+      } catch (error) {
+        // Track failed records
+        console.error(`Error in row ${i+1}:`, error.message);
+        stats.failed++;
+        failures.push({
+          row: i + 1,
+          data: JSON.stringify(row),
+          error: error.message
+        });
+      }
+      
+      // Update progress periodically
+      const updateInterval = Math.max(5, Math.floor(sheetData.length / 20));
+      if (i % updateInterval === 0 || i === sheetData.length - 1) {
+        const progress = Math.min(20 + Math.floor((i / sheetData.length) * 70), 90);
+        await updateJobStatus(
+          jobId, 
+          'processing', 
+          progress, 
+          `Processed ${i + 1} of ${sheetData.length} product records...`,
+          stats,
+          failures
+        );
+      }
+    }
+    
+    // Commit transaction
+    await connection.commit();
+    connection.release();
+    connection = null;
+    
+    // Update job status to completed
+    await updateJobStatus(
+      jobId, 
+      'completed', 
+      100, 
+      `Processing complete. ${stats.successful} product records added successfully.`,
+      stats,
+      failures
+    );
+    
+  } catch (err) {
+    console.error('Error processing product Excel file:', err);
+    
+    // Update job status to failed
+    await updateJobStatus(
+      jobId, 
+      'failed', 
+      0, 
+      `Error: ${err.message}`
+    );
+    
+    // Try to rollback if connection exists
+    if (connection) {
+      try {
+        await connection.rollback();
+        connection.release();
+      } catch (e) {
+        console.error('Rollback failed:', e);
+      }
+    }
+  } finally {
+    // Delete the file
+    fs.unlink(filePath, (err) => {
+      if (err) console.error("Error deleting file:", err);
+    });
+  }
+}
+
+// Job progress checking endpoint - can be shared between suppliers and products
+ 
+router.get('/products/job-progress/:jobId', requireAuth, async (req, res) => {
+  const { jobId } = req.params;
+  
+  try {
+    const [jobs] = await pool.promise().query(
+      'SELECT * FROM product_upload_jobs WHERE job_id = ?',
+      [jobId]
+    );
+    
+    if (jobs.length === 0) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+    
+    const job = jobs[0];
+    
+    // Parse JSON fields - check if they are already objects or strings
+    let stats = job.stats;
+    let failures = job.failures;
+    
+    // Only parse if they're strings
+    if (typeof stats === 'string') {
+      stats = JSON.parse(stats);
+    }
+    
+    if (typeof failures === 'string') {
+      failures = JSON.parse(failures);
+    }
+    
+    res.json({
+      status: job.status,
+      percentage: job.percentage,
+      message: job.message,
+      stats,
+      failures: Array.isArray(failures) ? failures.slice(0, 10) : [] // Only return first 10 failures and ensure it's an array
+    });
+  } catch (error) {
+    console.error('Error fetching job progress:', error);
+    res.status(500).json({ error: 'Failed to fetch job progress' });
+  }
+});
+
+// Job cancellation endpoint - can be shared between suppliers and products
+router.post('/products/cancel-job', requireAuth, async (req, res) => {
+  const { jobId } = req.body;
+  
+  try {
+    const [result] = await pool.promise().query(
+      'UPDATE product_upload_jobs SET status = "cancelled", message = "Job cancelled by user" WHERE job_id = ? AND status = "processing"',
+      [jobId]
+    );
+    
+    if (result.affectedRows === 0) {
+      const [jobs] = await pool.promise().query(
+        'SELECT status FROM product_upload_jobs WHERE job_id = ?',
+        [jobId]
+      );
+      
+      if (jobs.length === 0) {
+        return res.status(404).json({ error: 'Job not found' });
+      } else if (jobs[0].status !== 'processing') {
+        return res.status(400).json({ error: `Cannot cancel job with status: ${jobs[0].status}` });
+      }
+    }
+    
+    res.json({ message: 'Job cancelled successfully' });
+  } catch (error) {
+    console.error('Error cancelling job:', error);
+    res.status(500).json({ error: 'Failed to cancel job' });
+  }
+});
+
 
 // GET all products
 router.get('/products', requireAuth, (req, res) => {

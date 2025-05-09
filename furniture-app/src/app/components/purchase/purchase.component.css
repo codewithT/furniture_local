@@ -205,12 +205,15 @@
   
   .modal-container {
     background: white;
-    width: 400px;
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-    position: relative;
-    animation: fadeIn 0.3s ease-in-out;
+  width: 90%;
+  max-width: 500px;
+  max-height: 90vh; /* limits height to 90% of viewport */
+  overflow-y: auto;  /* allows vertical scroll if needed */
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  position: relative;
+  animation: fadeIn 0.3s ease-in-out;
   }
   
   .modal-header {
@@ -386,4 +389,21 @@
   .status-delayed {
     background-color: red;
   }
+  .status-discontinued {
+    background-color: #e12e67; /* Bootstrap danger red */
+  }
   
+  .delayed-date {
+    font-size: 12px;
+    color: #171413;
+    margin-top: 4px;
+    font-style: italic;
+  }
+  
+  .status-out-for-delivery {
+    font-weight: bold;
+    background-color: #6481f7;
+  }
+  .status-delivered {
+    background-color: #00b894;
+  }

@@ -6,6 +6,8 @@ import { AuthService } from '../../services/auth.service';
 import { InvoiceService } from '../invoice/invoice.service';
 import { Router } from '@angular/router';
 import { environment } from '../../../environments/environment';
+import { debounceTime, distinctUntilChanged, Subject, switchMap } from 'rxjs';
+
 @Component({
   selector: 'app-add-order',
   imports: [ReactiveFormsModule, FormsModule, CommonModule],
@@ -16,9 +18,16 @@ import { environment } from '../../../environments/environment';
 export class AddOrderComponent implements OnInit {
   orderForm!: FormGroup;
   environment = environment;
+  
+  // Product search related properties
+  productSearchTerms: { [index: number]: Subject<string> } = {};
+  productSuggestions: { [index: number]: any[] } = {};
+  showProductSuggestions: { [index: number]: boolean } = {};
+  suppressBlur: boolean = false; // New flag to control blur behavior
+  
   constructor(private fb: FormBuilder,
-    private addOrderService : AddOrderService,
-    private authService : AuthService,
+    private addOrderService: AddOrderService,
+    private authService: AuthService,
     private invoiceService: InvoiceService,
     private router: Router
   ) {}
@@ -26,6 +35,7 @@ export class AddOrderComponent implements OnInit {
   ngOnInit(): void {
     this.initializeForm();
   }
+
   getFutureDate(days: number): string {
     const futureDate = new Date();
     futureDate.setDate(futureDate.getDate() + days);
@@ -35,20 +45,20 @@ export class AddOrderComponent implements OnInit {
   initializeForm() {
     this.orderForm = this.fb.group({
       clientEmail: ['', [Validators.required, Validators.minLength(3)]],
-      customerName : ['', [Validators.required,]],
+      customerName: ['', [Validators.required,]],
       clientContact: ['', [Validators.required, Validators.pattern('^[0-9]{10}$')]],
       items: this.fb.array([]),
       subAmount: [{ value: 0, disabled: true }],
       totalAmount: [{ value: 0, disabled: true }],
       grandTotal: [0, Validators.required],
-      gst: [ 0 , Validators.required ],
+      gst: [0, Validators.required],
       discount: [0],
       paymentStatus: ['', Validators.required],
       shipToParty: [''],
-      internalNote : [''],
+      internalNote: [''],
       expectedDeliveryDate: [this.getFutureDate(21), Validators.required],
-      paymentMode: ['', Validators.required], // New field for payment mode
-      otherPaymentDetails: [{ value: '', disabled: true }] ,// Disabled by default
+      paymentMode: ['', Validators.required],
+      otherPaymentDetails: [{ value: '', disabled: true }],
       paidAmount: [0, Validators.required],
       dueAmount: [{ value: 0, disabled: true }],
     });
@@ -75,6 +85,9 @@ export class AddOrderComponent implements OnInit {
   addItem() {
     const index = this.items.length; // Track index for each row
     this.supplierCodes[index] = [];
+    this.productSuggestions[index] = [];
+    this.showProductSuggestions[index] = false;
+    this.productSearchTerms[index] = new Subject<string>();
     
     const item = this.fb.group({
       selected: [false],
@@ -86,26 +99,22 @@ export class AddOrderComponent implements OnInit {
       total: [{ value: 0, disabled: true }]
     });
 
+    // Setup product search with debounce
+    this.productSearchTerms[index].pipe(
+      debounceTime(10), // Wait 300ms after each keystroke
+      distinctUntilChanged(), // Ignore if same as previous
+      switchMap(term => this.addOrderService.searchProductsByCode(term))
+    ).subscribe(products => {
+      this.productSuggestions[index] = products;
+      this.showProductSuggestions[index] = products.length > 0;
+    });
+
     // Product code change handler
     item.get('ProductCode')?.valueChanges.subscribe((productCode) => {
-      if (productCode) {
-        this.addOrderService.getSupplierCodesByProductCode(productCode).subscribe(
-          (data: any[]) => {
-            if (data && data.length) {
-              // Update supplier codes for this row
-              this.supplierCodes[index] = data.map(supplier => ({
-                SupplierID: supplier.SupplierID,
-                SupplierCode: supplier.SupplierCode,
-                ProductCode: productCode,
-              }));
-              
-              console.log(`Supplier codes for row ${index}:`, this.supplierCodes[index]);
-            }
-          },
-          (error) => {
-            console.error('Error fetching supplier codes:', error);
-          }
-        );
+      if (productCode && productCode.length >= 3) {
+        this.productSearchTerms[index].next(productCode);
+      } else {
+        this.showProductSuggestions[index] = false;
       }
     });
 
@@ -132,7 +141,7 @@ export class AddOrderComponent implements OnInit {
       if (item.get('total')?.value !== total) {
         item.get('total')?.setValue(total, { emitEvent: false });
       }
-      
+
       this.updateStoredProduct(index, { quantity: qty, total });
       this.updateSubAmount();
     });
@@ -190,7 +199,7 @@ export class AddOrderComponent implements OnInit {
               SupplierID: selectedSupplier.SupplierID,
               SupplierCode: selectedSupplier.SupplierCode,
               ProductCode: selectedSupplier.ProductCode,
-              ProductName : data.ProductName,
+              ProductName: data.ProductName,
               ProductID: data.ProductID,
               Check: item.selected || false,
               index: index,
@@ -203,7 +212,6 @@ export class AddOrderComponent implements OnInit {
               // Update existing entry
               this.storeProductSupplierIdCodes[existingIndex] = productData;
             } else {
-               
               this.storeProductSupplierIdCodes.push(productData);
             }
             
@@ -214,6 +222,67 @@ export class AddOrderComponent implements OnInit {
           console.error('Error fetching Product ID:', error);
         }
       );
+  }
+
+  // New method to handle mouse down on suggestion
+  onProductSuggestionMouseDown() {
+    this.suppressBlur = true;
+    
+    // Reset the flag after a short delay
+    setTimeout(() => {
+      this.suppressBlur = false;
+    }, 200);
+  }
+
+  // New method to handle product suggestion selection
+  selectProductSuggestion(product: any, index: number) {
+    // Reset the suppressBlur flag
+    this.suppressBlur = false;
+
+    // Hide suggestions immediately
+    this.showProductSuggestions[index] = false;
+    
+    const itemControl = this.items.at(index);
+    itemControl.get('ProductCode')?.setValue(product.ProductCode);
+    
+    // Fetch supplier codes for this product code
+    this.addOrderService.getSupplierCodesByProductCode(product.ProductCode).subscribe(
+      (data: any[]) => {
+        if (data && data.length) {
+          // Update supplier codes for this row
+          this.supplierCodes[index] = data.map(supplier => ({
+            SupplierID: supplier.SupplierID,
+            SupplierCode: supplier.SupplierCode,
+            ProductCode: product.ProductCode,
+          }));
+          
+          console.log(`Supplier codes for row ${index}:`, this.supplierCodes[index]);
+          
+          // If there's only one supplier, select it automatically
+          if (this.supplierCodes[index].length === 1) {
+            itemControl.get('SupplierCode')?.setValue(this.supplierCodes[index][0].SupplierCode);
+            
+            // Simulate the change event to populate product details
+            const event = {
+              target: { value: this.supplierCodes[index][0].SupplierCode }
+            } as unknown as Event;
+            this.handleSupplierSelect(event, index);
+          }
+        }
+      },
+      (error) => {
+        console.error('Error fetching supplier codes:', error);
+      }
+    );
+  }
+  
+  // Hide suggestions when clicking outside, but check suppressBlur flag
+  hideProductSuggestions(index: number) {
+    if (!this.suppressBlur) {
+      setTimeout(() => {
+        this.showProductSuggestions[index] = false;
+      }, 200);
+    }
   }
   
   log() {
@@ -242,15 +311,19 @@ export class AddOrderComponent implements OnInit {
       this.storeProductSupplierIdCodes.splice(itemIndex, 1);
     }
     
+    // Clean up related resources
+    delete this.supplierCodes[index];
+    delete this.productSuggestions[index];
+    delete this.showProductSuggestions[index];
+    delete this.productSearchTerms[index];
+    
     this.updateSubAmount();
   }
 
   setupFormListeners() {
     this.orderForm.get('gst')?.valueChanges.subscribe(() => this.updateGrandTotal());
-     // Update totals when discount or paid amount changes
-     this.orderForm.get('discount')?.valueChanges.subscribe(() => this.updateGrandTotal());
-     this.orderForm.get('paidAmount')?.valueChanges.subscribe(() => this.updateGrandTotal());
-
+    this.orderForm.get('discount')?.valueChanges.subscribe(() => this.updateGrandTotal());
+    this.orderForm.get('paidAmount')?.valueChanges.subscribe(() => this.updateGrandTotal());
   }
   
   updateSubAmount() {
@@ -266,8 +339,8 @@ export class AddOrderComponent implements OnInit {
     const paidAmount = this.orderForm.get('paidAmount')?.value || 0;
   
     const gst = subTotal * (gstPercentage * 0.01);
-    const grandTotal = subTotal + gst - discount;
-    const dueAmount = grandTotal - paidAmount;
+    const grandTotal = parseFloat((subTotal + gst - discount).toFixed(2));
+    const dueAmount = parseFloat((grandTotal - paidAmount).toFixed(2));
   
     if (this.orderForm.get('grandTotal')?.value !== grandTotal) {
       this.orderForm.get('grandTotal')?.setValue(grandTotal, { emitEvent: false });
@@ -345,11 +418,14 @@ export class AddOrderComponent implements OnInit {
     }
   }
   
+  // checking place order 
+  placeOrderCheck: boolean = false;
   submitOrder() {
+    this.placeOrderCheck = true;
     if (this.orderForm.valid) {
       console.log('Order Submitted:', this.orderForm.getRawValue());
       const orderData = this.orderForm.getRawValue();
-  
+      
       // Prepare items for API
       const ItemsData = this.storeProductSupplierIdCodes.map(item => ({
         ProductID: item.ProductID || null,
@@ -358,7 +434,7 @@ export class AddOrderComponent implements OnInit {
         SupplierCode: item.SupplierCode || '',
         Qty: item.quantity || 0,
         Price: item.rate || 0,
-        TotalPrice: (item.quantity || 0) * (item.rate || 0), // Ensure total is calculated  || 0,
+        TotalPrice: (item.quantity || 0) * (item.rate || 0),
         Check: item.Check || false,
       }));
   
@@ -369,7 +445,7 @@ export class AddOrderComponent implements OnInit {
         POStatus: orderData.POStatus || 'Not Ordered',
         PONumber: orderData.PONumber || '',
         CustomerEmail: orderData.clientEmail || '',
-        Customer_name : orderData.customerName || '', 
+        Customer_name: orderData.customerName || '', 
         Customer_Contact: orderData.clientContact || '',
         GST: orderData.gst || 0,
         ShipToParty: orderData.shipToParty || '',
@@ -383,9 +459,7 @@ export class AddOrderComponent implements OnInit {
       this.addOrderService.submitCheckedOrder(finalData).subscribe(
         (response) => {
           console.log('Order response:', response);
-          alert('Order placed successfully!');
-          // this.orderForm.reset({}, { emitEvent: false });
-          // this.initializeForm();
+          alert(`Order placed successfully with Sale Order Number: ${response.SONumber}`);
         },
         (error) => {
           console.error('Error submitting order:', error);
@@ -395,21 +469,25 @@ export class AddOrderComponent implements OnInit {
       alert('Please fill all required fields correctly.');
     }
   }
-  // Add this method to your AddOrderComponent class
 
-printInvoice() {
-  if (this.orderForm.valid) {
-    // First generate the invoice data
-    this.generateInvoice();
-    
-    // Then navigate to invoice page and trigger print
-    this.router.navigate([`/u/invoice`], { 
-      queryParams: { 
-        print: 'true' 
-      }
-    });
-  } else {
-    alert('Please fill all required fields correctly before generating an invoice.');
+  printInvoice() {
+    if(!this.placeOrderCheck) {
+      alert('Please place the order before generating an invoice.');
+      return;
+    }
+    this.placeOrderCheck = false;
+    if (this.orderForm.valid) {
+      // First generate the invoice data
+      this.generateInvoice();
+      
+      // Then navigate to invoice page and trigger print
+      this.router.navigate([`/u/invoice`], { 
+        queryParams: { 
+          print: 'true' 
+        }
+      });
+    } else {
+      alert('Please fill all required fields correctly before generating an invoice.');
+    }
   }
-}
 }

@@ -33,7 +33,10 @@ router.get('/supplier/:productCode', requireAuth, async (req, res) => {
 
 // Fetch ProductID based on ProductCode and SupplierID
 router.post('/supplier/getProductID', requireAuth, (req, res) => {
-    const { ProductCode, SupplierID } = req.body;
+    let { ProductCode, SupplierID } = req.body;
+    
+    // Trim ProductCode
+    ProductCode = ProductCode?.trim();
 
     if (!ProductCode || !SupplierID) {
         return res.status(400).json({ error: 'ProductCode and SupplierID are required' });
@@ -136,7 +139,7 @@ router.post('/addOrders/submit-purchase', (req, res) => {
                     ShipToParty || 'DefaultParty',
                     CustomerEmail || '',
                     InternalNote || '',
-                    Created_by || 'Unknown',
+                    Created_by.email || 'Unknown',
                     currentDate,
                     currentTime,
                     formattedTimestamp,
@@ -168,7 +171,7 @@ router.post('/addOrders/submit-purchase', (req, res) => {
                             item.SupplierID || null,
                             insertedSalesIds + index,  // Use incremented ID for each row
                             recordMargin || 0.00,
-                            Created_by || 'Unknown',
+                            Created_by.email || 'Unknown',
                             currentDate,
                             currentTime,
                             formattedDeliveryDate,
@@ -204,6 +207,40 @@ router.post('/addOrders/submit-purchase', (req, res) => {
     });
 });
 
- 
+// Search products by code
+router.get('/product-search/:searchTerm', requireAuth, (req, res) => {
+    const searchTerm = req.params.searchTerm;
+    
+    if (!searchTerm || searchTerm.length < 2) {
+        return res.json([]);
+    }
+    
+    const query = `
+        SELECT pm.ProductID, pm.ProductCode, pm.ProductName, pm.FinalPrice, pm.SupplierID
+        FROM productmaster pm
+        WHERE pm.ProductCode LIKE ? OR pm.ProductName LIKE ?
+        ORDER BY pm.ProductCode
+        LIMIT 10
+    `;
+
+    pool.getConnection((err, connection) => {
+        if (err) {
+            console.error('Error acquiring connection:', err);
+            return res.status(500).json({ error: 'Database connection error' });
+        }
+
+        connection.query(query, [`%${searchTerm}%`, `%${searchTerm}%`], (err, results) => {
+            connection.release();
+            
+            if (err) {
+                console.error('Error searching products:', err);
+                return res.status(500).json({ error: 'Database query error' });
+            }
+
+            res.json(results);
+        });
+    });
+});
+  
 
 module.exports = router;

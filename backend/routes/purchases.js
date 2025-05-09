@@ -15,14 +15,24 @@ const transporter = nodemailer.createTransport({
 
 // Get all purchases
 router.get('/purchase', requireAuth,(req, res) => {
-    const query = `SELECT PurchaseID, sales.SONumber, sales.Delivery_date, POStatus, pm.PONumber,
-    pm.Supplier_Date,
-    sup.SupplierCode , prom.ProductCode , sales.Qty
-     FROM purchasemaster pm 
-     JOIN supplier sup on pm.SupplierID = sup.SupplierID
-     JOIN productmaster prom on pm.ProductID = prom.ProductID
-     JOIN salestable sales on pm.SalesID = sales.SalesID
-     ORDER By pm.PurchaseID DESC
+    const query = `
+    SELECT 
+    PurchaseID, 
+    sales.SONumber, 
+    DATE_FORMAT(sales.Delivery_date, '%Y-%m-%d') AS Delivery_date, 
+    POStatus, 
+    pm.PONumber,
+    DATE_FORMAT(pm.Supplier_Date, '%Y-%m-%d') AS Supplier_Date,
+    sup.SupplierCode, 
+    prom.ProductCode, 
+    sales.Qty, 
+    DATE_FORMAT(pm.Delayed_Date, '%Y-%m-%d') AS Delayed_Date
+FROM purchasemaster pm 
+JOIN supplier sup ON pm.SupplierID = sup.SupplierID
+JOIN productmaster prom ON pm.ProductID = prom.ProductID
+JOIN salestable sales ON pm.SalesID = sales.SalesID
+ORDER BY pm.PurchaseID DESC;
+
      `;
     
     db.getConnection((err, connection) => {
@@ -44,8 +54,8 @@ router.get('/purchase', requireAuth,(req, res) => {
 
 // add purchase request
 router.post('/purchase',requireAuth, requireAuth, (req, res) => {
-    const { SONumber, Delivery_date, POStatus, ProductCode,ProductID, SupplierID, SupplierCode, Qty } = req.body;
-    const createdBy = req.Created_by; // Assuming requireAuth middleware adds user info to req.user
+    const { SONumber, Delivery_date, POStatus, ProductCode,ProductID, SupplierID, SupplierCode, Qty , Created_by} = req.body;
+    const createdBy = req.Created_by.email; // Assuming requireAuth middleware adds user info to req.user
     let formatedDate = 0;
     if (Delivery_date) {
         formatedDate = moment(Delivery_date).format("YYYY-MM-DD HH:mm:ss");
@@ -80,7 +90,7 @@ router.post('/purchase',requireAuth, requireAuth, (req, res) => {
 router.put('/purchase/:id', requireAuth, (req, res) => {
     const purchaseId = req.params.id;
     console.log(req.body);
-    const { SONumber, Delivery_date, POStatus, PONumber, ProductCode, SupplierCode, Supplier_Date, Qty } = req.body;
+    const { SONumber, Delivery_date, POStatus, PONumber, ProductCode, SupplierCode, Supplier_Date, Qty, Delayed_Date } = req.body;
     const changedBy = req.Changed_by; // Assuming requireAuth middleware adds user info to req.user
 
     if (!purchaseId) {
@@ -94,6 +104,10 @@ router.put('/purchase/:id', requireAuth, (req, res) => {
     if(Supplier_Date) {
         formatedSupplierDate = moment(Supplier_Date).format("YYYY-MM-DD HH:mm:ss");
     }
+    let formatedDelayedDate = null;
+    if(Delayed_Date) {
+        formatedDelayedDate = moment(Delayed_Date).format("YYYY-MM-DD HH:mm:ss");
+    }
     const query = `
     UPDATE purchasemaster pm
     JOIN salestable sales ON pm.SalesID = sales.SalesID
@@ -103,11 +117,12 @@ router.put('/purchase/:id', requireAuth, (req, res) => {
         pm.POStatus = ?, 
         sales.Qty = ?, 
         pm.Supplier_Date = ?, 
+        pm.Delayed_Date = ?,
         pm.Changed_by = ?
     WHERE pm.PurchaseID = ?
 `;
 
-const values = [SONumber, formatedDate, POStatus, Qty, formatedSupplierDate, changedBy, purchaseId];
+const values = [SONumber, formatedDate, POStatus, Qty, formatedSupplierDate,formatedDelayedDate, changedBy, purchaseId];
 
 
     db.getConnection((err, connection) => {
@@ -172,7 +187,7 @@ router.get('/purchase/search', (requireAuth),(req, res) => {
 // Send purchase order emails
 router.post("/purchase/send-mails", requireAuth, async (req, res) => {
     const selectedPurchases = req.body;
-
+    console.log(selectedPurchases);
     if (!selectedPurchases || selectedPurchases.length === 0) {
         return res.status(400).json({ message: "No purchases selected" });
     }
@@ -184,7 +199,8 @@ router.post("/purchase/send-mails", requireAuth, async (req, res) => {
                     if (err) return reject(err);
 
                     const query = `
-                        SELECT sup.EmailAddress, sup.SupplierCode, st.Qty, prom.ProductCode, prom.SupplierItemNumber
+                        SELECT sup.EmailAddress, sup.SupplierCode, st.Qty, prom.ProductCode, prom.SupplierItemNumber,
+                        prom.ProductName
                         FROM supplier sup
                         JOIN purchasemaster pm ON sup.SupplierID = pm.SupplierID
                         JOIN productmaster prom on pm.ProductID= prom.ProductID
@@ -202,7 +218,12 @@ router.post("/purchase/send-mails", requireAuth, async (req, res) => {
                         const orderedQty = results[0].Qty;
                         const poNumber = `${moment().format("YYYYMMDD")}-${vendorCode}`;
                         const supplierItemNumber = results[0].SupplierItemNumber;
-                        resolve({ purchase, supplierEmail, supplierItemNumber, poNumber, orderedQty });
+                        const supplierDate = purchase?.Supplier_Date
+                        ? moment(purchase.Supplier_Date).format("YYYY-MM-DD") : null;  
+                        const productName = results[0].ProductName;
+                        resolve({ purchase, supplierEmail, supplierItemNumber, poNumber, orderedQty ,
+                            supplierDate, productName 
+});
                     });
                 });
             });
@@ -220,7 +241,8 @@ router.post("/purchase/send-mails", requireAuth, async (req, res) => {
                 <td>${item.poNumber}</td>
                 <td>${item.supplierItemNumber}</td>
                 <td>${item.orderedQty}</td>
-                <td>${item.deliveryDate}</td>
+                <td>${item.productName}</td>
+                <td>${item.supplierDate}</td>
             </tr>
         `).join("");
         // Send Emails
@@ -234,7 +256,8 @@ router.post("/purchase/send-mails", requireAuth, async (req, res) => {
                             <td>${item.poNumber}</td>
                             <td>${item.supplierItemNumber}</td>
                             <td>${item.orderedQty}</td>
-                            <td>${item.deliveryDate}</td>
+                            <td>${item.productName}</td>
+                            <td>${item.supplierDate}</td>
                         </tr>
                     `).join("");
                     const url = process.env.BASE_URL;
@@ -252,7 +275,8 @@ router.post("/purchase/send-mails", requireAuth, async (req, res) => {
                             <th>PO Number</th>
                             <th>Supplier Item Code</th>
                             <th>Ordered Qty</th>
-                            <th>Expected Date</th>
+                            <th>Product Name</th>
+                            <th>Pick Up Date</th>
                         </tr>
                         ${filteredOrderItemsHtml}   
                     </table>

@@ -12,8 +12,15 @@ router.get('/receive', requireAuth, (req, res) => {
     JOIN supplier s ON pm.SupplierID = s.SupplierID
     JOIN salestable st ON pm.SalesID = st.SalesID
     
-    WHERE   pm.POStatus = 'Confirmed'
-    Order by pm.Supplier_Date
+    WHERE   pm.POStatus = 'Confirmed' OR pm.POStatus = 'Received' OR pm.POStatus = 'Arriving Late'
+
+   ORDER BY 
+    CASE 
+        WHEN pm.POStatus = 'Confirmed' THEN 0
+        WHEN pm.POStatus = 'Received' THEN 1
+        ELSE 2
+    END,
+    pm.Supplier_Date;
     `;
     db.query(sql, (err, results) => {
         // console.log(results);
@@ -29,9 +36,10 @@ router.get('/receive', requireAuth, (req, res) => {
 
 router.put('/receive/:purchaseID', requireAuth, (req, res) => {
     const purchaseID = req.params.purchaseID;
-     
- 
-    const sql = `UPDATE purchasemaster SET POStatus = ? WHERE PurchaseID = ?`;
+    //  console.log("Received body:", req.body);
+    // console.log("Received purchase ID:", purchaseID);
+    const sql = `UPDATE purchasemaster SET POStatus = ?  
+    WHERE PurchaseID = ?`;
 
     db.query(sql, ['Received', purchaseID], (err, results) => {
         if (err) {

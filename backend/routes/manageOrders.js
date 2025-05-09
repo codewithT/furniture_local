@@ -14,6 +14,7 @@ router.get('/manageOrders', requireAuth, (req, res) => {
         FROM salestable st
         JOIN productmaster pm ON st.ProductID = pm.ProductID
         JOIN purchasemaster purm ON st.SalesID = purm.SalesID
+        ORDER BY st.Created_date DESC
     `;
 
     console.log(query);
@@ -106,6 +107,7 @@ const transporter = nodemailer.createTransport({
         pass: process.env.USER_PASSWORD,
     },
 });
+
 
 // POST Send Mails with Pool
 router.post('/manageOrders/send-mails', requireAuth, async (req, res) => {

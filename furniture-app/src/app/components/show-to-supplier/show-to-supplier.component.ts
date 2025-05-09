@@ -18,7 +18,7 @@ export class ShowToSupplierComponent implements OnInit {
   confirmations: { [key: string]: { status: string, delayedDate?: string } } = {};
   loading = false;
   supplierEmail: string = '';
-  displayedColumns: string[] = ['PONumber', 'ProductCode', 'Qty', 'Supplier_Date', 'Confirm'];
+  displayedColumns: string[] = ['PONumber', 'ProductCode', 'Qty','ProductName', 'Supplier_Date', 'Confirm'];
   successMessage: string = ''; 
   
   constructor(private route: ActivatedRoute, private purchaseService: PurchaseService,

@@ -11,6 +11,7 @@ export interface DeliveryProduct {
   PONumber: string;
   ProductCode: string;
   ProductName: string;
+  Customer_name: string;
   POStatus: string;
   SONumber: string;
   Qty : number;
@@ -52,26 +53,27 @@ export class ScheduleDeliveryService{
       }
 
       uploadSignature(formData: FormData): Observable<any> {
-        return this.http.put(`${this.apiUrl}/uploadSignature`, formData).pipe(
+        return this.http.put(`${this.apiUrl}/uploadSignature`, formData, {
+          withCredentials: true
+        }).pipe(
           catchError(this.handleError<any>('Upload Signature'))
         );
       }
+      
 
       // schedule-delivery.service.ts
       getSignature(salesID: number): Observable<Blob> {
-        // const options = {
-        //   ...this.httpOptions,
-        //   responseType: 'blob' as 'blob',
-        // };
         const options = {
           headers: new HttpHeaders({
             'Content-Type': 'application/json'
           }),
-          responseType: 'blob' as const
+          responseType: 'blob' as const,
+          withCredentials: true   //  important for sending cookies/session
         };
-        return this.http.get(`${this.apiUrl}/${salesID}`, options).
-          pipe(catchError(this.handleError<Blob>('Get Signature')));
+        return this.http.get(`${this.apiUrl}/${salesID}`, options)
+          .pipe(catchError(this.handleError<Blob>('Get Signature')));
       }
+      
       
       
        // Handle HTTP errors

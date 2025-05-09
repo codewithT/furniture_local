@@ -1,34 +1,29 @@
 body {
     font-family: Arial, sans-serif;
     background: #f4f4f4;
-    padding: 20px;
+    padding: 1.25rem; /* 20px */
+    font-size: 0.5rem; /* Originally 8% of 16px = 1.28px. Keep low for scaling, but optional */
 }
 
 .order-container {
-    width: 80%;
+    width: 100%;
     margin: auto;
     background: #fff;
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    padding: 1.25rem; /* 20px */
+    border-radius: 0.5rem; /* 8px */
+    box-shadow: 0 0 0.625rem rgba(0, 0, 0, 0.1); /* 10px */
+    font-size: 0.9rem; /* 13px */
 }
+
 .form-container {
     display: flex;
-    gap: 20px; /* Adjust the spacing between fields */
+    gap: 1.25rem; /* 20px */
 }
 
 .form-group {
-    flex: 1; /* Ensures both fields take equal space */
-    min-width: 200px; /* Adjust based on preference */
-}
-
-
-h2, h3 {
-    text-align: center;
-}
-
-.form-group {
-    margin-bottom: 15px;
+    flex: 1;
+    min-width: 12.5rem; /* 200px */
+    margin-bottom: 0.9375rem; /* 15px */
 }
 
 .form-group label {
@@ -38,33 +33,39 @@ h2, h3 {
 
 input, select {
     width: 100%;
-    padding: 8px;
+    padding: 0.5rem; /* 8px */
     border: 1px solid #ccc;
-    border-radius: 5px;
+    border-radius: 0.3125rem; /* 5px */
+}
+
+h2, h3 {
+    text-align: center;
 }
 
 .product-table {
-    width: 100%;
+    width: 100%; 
     border-collapse: collapse;
-    margin-top: 10px;
+    margin-top: 0.625rem; /* 10px */
 }
 
-.product-table th, .product-table td {
-    padding: 10px;
+.product-table th,
+.product-table td {
+    padding: 0.625rem; /* 10px */
     border: 1px solid #ddd;
     text-align: center;
 }
 
-.add-btn, .submit-btn, .delete-btn {
+.add-btn,
+.delete-btn {
     background: #28a745;
     color: white;
-    padding: 10px 15px;
+    padding: 0.625rem 0.9375rem; /* 10px 15px */
     border: none;
     cursor: pointer;
-    margin-top: 10px;
+    margin-top: 0.625rem; /* 10px */
 }
 
-.add-btn:hover, .submit-btn:hover {
+.add-btn:hover {
     background: #218838;
 }
 
@@ -76,17 +77,29 @@ input, select {
     background: darkred;
 }
 
+/* Updated Order Summary for 3 columns */
 .order-summary {
     display: flex;
     justify-content: space-between;
-    gap: 20px;
+    gap: 1rem; /* Slightly reduced gap for 3 columns */
+    flex-wrap: wrap;
 }
 
 .summary-column {
-    width: 48%;
+    width: 31%; /* Slightly less than 33.33% to account for gaps */
 }
 
-@media (max-width: 768px) {
+@media (max-width: 64rem) { /* 1024px */
+    .order-summary {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+    .summary-column {
+        width: 48%;
+    }
+}
+
+@media (max-width: 48rem) { /* 768px */
     .order-summary {
         flex-direction: column;
     }
@@ -94,36 +107,144 @@ input, select {
         width: 100%;
     }
 }
- 
+
+/* Updated button styling */
 .button-group {
-  display: flex;
-  gap: 15px;
-  margin-top: 20px;
+    display: flex;
+    gap: 1.25rem; /* 20px */
+    margin: 1.875rem auto; /* 30px auto - centers horizontally with auto margins */
+    justify-content: center; /* Centers the buttons */
+    max-width: 31.25rem; /* 500px - limits the width of the button container */
 }
 
-.submit-btn, .print-btn {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 4px;
-  font-weight: bold;
-  cursor: pointer;
-  transition: background-color 0.3s;
+.submit-btn,
+.print-btn {
+    padding: 0.75rem 1.5rem; /* 12px 24px */
+    border: none;
+    border-radius: 0.25rem; /* 4px */
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 9.375rem; /* 150px */
+    text-align: center;
+    font-size: 1rem; /* 16px */
+    text-transform: uppercase;
+    letter-spacing: 0.0625rem; /* 1px */
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.2); /* 2px 4px */
 }
 
 .submit-btn {
-  background-color: #4CAF50;
-  color: white;
+    background-color: #4CAF50;
+    color: white;
+    flex: 1;
 }
 
 .submit-btn:hover {
-  background-color: #45a049;
+    background-color: #45a049;
+    transform: translateY(-0.125rem); /* 2px - subtle lift effect */
 }
 
 .print-btn {
-  background-color: #2196F3;
-  color: white;
+    background-color: #2196F3;
+    color: white;
+    flex: 1;
 }
 
 .print-btn:hover {
-  background-color: #0b7dda;
+    background-color: #0b7dda;
+    transform: translateY(-0.125rem); /* 2px - subtle lift effect */
+}
+
+/* Active state for buttons */
+.submit-btn:active,
+.print-btn:active {
+    transform: translateY(0.0625rem); /* 1px - pressed effect */
+    box-shadow: 0 0.0625rem 0.125rem rgba(0, 0, 0, 0.2); /* 1px 2px */
+}
+
+/* Product Search Styling */
+.product-search-container {
+    position: relative;
+    width: 100%;
+}
+
+.product-suggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 250%;
+    max-height: 12.5rem; /* 200px */
+    overflow-y: auto;
+    background: white;
+    border: 1px solid #ddd;
+    border-top: none;
+    border-radius: 0 0 0.3125rem 0.3125rem; /* 5px */
+    box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.1); /* 4px 8px */
+    z-index: 1000;
+}
+
+.product-suggestion-item {
+    padding: 0.625rem; /* 10px */
+    border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    font-size: 0.85rem; /* ~14px */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: left;
+}
+
+.product-suggestion-item:last-child {
+    border-bottom: none;
+}
+
+.product-suggestion-item:hover {
+    background-color: #f5f5f5;
+}
+
+.product-suggestion-item.selected {
+    background-color: #e8f0fe;
+}
+
+/* Enhance product code cell to better handle the dropdown */
+.product-code-cell {
+    position: relative;
+    min-width: 9.375rem; /* 150px - ensures enough space for dropdown */
+}
+
+/* Style for when product is selected from dropdown */
+input[formControlName="ProductCode"].selected {
+    background-color: #f0f8ff; /* Light blue background for selected product */
+    border-color: #4CAF50;
+}
+
+/* Loading indicator for when suggestions are being fetched */
+.product-search-loading {
+    position: absolute;
+    right: 0.625rem; /* 10px */
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.75rem; /* 12px */
+    color: #888;
+}
+
+/* No results message */
+.no-suggestions {
+    padding: 0.625rem; /* 10px */
+    color: #888;
+    font-style: italic;
+    text-align: center;
+}
+
+/* Make the dropdown more prominent when active */
+.product-search-container:focus-within .product-suggestions {
+    border: 1px solid #2196F3;
+    border-top: none;
+}
+
+/* Keyboard navigation visual feedback */
+.product-suggestion-item:focus {
+    background-color: #e8f0fe;
+    outline: none;
 }

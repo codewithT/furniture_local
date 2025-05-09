@@ -3,13 +3,16 @@ import { CanActivate, Router } from '@angular/router';
 import { Observable, of } from 'rxjs';
 import { AuthService } from './services/auth.service';
 import { take, map, catchError, tap } from 'rxjs/operators';
-
+import { HttpClient } from '@angular/common/http';
+import { environment } from '../environments/environment';
 @Injectable({
   providedIn: 'root'
 })
 export class AuthGuard implements CanActivate {
-  constructor(private authService: AuthService, private router: Router) {}
-  
+  constructor(private authService: AuthService, private router: Router, 
+    private http: HttpClient
+  ) {}
+  private apiUrl = `${environment.apiBaseUrl}/auth`; 
   canActivate(): Observable<boolean> {
     console.log("AuthGuard - Checking authentication status...");
 
@@ -22,29 +25,25 @@ export class AuthGuard implements CanActivate {
     // Force a server check to verify authentication
     return this.checkServerAuthentication();
   }
-
   private checkServerAuthentication(): Observable<boolean> {
-    // Make a direct HTTP request to check auth status
-    this.authService.checkLoginState();
-    
-    // Use the authentication observable to determine access
-    return this.authService.isAuthenticated$.pipe(
-      take(1), // Only take the first emission after the check
-      tap(isAuth => console.log("AuthGuard - Authentication state after server check:", isAuth)),
-      map(isAuthenticated => {
-        if (isAuthenticated) {
+    // Force a new check with the server
+    return this.http.get<{isAuthenticated: boolean}>(`${this.apiUrl}/is-authenticated`, 
+      { withCredentials: true }).pipe(
+      take(1),
+      map(response => {
+        if (response.isAuthenticated) {
           return true;
         } else {
-          console.log("AuthGuard - Not authenticated, redirecting to login.");
           this.router.navigate(['/auth/login']);
           return false;
         }
       }),
       catchError(() => {
-        console.log("AuthGuard - Error checking authentication, redirecting to login.");
         this.router.navigate(['/auth/login']);
         return of(false);
       })
     );
   }
+
+   
 }

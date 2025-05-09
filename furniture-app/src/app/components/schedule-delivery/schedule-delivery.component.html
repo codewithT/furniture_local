@@ -43,6 +43,7 @@
           <th (click)="sortTable('Qty')">Quantity</th>
           <th (click)="sortTable('SONumber')">SO Number</th>
           <th (click)="sortTable('Delivery_date')">Cust Exp Del Date</th>
+          <th (click)="sortTable('Customer_name')">Customer Name</th>
           <th (click)="sortTable('POStatus')">PO Status</th>
           <th (click)="sortTable('Payment_Status')">Payment Status</th>
           <th (click)="sortTable('Transfer_Date')">Delivery Date</th>
@@ -58,9 +59,10 @@
           <td>{{ deliver?.Qty }}</td>
           <td>{{ deliver?.SONumber }}</td>
           <td>{{ deliver?.Delivery_date | date:'mediumDate' }}</td>
+          <td>{{ deliver?.Customer_name }}</td>
           <td>{{ deliver?.POStatus }}</td>
           <td>{{ deliver?.Payment_Status }}</td>
-          <td>{{ deliver?.Transfer_Date }}</td>
+          <td>{{ deliver?.Transfer_Date   | date:'mediumDate' }}</td>
           <td class="actions">
             <button 
             [ngClass]="deliver.Signature ? 'btn btn-success' : 'btn btn-secondary'" 

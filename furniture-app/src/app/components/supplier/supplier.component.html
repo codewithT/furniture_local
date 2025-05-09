@@ -17,7 +17,28 @@
             <!-- Display the selected file name below -->
             <div class="file-name" *ngIf="fileName">{{ fileName }}</div>
         </div>
-        <button class="upload-btn" type="button" (click)="uploadExcel()" [disabled]="isUploading" [hidden]="!file">Upload</button>
+        <button class="upload-btn" type="button" (click)="uploadExcel()" [disabled]="isUploading || !file">Upload</button>
+    </div>
+
+    <!-- Upload Progress Display -->
+    <div class="upload-progress-container" *ngIf="showProgress">
+        <div class="progress mb-2">
+            <div class="progress-bar" 
+                 [class.bg-success]="uploadStatus === 'success'"
+                 [class.bg-danger]="uploadStatus === 'error'"
+                 [class.bg-info]="uploadStatus === 'processing'"
+                 [style.width.%]="uploadProgress">
+                {{ uploadProgress }}%
+            </div>
+        </div>
+        <div class="upload-status mb-3">
+            <span [class.text-success]="uploadStatus === 'success'"
+                  [class.text-danger]="uploadStatus === 'error'"
+                  [class.text-info]="uploadStatus === 'processing'">
+                {{ uploadMessage }}
+            </span>
+            <button *ngIf="isUploading" class="btn btn-sm btn-danger ms-2" (click)="cancelUpload()">Cancel</button>
+        </div>
     </div>
 
     <!-- Supplier Table with Horizontal Scrolling -->
@@ -26,19 +47,19 @@
             <thead>
                 <tr>
                     <th (click)="sortBy('SupplierID')">Serial No
-                        <span *ngIf="sortColumn === 'SupplierID'">{{ sortDirection ? '▲' : '▼' }}</span>
+                        <span *ngIf="sortColumn === 'SupplierID'">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
                     </th>
                     <th (click)="sortBy('SupplierCode')">Supplier Code 
-                        <span *ngIf="sortColumn === 'SupplierCode'">{{ sortDirection ? '▲' : '▼' }}</span>
+                        <span *ngIf="sortColumn === 'SupplierCode'">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
                     </th>
                     <th (click)="sortBy('SupplierName')">Supplier Name 
-                        <span *ngIf="sortColumn === 'SupplierName'">{{ sortDirection ? '▲' : '▼' }}</span>
+                        <span *ngIf="sortColumn === 'SupplierName'">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
                     </th>
                     <th (click)="sortBy('SupplierAddress')">Supplier Address 
-                        <span *ngIf="sortColumn === 'SupplierAddress'">{{ sortDirection ? '▲' : '▼' }}</span>
+                        <span *ngIf="sortColumn === 'SupplierAddress'">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
                     </th>
-                    <th>Email Address
-                        <span *ngIf="sortColumn === 'EmailAddress'">{{ sortDirection ? '▲' : '▼' }}</span>
+                    <th (click)="sortBy('EmailAddress')">Email Address
+                        <span *ngIf="sortColumn === 'EmailAddress'">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
                     </th>
                     <th>Actions</th>
                 </tr>
@@ -99,7 +120,7 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Supplier Email Address</label>
-                        <input type="text" class="form-control" [(ngModel)]="newSupplier.EmailAddress" name="emailaddress" required>
+                        <input type="email" class="form-control" [(ngModel)]="newSupplier.EmailAddress" name="emailaddress" required>
                     </div>
                 </form>
             </div>

@@ -524,4 +524,101 @@
   button.mat-button:first-child:hover {
     background: #a71d2a;
   }
+  /* Signature Dialog Container */
+.signature-dialog-content {
+  padding: 20px;
+  max-width: 90vw;
+  width: 100%;
+  max-height: 80vh; /* Add max-height for scrollability */
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+  overflow-y: auto; /* Enable vertical scrolling */
+  overflow-x: hidden; /* Prevent horizontal scrolling */
+}
+
+/* Make canvas and signature image responsive */
+.signature-dialog-content canvas,
+.signature-dialog-content img {
+  width: 100%;
+  height: auto;
+  max-width: 400px; /* Keep maximum width */
+  border: 1px solid #333;
+  margin: 15px auto; /* Center the canvas/image */
+  display: block;
+}
+
+/* Terms styling for better readability on small screens */
+.signature-dialog-content .terms {
+  font-size: 14px;
+  line-height: 1.5;
+  margin-bottom: 15px;
+  padding: 10px;
+  background: #f9f9f9;
+  border-radius: 5px;
+  overflow-wrap: break-word; /* Prevent text overflow */
+}
+
+/* Dialog action buttons */
+.signature-dialog-content .dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+  position: sticky; /* Keep buttons visible when scrolling */
+  bottom: 0;
+  background: #fff;
+  padding-top: 10px;
+  width: 100%;
+}
+
+/* Responsive adjustments for different screen sizes */
+@media (max-width: 768px) {
+  .signature-dialog-content {
+    padding: 15px;
+    max-width: 95vw;
+  }
   
+  .signature-dialog-content canvas,
+  .signature-dialog-content img {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .signature-dialog-content h2 {
+    font-size: 18px;
+  }
+  
+  .signature-dialog-content h4 {
+    font-size: 15px;
+  }
+  
+  .signature-dialog-content .terms p {
+    font-size: 12px;
+  }
+  
+  .signature-dialog-content .dialog-actions {
+    justify-content: center;
+  }
+  
+  .signature-dialog-content .dialog-actions button {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+}
+
+/* Ensure dialog fits in viewport on very small devices */
+@media (max-height: 600px) {
+  .signature-dialog-content {
+    max-height: 90vh;
+    padding: 10px;
+  }
+  
+  .signature-dialog-content canvas,
+  .signature-dialog-content img {
+    max-height: 150px;
+    margin: 10px auto;
+  }
+}

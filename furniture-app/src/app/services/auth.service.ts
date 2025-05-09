@@ -56,6 +56,8 @@ export class AuthService {
   }
 
   logout(): void {
+    this.clearLocalData();
+    
     // Call logout API
     this.http.post(`${this.apiUrl}/logout`, {}, { withCredentials: true })
       .subscribe({

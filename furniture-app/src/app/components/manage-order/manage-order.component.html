@@ -48,20 +48,22 @@
       </ng-container>
    
       <ng-container matColumnDef="CustomerEmail">
-        <th mat-header-cell *matHeaderCellDef mat-sort-header> Customer Email </th>
+        <th mat-header-cell *matHeaderCellDef mat-sort-header> Customer <br> 
+          Email </th>
         <td mat-cell *matCellDef="let order"> {{ order.CustomerEmail }} </td>
       </ng-container>
       <ng-container matColumnDef="Customer_name">
-        <th mat-header-cell *matHeaderCellDef mat-sort-header> Customer Name </th>
+        <th mat-header-cell *matHeaderCellDef mat-sort-header> Customer <br>
+           Name </th>
         <td mat-cell *matCellDef="let order"> {{ order.Customer_name }} </td>
       </ng-container>
       <ng-container matColumnDef="Qty">
-        <th mat-header-cell *matHeaderCellDef mat-sort-header> Total Items </th>
+        <th mat-header-cell *matHeaderCellDef mat-sort-header> Qty </th>
         <td mat-cell *matCellDef="let order"> {{ order.Qty }} </td>
       </ng-container>
 
       <ng-container matColumnDef="Delivery_date">
-        <th mat-header-cell *matHeaderCellDef mat-sort-header> Cust Del Date </th>
+        <th mat-header-cell *matHeaderCellDef mat-sort-header> Customer<br> Delivery Date </th>
         <td mat-cell *matCellDef="let order"> {{ order.Delivery_date }} </td>
       </ng-container>
       <ng-container matColumnDef="POStatus">
@@ -70,7 +72,7 @@
       </ng-container>
       <!-- Payment Status Column -->
       <ng-container matColumnDef="Payment_Status">
-        <th mat-header-cell *matHeaderCellDef mat-sort-header> Payment Status </th>
+        <th mat-header-cell *matHeaderCellDef mat-sort-header> Payment<br> Status </th>
         <td mat-cell *matCellDef="let order" class="payment-status-column">
           <mat-form-field appearance="outline">
             <mat-select [(ngModel)]="order.Payment_Status" (selectionChange)="updatePaymentStatus(order)">

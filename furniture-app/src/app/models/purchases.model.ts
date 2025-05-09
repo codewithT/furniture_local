@@ -12,5 +12,7 @@ export interface Purchase {
     PONumber: string;
     Qty : number;
     Supplier_Date : string;
+    Delayed_Date : string;
+    
   }
   

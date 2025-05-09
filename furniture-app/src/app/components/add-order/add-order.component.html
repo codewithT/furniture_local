@@ -1,176 +1,212 @@
- 
-    <div class="order-container">
-        <h2>Add Order</h2>
+<div class="order-container">
+    <h2>Add Order</h2>
 
-        <form [formGroup]="orderForm" (ngSubmit)="submitOrder()">
-            <!-- Order Details Section -->
-            <div class="order-details">
+    <form [formGroup]="orderForm" (ngSubmit)="submitOrder()">
+        <!-- Order Details Section -->
+        <div class="order-details">
+            <div class="form-container">
 
-                <div class="form-container">
-                    <div class="form-group">
-                        <label> Email Address</label>
-                        <input type="text" formControlName="clientEmail" placeholder="Enter Client Email" required />
+                <!-- Email Address -->
+                <div class="form-group">
+                    <label>Email Address</label>
+                    <input type="text" formControlName="clientEmail" placeholder="Enter Client Email"
+                        [ngClass]="{ 'is-invalid': orderForm.get('clientEmail')?.invalid && orderForm.get('clientEmail')?.touched }"
+                        required />
+                    <div class="invalid-feedback"
+                        *ngIf="orderForm.get('clientEmail')?.errors?.['required'] && orderForm.get('clientEmail')?.touched">
+                        Email is required.
                     </div>
-                    <div class="form-group">
-                        <label> Customer Name</label>
-                        <input type="text" formControlName="customerName" placeholder="Enter Customer Name" required />
-                    </div>
-                    <div class="form-group">
-                        <label>Client Contact</label>
-                        <input type="text" formControlName="clientContact" placeholder="Enter Contact Number" required />
+                    <div class="invalid-feedback"
+                        *ngIf="orderForm.get('clientEmail')?.errors?.['minlength'] && orderForm.get('clientEmail')?.touched">
+                        Email must be at least 3 characters long.
                     </div>
                 </div>
-            </div>
 
-            <!-- Product Section -->
-            <h3>Products</h3>
-            <table class="product-table">
-                <thead>
-                    <tr>
-                        <th>In Stock ✔</th>
-                        <th>Supplier Code</th>
-                        <th>CFE Product Code</th>
-                        <th>Product Name</th>
-                        <th>Price</th>
-                        <th>Quantity</th>
-                        <th>Total</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody formArrayName="items">
-                    <tr *ngFor="let item of items.controls; let i = index" [formGroupName]="i">
-                        <td>
-                            <input type="checkbox" formControlName="selected" (change)="onCheckboxChange(i, $event)"
+                <!-- Customer Name -->
+                <div class="form-group">
+                    <label>Customer Name</label>
+                    <input type="text" formControlName="customerName" placeholder="Enter Customer Name"
+                        [ngClass]="{ 'is-invalid': orderForm.get('customerName')?.invalid && orderForm.get('customerName')?.touched }"
+                        required />
+                    <div class="invalid-feedback"
+                        *ngIf="orderForm.get('customerName')?.errors?.['required'] && orderForm.get('customerName')?.touched">
+                        Customer name is required.
+                    </div>
+                </div>
+
+                <!-- Client Contact -->
+                <div class="form-group">
+                    <label>Client Contact</label>
+                    <input type="text" formControlName="clientContact" placeholder="Enter Contact Number"
+                        [ngClass]="{ 'is-invalid': orderForm.get('clientContact')?.invalid && orderForm.get('clientContact')?.touched }"
+                        required />
+                    <div class="invalid-feedback"
+                        *ngIf="orderForm.get('clientContact')?.errors?.['required'] && orderForm.get('clientContact')?.touched">
+                        Contact number is required.
+                    </div>
+                    <div class="invalid-feedback"
+                        *ngIf="orderForm.get('clientContact')?.errors?.['pattern'] && orderForm.get('clientContact')?.touched">
+                        Contact number must be exactly 10 digits.
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Product Section -->
+        <h3>Products</h3>
+        <table class="product-table">
+            <thead>
+                <tr>
+                    <th>In Stock ✔</th>
+                    <th>Supplier Code</th>
+                    <th>CFE Product Code</th>
+                    <th>Product Name</th>
+                    <th>Price</th>
+                    <th>Quantity</th>
+                    <th>Total</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody formArrayName="items">
+                <tr *ngFor="let item of items.controls; let i = index" [formGroupName]="i">
+                    <td>
+                        <input type="checkbox" formControlName="selected" (change)="onCheckboxChange(i, $event)"
                             [checked]="storeProductSupplierIdCodes[i]?.Check" />
-                        </td>
-                        <td>
-                            <select formControlName="SupplierCode" (change)="handleSupplierSelect($event, i)">
-                              <option value="">-- Select Supplier --</option>
-                              <option *ngFor="let supplier of supplierCodes[i]" [value]="supplier.SupplierCode">
-                               {{supplier.SupplierID}}  {{ supplier.SupplierCode }}
-                              </option>
-                            </select>
-                            <p *ngIf="items.at(i).get('SupplierCode')?.value">
-                              Selected: {{ items.at(i).get('SupplierCode')?.value }}
-                            </p>
-                            
-                          </td>
-                        
-                        <td>
-                            <input type="text" formControlName="ProductCode" placeholder="Product Code"   
-                            required />
-                        </td>
-                    <td><input type="text" formControlName="ProductName" placeholder="Product Name" required /></td>
-
-                        <td><input type="number" formControlName="rate" placeholder="Rate" required /></td>
-                        <td><input type="number" formControlName="quantity" placeholder="Quantity" required /></td>
-                        <td><input type="text" formControlName="total" placeholder="Total" [disabled]="true" class="total-field" /></td>
-                        <td>
-                            <button type="button" (click)="removeItem(i)" class="delete-btn">🗑</button>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-
-            <button type="button" (click)="addItem()" class="add-btn">+ Add Item</button>
-
-            <!-- Order Summary Section (Two-Column Layout) -->
-            <h3>Order Summary</h3>
-            <div class="order-summary">
-                <div class="summary-column">
-                    <div class="form-group">
-                        <label>Sub Amount</label>
-                        <input type="text" formControlName="subAmount" [disabled]="true" />
-                    </div>
-                    <!-- <div class="form-group">
-                        <label>Total Amount</label>
-                        <input type="text" formControlName="totalAmount" [disabled]="true" />
-                    </div> -->
-                    <div class="form-group">
-                        <label>Discount</label>
-                        <input type="number" formControlName="discount" placeholder="Enter Discount" />
-                    </div>
-                    <div class="form-group">
-                        <label>GST %</label>
-                        <input type="text" formControlName="gst"   />
-                    </div>
-
-                    <div class="form-group">
-                        <label>Grand Total</label>
-                        <input type="text" formControlName="grandTotal"  />
-                    </div>
-                    <div class="form-group">
-                        <label>Paid Amount</label>
-                        <input type="number" formControlName="paidAmount" placeholder="Enter Paid Amount" />
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Expected Delivery Date</label>
-                        <input type="date" formControlName="expectedDeliveryDate" />
-                    </div>   
-                </div>
-
-                <div class="summary-column">
-                    <!-- <div class="form-group">
-                        <label>Paid Amount</label>
-                        <input type="number" formControlName="paidAmount" placeholder="Enter Paid Amount" />
-                    </div> -->
-                    <!-- <div class="form-group">
-                        <label>Due Amount</label>
-                        <input type="text" formControlName="dueAmount" [disabled]="true" />
-                    </div> -->
-                    <div class="form-group">
-                        <label>Payment Status</label>
-                        <select formControlName="paymentStatus">
-                            <option value="">~~SELECT~~</option>
-                            <option value="Pending">Pending</option>
-                            <option value="Full Paid">Full Paid</option>
-                            <option value="Partial">Partial</option>
+                    </td>
+                    <td>
+                        <select formControlName="SupplierCode" (change)="handleSupplierSelect($event, i)">
+                            <option value="">-- Select Supplier --</option>
+                            <option *ngFor="let supplier of supplierCodes[i]" [value]="supplier.SupplierCode">
+                                {{supplier.SupplierID}} {{ supplier.SupplierCode }}
+                            </option>
                         </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Ship To Party</label>
-                        <input type="text" formControlName="shipToParty"   />
-                    </div> 
-                    <div class="form-group">
-                        <label>Internal Note </label>
-                        <input type="text" formControlName="internalNote"   />
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Due Amount</label>
-                        <input type="text" formControlName="dueAmount" [disabled]="true" />
-                    </div>
-                     
-<div class="form-group">
-  <label>Mode of Payment</label>
-  <select formControlName="paymentMode">
-    <option value="">-- Select Payment Mode --</option>
-    <option value="Debit">Debit</option>
-    <option value="Visa">Visa</option>
-    <option value="Cash">Cash</option>
-    <option value="Master">Master</option>
-    <option value="E-transfer">E-transfer</option>
-    <option value="Cheque">Cheque</option>
-    <option value="Others">Others</option>
-  </select>
-</div>
+                        <p *ngIf="items.at(i).get('SupplierCode')?.value">
+                            Selected: {{ items.at(i).get('SupplierCode')?.value }}
+                        </p>
+                    </td>
+                    <td class="product-code-cell">
+                        <!-- Product Code Input with Autocomplete -->
+                        <div class="product-search-container">
+                            <input type="text" formControlName="ProductCode" placeholder="Product Code" required 
+                                (input)="productSearchTerms[i].next(items.at(i).get('ProductCode')?.value)"
+                                (blur)="hideProductSuggestions(i)" />
+                            
+                            <!-- Product suggestions dropdown -->
+                            <div class="product-suggestions" *ngIf="showProductSuggestions[i]">
+                                <div class="product-suggestion-item" 
+                                     *ngFor="let product of productSuggestions[i]"
+                                     (mousedown)="onProductSuggestionMouseDown()"
+                                     (click)="selectProductSuggestion(product, i)">
+                                    {{ product.ProductCode }} - {{ product.ProductName }}
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                    <td><input type="text" formControlName="ProductName" placeholder="Product Name" required /></td>
+                    <td><input type="number" formControlName="rate" placeholder="Rate" required /></td>
+                    <td><input type="number" formControlName="quantity" placeholder="Quantity" required /></td>
+                    <td><input type="text" formControlName="total" placeholder="Total" [disabled]="true"
+                            class="total-field" /></td>
+                    <td>
+                        <button type="button" (click)="removeItem(i)" class="delete-btn">🗑</button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
 
-<!-- Show text field only if 'Others' is selected -->
-<div class="form-group" *ngIf="orderForm.get('paymentMode')?.value === 'Others'">
-  <label>Specify Other Payment Mode</label>
-  <input type="text" formControlName="otherPaymentDetails" placeholder="Enter Payment Details" />
-</div>
+        <button type="button" (click)="addItem()" class="add-btn">+ Add Item</button>
 
-                                    
+        <!-- Order Summary Section -->
+        <h3>Order Summary</h3>
+        <div class="order-summary">
+            <div class="summary-column">
+                <div class="form-group">
+                    <label>Sub Amount</label>
+                    <input type="text" formControlName="subAmount" [disabled]="true" />
+                </div>
+                <div class="form-group">
+                    <label>Discount</label>
+                    <input type="number" formControlName="discount" placeholder="Enter Discount" />
+                </div>
+                <div class="form-group">
+                    <label>GST %</label>
+                    <input type="text" formControlName="gst" />
+                </div>
+                <div class="form-group">
+                    <label>Grand Total</label>
+                    <input type="text" formControlName="grandTotal" />
                 </div>
             </div>
 
-           <!-- Replace your existing submit button section with this -->
-<div class="button-group">
-    <button type="submit" class="submit-btn">Place Order</button>
-    <button type="button" (click)="printInvoice()" class="print-btn">Print Invoice</button>
+            <div class="summary-column">
+                <div class="form-group">
+                    <label>Paid Amount</label>
+                    <input type="number" formControlName="paidAmount" placeholder="Enter Paid Amount" />
+                </div>
+                <div class="form-group">
+                    <label>Due Amount</label>
+                    <input type="text" formControlName="dueAmount" [disabled]="true" />
+                </div>
+                <div class="form-group">
+                    <label>Payment Status</label>
+                    <select formControlName="paymentStatus"
+                        [ngClass]="{ 'is-invalid': orderForm.get('paymentStatus')?.invalid && orderForm.get('paymentStatus')?.touched }">
+                        <option value="">~~SELECT~~</option>
+                        <option value="Pending">Pending</option>
+                        <option value="Full Paid">Full Paid</option>
+                        <option value="Partial">Partial</option>
+                    </select>
+                    <div class="invalid-feedback"
+                        *ngIf="orderForm.get('paymentStatus')?.invalid && orderForm.get('paymentStatus')?.touched">
+                        Please select a payment status.
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Mode of Payment</label>
+                    <select formControlName="paymentMode"
+                        [ngClass]="{ 'is-invalid': orderForm.get('paymentMode')?.invalid && orderForm.get('paymentMode')?.touched }">
+                        <option value="">-- Select Payment Mode --</option>
+                        <option value="Debit">Debit</option>
+                        <option value="Visa">Visa</option>
+                        <option value="Cash">Cash</option>
+                        <option value="Master">Master</option>
+                        <option value="E-transfer">E-transfer</option>
+                        <option value="Cheque">Cheque</option>
+                        <option value="Finance">Finance</option>
+                        <option value="Others">Others</option>
+                    </select>
+                    <div class="invalid-feedback"
+                        *ngIf="orderForm.get('paymentMode')?.invalid && orderForm.get('paymentMode')?.touched">
+                        Please select a payment mode.
+                    </div>
+                </div>
+                <div class="form-group" *ngIf="orderForm.get('paymentMode')?.value === 'Others'">
+                    <label>Specify Other Payment Mode</label>
+                    <input type="text" formControlName="otherPaymentDetails" placeholder="Enter Payment Details" />
+                </div>
+            </div>
+
+            <div class="summary-column">
+                <div class="form-group">
+                    <label>Expected Delivery Date</label>
+                    <input type="date" formControlName="expectedDeliveryDate" />
+                </div>
+                <div class="form-group">
+                    <label>Ship To Party</label>
+                    <input type="text" formControlName="shipToParty" />
+                </div>
+                <div class="form-group">
+                    <label>Internal Note</label>
+                    <input type="text" formControlName="internalNote" />
+                </div>
+            </div>
+        </div>
+
+        <!-- Buttons -->
+        <div class="button-group">
+            <button type="submit" class="submit-btn">Place Order</button>
+            <button type="button" (click)="printInvoice()" class="print-btn">Print Invoice</button>
+        </div>
+    </form>
 </div>
-        </form>
-    </div>
- 

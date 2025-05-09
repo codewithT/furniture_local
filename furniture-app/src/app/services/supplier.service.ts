@@ -49,6 +49,7 @@ export class SupplierService {
   // Update an existing supplier
   updateSupplier(supplier: Supplier): Observable<Supplier> {
     const currentUserEmail = this.authService.getCurrentUser();
+    console.log("Current User Email:", currentUserEmail); // Debugging line
     const supplierData = {...supplier, Changed_by : currentUserEmail};
     return this.http.put<Supplier>(`${this.apiUrl}/${supplier.SupplierID}`, supplierData, this.httpOptions)
       .pipe(catchError(this.handleError<Supplier>('updateSupplier')));
@@ -74,8 +75,19 @@ export class SupplierService {
       this.httpOptions
     ).pipe(catchError(this.handleError<Supplier[]>('sortSuppliers', [])));
   }
-  
-
+  cancelJob(jobId: string): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/cancel-job`, { jobId }, this.httpOptions)
+      .pipe(catchError(this.handleError<any>('cancelJob')));
+  }
+  // Get the status of the job
+  getJobStatus(jobId: string): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/job-status/${jobId}`, this.httpOptions)
+      .pipe(catchError(this.handleError<any>('getJobStatus')));
+  }
+  checkJobProgress(jobId: string): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/job-progress/${jobId}`, this.httpOptions)
+      .pipe(catchError(this.handleError<any>('checkJobProgress')));
+  }
   // Handle HTTP errors
   private handleError<T>(operation = 'operation', result?: T) {
   return (error: any): Observable<T> => {

@@ -4,13 +4,16 @@
   <h2>Home / product</h2>
  
   <!-- Search Bar -->
-  <div class="search-container">
-    <input type="text" class="form-control search-bar mb-3" placeholder="Search by Product Name or Code" [(ngModel)]="searchTerm"
-    (input)="onSearchTermChange()">
-    <div class="header">
-      <button class="btn btn-primary mb-3" (click)="openAddModal()">Add Product</button>
-    </div>
-  </div> 
+  <!-- components/products/products.component.html -->
+<!-- Update the button section -->
+<div class="search-container">
+  <input type="text" class="form-control search-bar mb-3" placeholder="Search by Product Name or Code" [(ngModel)]="searchTerm"
+  (input)="onSearchTermChange()">
+  <div class="header">
+    <button class="btn btn-primary mb-3 me-2" (click)="openAddModal()">Add Product</button>
+    <button class="btn btn-success mb-3" (click)="openUploadExcelModal()">Upload Excel</button>
+  </div>
+</div>
   
   <!-- Table Wrapper for Horizontal Scrolling -->
   <div class="table-wrapper">
@@ -208,6 +211,61 @@
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
         <button type="button" class="btn btn-primary" (click)="updateProduct()">Update</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Excel Upload Modal -->
+<div #uploadExcelModal class="modal fade" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Upload Products Excel</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form>
+          <div class="mb-3">
+            <label class="form-label">Select Excel File (.xlsx, .xls)</label>
+            <input type="file" class="form-control" (change)="onExcelFileSelected($event)" accept=".xlsx, .xls">
+          </div>
+        </form>
+        
+        <!-- Upload Progress Section -->
+        <div *ngIf="uploadInProgress" class="mt-3">
+          <div class="progress mb-3">
+            <div class="progress-bar" [style.width.%]="uploadProgress" role="progressbar" 
+                [attr.aria-valuenow]="uploadProgress" aria-valuemin="0" aria-valuemax="100">
+              {{uploadProgress}}%
+            </div>
+          </div>
+          <p class="text-center">{{uploadStatus}}</p>
+          
+          <!-- Stats display if available -->
+          <div *ngIf="uploadStats" class="alert alert-info">
+            <p class="mb-1"><strong>Total:</strong> {{uploadStats.total}}</p>
+            <p class="mb-1"><strong>Successful:</strong> {{uploadStats.successful}}</p>
+            <p class="mb-1"><strong>Failed:</strong> {{uploadStats.failed}}</p>
+          </div>
+          
+          <!-- Failures display if available -->
+          <div *ngIf="uploadFailures && uploadFailures.length > 0" class="alert alert-danger">
+            <p><strong>Failures:</strong></p>
+            <ul>
+              <li *ngFor="let failure of uploadFailures">
+                Row {{failure.row}}: {{failure.error}}
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button *ngIf="!uploadInProgress" type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <button *ngIf="uploadInProgress && uploadProgress < 100" type="button" class="btn btn-danger" 
+          (click)="cancelUpload()">Cancel Upload</button>
+        <button *ngIf="!uploadInProgress" type="button" class="btn btn-primary" 
+          [disabled]="!selectedExcelFile" (click)="uploadExcelFile()">Upload</button>
       </div>
     </div>
   </div>

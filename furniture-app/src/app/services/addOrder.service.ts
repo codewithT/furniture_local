@@ -11,6 +11,8 @@ export class AddOrderService {
   private supplierApiUrl = `${environment.apiBaseUrl}/u/supplier`;
   private addOrderApiUrl = `${environment.apiBaseUrl}/u/addOrders`;
   private orderDetailUrl= `${environment.apiBaseUrl}/u/order-details`;
+  private productSearchUrl = `${environment.apiBaseUrl}/u/product-search`;
+  
   constructor(private http: HttpClient) {}
 
   // Set headers for session-based authentication
@@ -20,6 +22,25 @@ export class AddOrderService {
     }),
     withCredentials: true // Ensures cookies/session persistence
   };
+
+  // Search products by product code (new method)
+  searchProductsByCode(searchTerm: string): Observable<any[]> {
+    if (!searchTerm.trim()) {
+      return of([]);
+    }
+    return this.http.get<any[]>(`${this.productSearchUrl}/${searchTerm}`, this.httpOptions)
+      .pipe(
+        catchError(this.handleError<any[]>('searchProductsByCode', []))
+      );
+  }
+
+  // Get product details by product code (new method)
+  getProductDetailsByCode(productCode: string): Observable<any> {
+    return this.http.get<any>(`${this.productSearchUrl}/details/${productCode}`, this.httpOptions)
+      .pipe(
+        catchError(this.handleError<any>('getProductDetailsByCode', null))
+      );
+  }
 
   // Fetch supplier details based on productCode
   getSupplierCodesByProductCode(productCode: string): Observable<any> {

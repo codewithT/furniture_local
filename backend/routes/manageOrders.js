@@ -45,8 +45,19 @@ router.put('/manageOrders/update-payment-status', requireAuth, (req, res) => {
     if (!SalesID || !Payment_Status) {
         return res.status(400).json({ message: "SalesID and Payment_Status are required" });
     }
+    const changedBy = req.session.user.email; 
+    
+    // Get current date and time
+    const currentDate = new Date();
+    const changedDate = currentDate.toISOString().slice(0, 10); // YYYY-MM-DD
+    const changedTime = currentDate.toTimeString().slice(0, 8); // HH:MM:SS
 
-    const query = `UPDATE salestable SET Payment_Status = ? WHERE SalesID = ?`;
+
+    const query = `
+   UPDATE salestable 
+        SET Payment_Status = ?, Changed_by = ?, Changed_date = ?, Changed_time = ?
+        WHERE SalesID = ?
+    `;
 
     pool.getConnection((err, connection) => {
         if (err) {
@@ -54,7 +65,7 @@ router.put('/manageOrders/update-payment-status', requireAuth, (req, res) => {
             return res.status(500).json({ message: "Database connection error" });
         }
 
-        connection.query(query, [Payment_Status, SalesID], (err, result) => {
+        connection.query(query, [Payment_Status, changedBy, changedDate, changedTime, SalesID], (err, result) => {
             connection.release(); // Release connection
 
             if (err) {

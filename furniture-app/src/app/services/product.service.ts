@@ -25,7 +25,7 @@ export class ProductService {
   uploadProductExcel(formData: FormData): Observable<any> {
     return this.http.post<any>(`${this.apiUrl}/upload-excel`, formData, {
       withCredentials: true
-      // Don't set content-type header for FormData
+      
     }).pipe(catchError(this.handleError<any>('uploadProductExcel')));
   }
 
@@ -40,11 +40,12 @@ export class ProductService {
   }
 
   // Fetch all products
-  getProducts(): Observable<Product[]> {
-    return this.http.get<Product[]>(this.apiUrl, this.httpOptions)
+  getProducts(paginationParams: { page: number; limit: number }): Observable<Product[]> {
+    const { page, limit } = paginationParams;
+    return this.http.get<Product[]>(`${this.apiUrl}?page=${page}&limit=${limit}`, this.httpOptions)
       .pipe(catchError(this.handleError<Product[]>('getProductDetails', [])));
   }
-  
+
   // Add product
   addProduct(product: Product): Observable<Product> {
     const currentUserEmail = this.authService.getCurrentUser();  
@@ -55,13 +56,26 @@ export class ProductService {
   }
 
   // Update an existing product
-  updateProduct(product: Product): Observable<Product> {
-    const currentUserEmail = this.authService.getCurrentUser();
-    const productData = { ...product, Changed_by: currentUserEmail };
-    return this.http.put<Product>(`${this.apiUrl}/update-product`, productData, this.httpOptions)
-      .pipe(catchError(this.handleError<Product>('updateProduct')));
-  }
-  
+  // updateProduct(formData: FormData): Observable<any> {
+  //   const currentUserEmail = this.authService.getCurrentUser();
+  //   formData.append('Changed_by', currentUserEmail);
+  //   return this.http.put<Product>(`${this.apiUrl}/update-product`, formData, {
+  //     ...this.httpOptions,
+  //     reportProgress: true,
+  //     observe: 'events'
+  //   }).pipe(catchError(this.handleError<Product>('updateProduct')));
+  // }
+// No type constraint on 'formData' since it's multipart
+updateProduct(formData: FormData): Observable<any> {
+  const currentUserEmail = this.authService.getCurrentUser();
+  formData.append('Changed_by', currentUserEmail);
+  return this.http.put(`${this.apiUrl}/update-product`, formData, {
+    withCredentials: true,
+    // Don't set content-type header for FormData
+  })
+    .pipe(catchError(this.handleError<any>('updateProduct')));
+}
+
   // Delete a product
   deleteProduct(productId: number): Observable<void> {
     return this.http.delete<void>(`${this.apiUrl}/${productId}`, this.httpOptions)
@@ -69,9 +83,9 @@ export class ProductService {
   }
 
   // Search products with Pagination
-  searchProducts(query: string): Observable<Product[]> {
-    return this.http.get<Product[]>(
-      `${this.apiUrl}/search?query=${encodeURIComponent(query)}`,
+  searchProducts(query: string, paginationParams: { page: number; limit: number }): Observable<Product[]> {
+    const { page, limit } = paginationParams;
+    return this.http.get<Product[]>(`${this.apiUrl}/search?query=${encodeURIComponent(query)}&page=${page}&limit=${limit}`,
       this.httpOptions
     ).pipe(catchError(this.handleError<Product[]>('searchProducts', [])));
   }

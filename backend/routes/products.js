@@ -358,19 +358,67 @@ router.post('/products/cancel-job', requireAuth, async (req, res) => {
 
 
 // GET all products
-router.get('/products', requireAuth, (req, res) => {
-  const sql = `
-    SELECT ProductID, ProductCode, ProductName, sup.SupplierID, sup.SupplierCode,
-           SupplierItemNumber, FinalPrice, Picture 
-    FROM productmaster prom 
-    JOIN supplier sup ON prom.SupplierID = sup.SupplierID
-    ORDER BY prom.created_date DESC`;
 
-  pool.query(sql, (err, results) => {
-    if (err) return res.status(500).json({ error: "Unable to get data" });
-    return res.json(results);
-  });
+router.get('/products', requireAuth, async (req, res) => {
+  try {
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 10;
+
+    if (page < 1 || limit < 1 || limit > 100) {
+      return res.status(400).json({ error: 'Invalid pagination parameters' });
+    }
+
+    const offset = (page - 1) * limit;
+
+    // Query for paginated products
+    const [products] = await pool.promise().query(
+      `SELECT 
+         prom.ProductID, prom.ProductCode, prom.ProductName,
+         sup.SupplierID, sup.SupplierCode, prom.SupplierItemNumber,
+         prom.FinalPrice, prom.Picture
+       FROM productmaster prom
+       JOIN supplier sup ON prom.SupplierID = sup.SupplierID
+       ORDER BY prom.created_date DESC
+       LIMIT ? OFFSET ?`,
+      [limit, offset]
+    );
+
+    // Query for total product count
+    const [countResult] = await pool.promise().query(
+      `SELECT COUNT(*) AS total FROM productmaster`
+    );
+
+    const totalItems = countResult[0].total;
+    const totalPages = Math.ceil(totalItems / limit);
+
+    // Base URL for image files
+    const baseImageUrl = `${req.protocol}://${req.get('host')}/images/`;
+
+    // Add full image URL
+    const formattedProducts = products.map(product => ({
+      ...product,
+      Picture: product.Picture ? baseImageUrl + product.Picture : null
+    }));
+
+    return res.json({
+      data: formattedProducts,
+      pagination: {
+        total: totalItems,
+        per_page: limit,
+        current_page: page,
+        last_page: totalPages,
+        from: offset + 1,
+        to: Math.min(offset + limit, totalItems),
+        has_more_pages: page < totalPages
+      }
+    });
+
+  } catch (err) {
+    console.error('Error fetching products:', err);
+    return res.status(500).json({ error: 'Unable to fetch products' });
+  }
 });
+
 
 // ADD a product (with transaction)
 router.post('/products/add-product', requireAuth, (req, res) => {
@@ -426,57 +474,155 @@ router.post('/products/add-product', requireAuth, (req, res) => {
   });
 });
 
+// Configure multer for image storage
+const imageStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = './public/images/products';
+    // Create directory if it doesn't exist
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    // Create unique filename with timestamp and original extension
+    const uniqueFilename = `product_${Date.now()}${path.extname(file.originalname)}`;
+    cb(null, uniqueFilename);
+  }
+});
 
-// UPDATE a product (with transaction)
-router.put('/products/update-product', requireAuth, (req, res) => {
-  const product = req.body;
-  // const productId = req.params.id;
-  console.log(product);
-  const sql = `
-    UPDATE productmaster 
-    SET ProductCode = ?, ProductName = ?, SupplierItemNumber = ?, 
-          Picture = ?,   FinalPrice = ?, 
-        Changed_by = ?, Changed_date = CURDATE(), Changed_time = CURTIME()
-    WHERE ProductID = ?`;
+// Configure multer with limits
+const imageUpload = multer({ 
+  storage: imageStorage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit for image files
+    fieldSize: 10 * 1024 * 1024  // 10MB limit for text fields
+  },
+  fileFilter: (req, file, cb) => {
+    // Accept only image files
+    const filetypes = /jpeg|jpg|png|gif/;
+    const mimetype = filetypes.test(file.mimetype);
+    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+    
+    if (mimetype && extname) {
+      return cb(null, true);
+    }
+    cb(new Error("Only image files are allowed!"));
+  }
+});
 
-  const values = [
-    product.ProductCode, product.ProductName,
-    product.SupplierItemNumber,   product.Picture,
-      product.FinalPrice, product.Changed_by.email, product.ProductID
-  ];
-
-  pool.getConnection((err, connection) => {
-    if (err) return res.status(500).json({ error: err.message });
-
-    connection.beginTransaction(err => {
-      if (err) {
-        connection.release();
-        return res.status(500).json({ error: err.message });
-      }
-
-      connection.query(sql, values, (err, result) => {
-        if (err) {
-          return connection.rollback(() => {
-            connection.release();
-            res.status(500).json({ error: err.message });
-          });
+// UPDATE a product
+router.put('/products/update-product', requireAuth, imageUpload.single('image'), (req, res) => {
+  try {
+    if (!req.body.product) {
+      return res.status(400).json({ error: 'Product data is required' });
+    }
+    
+    const product = JSON.parse(req.body.product);
+    
+    // Determine image path - use new uploaded image or keep existing one
+    let imagePath = product.Picture; // Keep existing image path by default
+    
+    if (req.file) {
+      // If new file uploaded, use its path as a URL
+      imagePath = `/images/products/${req.file.filename}`;
+    }
+    
+    // Handle case where image is base64 string
+    if (imagePath && imagePath.startsWith('data:image/')) {
+      // Extract the base64 data without the prefix
+      const matches = imagePath.match(/^data:image\/([A-Za-z-+\/]+);base64,(.+)$/);
+      
+      if (matches && matches.length === 3) {
+        const extension = matches[1].replace('+', '');
+        const imageData = matches[2];
+        const fileName = `product_${Date.now()}.${extension}`;
+        const filePath = path.join('./public/images/products', fileName);
+        
+        // Create directory if it doesn't exist
+        if (!fs.existsSync('./public/images/products')) {
+          fs.mkdirSync('./public/images/products', { recursive: true });
         }
+        
+        // Write the image file
+        fs.writeFileSync(filePath, Buffer.from(imageData, 'base64'));
+        
+        // Update image path to the new file URL
+        imagePath = `/images/products/${fileName}`;
+      }
+    }
+    const changedBy= req.session.user.email || 'system'; //
+    // Update product in database
+    const sql = `
+      UPDATE productmaster 
+      SET ProductCode = ?, 
+          ProductName = ?, 
+          SupplierItemNumber = ?, 
+          Picture = ?, 
+          FinalPrice = ?, 
+          Changed_by = ?,
+          Changed_date = CURDATE(), 
+          Changed_time = CURTIME()
+      WHERE ProductID = ?`;
+    
+    const values = [
+      product.ProductCode,
+      product.ProductName,
+      product.SupplierItemNumber,
+      imagePath, // Use the image path/URL instead of base64 data
+      product.FinalPrice,
+      changedBy,
+      product.ProductID
+    ];
 
-        connection.commit(err => {
+    pool.getConnection((err, connection) => {
+      if (err) {
+        console.error('Database connection error:', err);
+        return res.status(500).json({ error: 'Database connection error' });
+      }
+      
+      connection.beginTransaction(err => {
+        if (err) {
+          connection.release();
+          console.error('Transaction error:', err);
+          return res.status(500).json({ error: 'Transaction error' });
+        }
+        
+        connection.query(sql, values, (err, result) => {
           if (err) {
             return connection.rollback(() => {
               connection.release();
-              res.status(500).json({ error: err.message });
+              console.error('Update query error:', err);
+              res.status(500).json({ error: 'Error updating product' });
             });
           }
-
-          connection.release();
-          res.json({ message: 'Product updated successfully' });
+          
+          connection.commit(err => {
+            if (err) {
+              return connection.rollback(() => {
+                connection.release();
+                console.error('Commit error:', err);
+                res.status(500).json({ error: 'Error committing transaction' });
+              });
+            }
+            
+            connection.release();
+            res.json({ 
+              message: 'Product updated successfully',
+              product: {
+                ...product,
+                Picture: imagePath
+              }
+            });
+          });
         });
       });
     });
-  });
-}); 
+  } catch (error) {
+    console.error('Error processing request:', error);
+    res.status(500).json({ error: 'Error processing request' });
+  }
+});
 
 // DELETE a product (with transaction)
 router.delete('/products/:id', requireAuth, (req, res) => {
@@ -521,19 +667,57 @@ router.get('/products/search', requireAuth, (req, res) => {
   let { query } = req.query;
   query = query ? query.trim() : '';
 
-  const sql = `
-    SELECT * FROM productmaster 
-    WHERE ProductName LIKE ? OR ProductCode LIKE ? 
-    OR SupplierItemNumber LIKE ? OR SupplierPrice LIKE ? 
-    OR FinalPrice LIKE ?`;
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const offset = (page - 1) * limit;
 
-  const searchQuery = [`%${query}%`, `%${query}%`, `%${query}%`, `%${query}%`, `%${query}%`];
+  const searchTerm = `%${query}%`;
+ 
+  const countSql = `
+    SELECT COUNT(*) AS total FROM productmaster pm
+    JOIN supplier sup ON pm.SupplierID = sup.SupplierID
+    WHERE pm.ProductName LIKE ? OR pm.ProductCode LIKE ? 
+    OR pm.SupplierItemNumber LIKE ? OR sup.SupplierCode LIKE ?`;
 
-  pool.query(sql, searchQuery, (err, results) => {
+  const dataSql = `
+    SELECT pm.ProductCode, pm.ProductName, pm.SupplierItemNumber, pm.FinalPrice, sup.SupplierCode
+    FROM productmaster pm
+    JOIN supplier sup ON pm.SupplierID = sup.SupplierID
+    WHERE pm.ProductName LIKE ? OR pm.ProductCode LIKE ? 
+    OR pm.SupplierItemNumber LIKE ? OR sup.SupplierCode LIKE ?
+    OR pm.FinalPrice LIKE ?
+    LIMIT ? OFFSET ?`;
+
+  const searchParams = [searchTerm, searchTerm, searchTerm, searchTerm
+    , searchTerm, limit, offset
+  ];
+
+  pool.query(countSql, searchParams, (err, countResults) => {
     if (err) return res.status(500).json({ error: err.message });
-    res.json(results);
+
+    const total = countResults[0].total;
+    const totalPages = Math.ceil(total / limit);
+
+    pool.query(dataSql, [...searchParams, limit, offset], (err, dataResults) => {
+      if (err) return res.status(500).json({ error: err.message });
+
+      res.json({
+        data: dataResults,
+        pagination: {
+          total,
+          per_page: limit,
+          current_page: page,
+          last_page: totalPages,
+          from: offset + 1,
+          to: Math.min(offset + limit, total),
+          has_more_pages: page < totalPages
+        }
+      });
+    });
   });
 });
+
+
 
 // VALIDATE supplier code
 router.get('/products/supplier/validate-code/:code', (req, res) => {

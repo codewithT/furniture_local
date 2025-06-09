@@ -1,18 +1,18 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { SalesMonthComponent } from './sales-month.component';
+import { ViewPurchasesComponent } from './view-purchases.component';
 
-describe('SalesMonthComponent', () => {
-  let component: SalesMonthComponent;
-  let fixture: ComponentFixture<SalesMonthComponent>;
+describe('ViewPurchasesComponent', () => {
+  let component: ViewPurchasesComponent;
+  let fixture: ComponentFixture<ViewPurchasesComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [SalesMonthComponent]
+      imports: [ViewPurchasesComponent]
     })
     .compileComponents();
 
-    fixture = TestBed.createComponent(SalesMonthComponent);
+    fixture = TestBed.createComponent(ViewPurchasesComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });

@@ -1,15 +1,41 @@
+<!-- Top Toolbar -->
 <mat-toolbar color="primary">
-    <span>Angular Dashboard</span>
-  </mat-toolbar>
-  
-  <div class="dashboard-container">
-    
-  
-    <div class="widgets-container">
-      <app-chart-widget></app-chart-widget>
-      <app-table-widget></app-table-widget>
-      <app-sales-month></app-sales-month>
-   
+  <button
+    type="button"
+    aria-label="Toggle sidenav"
+    mat-icon-button
+    (click)="toggleSidenav()">
+    <mat-icon aria-label="Side nav toggle icon">menu Dashboard</mat-icon>
+  </button>
+  <span (click)="toggleSidenav()">Dashboard</span>
+</mat-toolbar>
+
+<!-- Sidenav Layout -->
+<mat-sidenav-container class="sidenav-container" hasBackdrop="false">
+  <!-- Left Sidenav -->
+  <mat-sidenav 
+    #drawer 
+    class="sidenav" 
+    mode="side"
+    fixedInViewport="false"
+    [opened]="sidenavOpen"
+    disableClose="true"
+    [attr.role]="'navigation'">
+    <app-sidebar
+      [activeView]="activeView"
+      (filtersChanged)="onFiltersChanged($event)"
+      (viewChanged)="onViewChanged($event)">
+    </app-sidebar>
+  </mat-sidenav>
+
+  <!-- Main Content -->
+  <mat-sidenav-content>
+    <div class="content-container">
+      <app-view-purchases *ngIf="activeView === 'purchases'"></app-view-purchases>
+      <app-view-product-reports *ngIf="activeView === 'products'"></app-view-product-reports>
+      <app-view-sales-reports *ngIf="activeView === 'sales'"></app-view-sales-reports>
+      <app-sales-and-products-reports *ngIf="activeView === 'sales-products'"></app-sales-and-products-reports>
     </div>
-  </div>
-  
+  </mat-sidenav-content>
+   
+</mat-sidenav-container>

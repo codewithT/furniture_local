@@ -1,0 +1,43 @@
+<mat-toolbar>
+  <mat-icon>assessment</mat-icon>
+  <span style="margin-left: 8px;">Reports</span>
+</mat-toolbar>
+
+<mat-nav-list>
+  <mat-list-item 
+    button 
+    (click)="navigateToPurchases()"
+    [activated]="isViewActive('purchases')">
+    <mat-icon matListItemIcon>shopping_cart</mat-icon>
+    <div matListItemTitle>Purchase Reports</div>
+    <div matListItemLine>View purchase orders and transactions</div>
+  </mat-list-item>
+
+  <mat-divider></mat-divider>
+
+  <mat-list-item 
+    button 
+    (click)="navigateToProducts()"
+    [activated]="isViewActive('products')">
+    <mat-icon matListItemIcon>inventory</mat-icon>
+    <div matListItemTitle>Product Reports</div>
+    <div matListItemLine>View product catalog and inventory</div>
+  </mat-list-item>
+<mat-list-item 
+  button 
+  (click)="navigateToSales()"
+  [activated]="isViewActive('sales')">
+  <mat-icon matListItemIcon>bar_chart</mat-icon>
+  <div matListItemTitle>Sales Reports</div>
+  <div matListItemLine>View sales performance data</div>
+</mat-list-item>
+<mat-list-item
+  button
+  (click)="navigateToSalesAndProducts()"
+  [activated]="isViewActive('sales-products')">
+  <mat-icon matListItemIcon>transfer_within_a_station</mat-icon>
+  <div matListItemTitle>Sales and Products Reports</div>
+  <div matListItemLine>View mixed reports of sales and products</div>
+</mat-list-item>
+<mat-divider></mat-divider>
+</mat-nav-list>

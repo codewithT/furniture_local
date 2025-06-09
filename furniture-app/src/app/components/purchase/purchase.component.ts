@@ -23,8 +23,8 @@ export class PurchaseComponent implements OnInit {
   showModal: boolean = false;
   isEditing: boolean = false;
   selectedPurchase: Purchase | null = null;
-  totalPages: number = 0;
   
+  totalItems: number = 0;
   // New properties for supplier management
   suppliers: { SupplierCode: number, SupplierName?: string }[] = [];
   isLoadingSuppliers: boolean = false;
@@ -44,26 +44,17 @@ export class PurchaseComponent implements OnInit {
   }
   
   loadPurchases() {
-    this.purchaseService.getPurchases().subscribe((purchases: Purchase[]) => {
-      console.log(purchases);
-      this.purchases = purchases.map(purchase => ({ ...purchase, selected: false }));
-      this.refreshList();
-    });
-  }
-  
-  refreshList() {
-    this.purchaseService.getPurchases().subscribe((purchases: Purchase[]) => {
-      this.purchases = purchases.map(purchase => ({ ...purchase, selected: false }));
-      this.applySorting();
-      this.updateTotalPages();
+    this.purchaseService.getPurchases(this.currentPage, this.pageSize).subscribe((response) => {
+      console.log(response);
+      this.purchases = response.data.map(purchase => ({ ...purchase, selected: false }));
+       
+         this.totalItems = response.pagination.total;
+        this.applySorting();
+        this.cdr.detectChanges();
     });
   }
 
-  updateTotalPages() {
-    console.log("filtered purchases", this.filteredPurchases);
-    this.totalPages = Math.ceil(this.purchases.length / this.pageSize);
-    this.currentPage = Math.min(this.currentPage, this.totalPages) || 1;
-  }
+
   
   getSelectedPurchases() {
     return this.purchases.filter((purchase: Purchase) => purchase.selected);
@@ -122,7 +113,7 @@ export class PurchaseComponent implements OnInit {
     this.purchaseService.saveToSendMail(selectedPurchases).subscribe(
       () => {
         alert('Created PO Number');
-        this.refreshList();
+        this.loadPurchases();
       },
       (error) => {
         console.error('Error creating po number', error);
@@ -130,7 +121,7 @@ export class PurchaseComponent implements OnInit {
       }
     );
     this.cdr.detectChanges();
-    this.refreshList();
+    this.loadPurchases();
   }
   
   sendEmails() {
@@ -157,7 +148,7 @@ export class PurchaseComponent implements OnInit {
       () => {
         alert('Emails sent successfully!');
         setTimeout(() => {
-          this.refreshList();
+          this.loadPurchases();
         }, 4000);
       },
       (error) => {
@@ -172,18 +163,38 @@ export class PurchaseComponent implements OnInit {
     if (target) {
       this.pageSize = Number(target.value);
       this.currentPage = 1;
-      this.updateTotalPages();
+      this.loadPurchases();
     }
   }
 
-  decrementPage() {
-    if (this.currentPage > 1) this.currentPage--;
+decrementPage() {
+  if (this.currentPage > 1) {
+    this.currentPage--;
+    this.loadCurrentData();
+     this.cdr.detectChanges(); 
   }
+}
 
-  incrementPage() {
-    if (this.currentPage < this.totalPages) this.currentPage++;
+incrementPage() {
+  if (this.currentPage < this.totalPages) {
+    this.currentPage++;
+    this.loadCurrentData();
+     this.cdr.detectChanges(); 
   }
+}
 
+// New helper method to determine which data to load
+loadCurrentData() {
+  if (this.searchQuery.trim() !== '') {
+    this.searchPurchases();
+  } else {
+    this.loadPurchases();
+  }
+}
+
+ get totalPages(): number {
+    return Math.ceil(this.totalItems / this.pageSize);
+  }
   get paginatedPurchases(): Purchase[] {
     const start = (this.currentPage - 1) * this.pageSize;
     return this.purchases.slice(start, start + this.pageSize);
@@ -219,22 +230,29 @@ export class PurchaseComponent implements OnInit {
     });
   }
   
-  searchPurchases() {
+searchPurchases() {
     if (!this.searchQuery.trim()) {
-      this.loadPurchases(); // Load all purchases if search query is empty
+      this.currentPage = 1;
+      this.loadPurchases();
       return;
     }
-    console.log(this.searchQuery);
-    this.purchaseService.searchPurchases(this.searchQuery).subscribe(
-      (data: Purchase[]) => {
-        this.purchases = data;
-        this.currentPage = 1;
-        this.updateTotalPages();
+
+    this.purchaseService.searchPurchases(this.searchQuery, this.currentPage, this.pageSize).subscribe({
+      next: (data: any) => {
+        // Check if the response is an array or has a data property
+        if (Array.isArray(data)) {
+          this.purchases = data.map(p => ({ ...p, selected: false }));
+          this.totalItems = data.length;
+        } else if (data && data.data) {
+          this.purchases = data.data.map((p: any) => ({ ...p, selected: false }));
+          this.totalItems = data.pagination ? data.pagination.total : data.data.length;
+        }
+          this.cdr.detectChanges(); 
       },
-      (error) => {
+      error: (error) => {
         console.error('Search error:', error);
       }
-    );
+    });
   }
 
   addPurchase() {
@@ -297,7 +315,7 @@ export class PurchaseComponent implements OnInit {
     if (this.isEditing) {
       this.purchaseService.editPurchase(this.selectedPurchase).subscribe({
         next: () => {
-          this.refreshList();
+          this.loadPurchases();
           this.closeModal();
         },
         error: (err) => console.error('Failed to update purchase:', err)
@@ -307,7 +325,7 @@ export class PurchaseComponent implements OnInit {
       console.log("saving purchase", this.selectedPurchase);
       this.purchaseService.addPurchase(this.selectedPurchase).subscribe({
         next: () => {
-          this.refreshList();
+          this.loadPurchases();
           this.closeModal();
         },
         error: (err) => console.error('Failed to add purchase:', err)
@@ -320,7 +338,7 @@ export class PurchaseComponent implements OnInit {
       this.purchaseService.deletePurchase(id).subscribe({
         next: () => {
           console.log("purchase delete successfully");
-          this.refreshList();
+          this.loadPurchases();
         },
         error: (err) => console.error('Failed to delete purchase:', err)
       });

@@ -261,9 +261,9 @@ router.get('/supplier/job-progress/:jobId', requireAuth, async (req, res) => {
     const job = jobs[0];
     
     // Parse JSON fields
-    const stats = JSON.parse(job.stats);
-    const failures = JSON.parse(job.failures);
-    
+   const stats = typeof job.stats === 'string' ? JSON.parse(job.stats) : job.stats;
+const failures = typeof job.failures === 'string' ? JSON.parse(job.failures) : job.failures;
+
     res.json({
       status: job.status,
       percentage: job.percentage,
@@ -307,21 +307,57 @@ router.post('/supplier/cancel-job', requireAuth, async (req, res) => {
   }
 });
 
-// Get all suppliers
-router.get('/supplier', requireAuth, (req, res) => {
-  const query = "SELECT SupplierID, SupplierCode, SupplierName, SupplierAddress, EmailAddress FROM supplier";
-  pool.query(query, (err, results) => {
-    if (err) {
-      console.error("Error fetching data:", err);
-      return res.status(500).json({ error: "Unable to get data" });
+// Get all suppliers with pagination
+router.get('/supplier', requireAuth, async (req, res) => {
+  try {
+    // Get pagination parameters with defaults
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    
+    // Validate pagination parameters
+    if (page < 1 || limit < 1 || limit > 100) {
+      return res.status(400).json({ error: 'Invalid pagination parameters' });
     }
-    return res.json(results);
-  });
+    
+    const offset = (page - 1) * limit;
+    
+    // Query for paginated suppliers
+    const [suppliers] = await pool.promise().query(
+      "SELECT SupplierID, SupplierCode, SupplierName, SupplierAddress, EmailAddress FROM supplier LIMIT ? OFFSET ?",
+      [limit, offset]
+    );
+    
+    // Query for total count
+    const [countResult] = await pool.promise().query(
+      "SELECT COUNT(*) as total FROM supplier"
+    );
+    
+    const totalItems = countResult[0].total;
+    const totalPages = Math.ceil(totalItems / limit);
+    
+    // Return paginated response
+    return res.json({
+      data: suppliers,
+      pagination: {
+        total: totalItems,
+        per_page: limit,
+        current_page: page,
+        last_page: totalPages,
+        from: offset + 1,
+        to: Math.min(offset + limit, totalItems),
+        has_more_pages: page < totalPages
+      }
+    });
+  } catch (err) {
+    console.error("Error fetching data:", err);
+    return res.status(500).json({ error: "Unable to get data" });
+  }
 });
+
 
 // Add a new supplier
 router.post('/supplier', requireAuth, async (req, res) => {
-  const { SupplierCode, SupplierName, SupplierAddress, EmailAddress } = req.body;
+  const { SupplierCode, SupplierName, SupplierAddress, EmailAddress, Created_by } = req.body;
   
   // Validate required fields
   if (!SupplierCode || !SupplierName || !SupplierAddress) {
@@ -334,7 +370,7 @@ router.post('/supplier', requireAuth, async (req, res) => {
   }
   console.log("User email:", req.user);
   // Get user email from auth middleware
-  const Created_by = req.session.user.email;
+  const creater = Created_by.email;
   
   pool.getConnection((err, connection) => {
     if (err) {
@@ -353,7 +389,7 @@ router.post('/supplier', requireAuth, async (req, res) => {
       (SupplierCode, SupplierName, SupplierAddress, Created_by, EmailAddress, Created_date, Created_time) 
       VALUES (?, ?, ?, ?, ?, CURDATE(), CURTIME())`;
     
-      connection.query(query, [SupplierCode, SupplierName, SupplierAddress, Created_by, EmailAddress || null], (err, result) => {
+      connection.query(query, [SupplierCode, SupplierName, SupplierAddress, creater, EmailAddress || null], (err, result) => {
         if (err) {
           return connection.rollback(() => {
             connection.release();
@@ -493,53 +529,134 @@ router.delete('/supplier/:id', requireAuth, (req, res) => {
   });
 });
 
-// Search Suppliers
-router.get('/supplier/search', requireAuth, (req, res) => {
-  let { query } = req.query;
-  
-  // Trim leading and trailing spaces
-  query = query ? query.trim() : '';
-  let sql = `SELECT * FROM supplier 
-             WHERE SupplierCode LIKE ? 
-             OR SupplierName LIKE ? 
-             OR EmailAddress LIKE ?
-             OR SupplierAddress LIKE ?`;
-
-  pool.query(sql, [`%${query}%`, `%${query}%`, `%${query}%`, `%${query}%`], (err, results) => {
-    if (err) {
-      console.error('Search Error:', err);
-      return res.status(500).json({ error: 'Database search failed' });
+// Search Suppliers with pagination
+router.get('/supplier/search', requireAuth, async (req, res) => {
+  try {
+    let { query, page, limit } = req.query;
+    
+    // Pagination parameters
+    page = parseInt(page) || 1;
+    limit = parseInt(limit) || 10;
+    
+    // Validate pagination parameters
+    if (page < 1 || limit < 1 || limit > 200) {
+      return res.status(400).json({ error: 'Invalid pagination parameters' });
     }
-    res.json(results);
-  });
+    
+    const offset = (page - 1) * limit;
+    
+    // Trim leading and trailing spaces
+    query = query ? query.trim() : '';
+    
+    // Query for paginated search results
+    const searchSql = `
+      SELECT * FROM supplier 
+      WHERE SupplierCode LIKE ? 
+      OR SupplierName LIKE ? 
+      OR EmailAddress LIKE ?
+      OR SupplierAddress LIKE ?
+      LIMIT ? OFFSET ?
+    `;
+    
+    const [suppliers] = await pool.promise().query(
+      searchSql, 
+      [`%${query}%`, `%${query}%`, `%${query}%`, `%${query}%`, limit, offset]
+    );
+    
+    // Query for total count
+    const countSql = `
+      SELECT COUNT(*) as total FROM supplier 
+      WHERE SupplierCode LIKE ? 
+      OR SupplierName LIKE ? 
+      OR EmailAddress LIKE ?
+      OR SupplierAddress LIKE ?
+    `;
+    
+    const [countResult] = await pool.promise().query(
+      countSql,
+      [`%${query}%`, `%${query}%`, `%${query}%`, `%${query}%`]
+    );
+    
+    const totalItems = countResult[0].total;
+    const totalPages = Math.ceil(totalItems / limit);
+    
+    // Return paginated response
+    res.json({
+      data: suppliers,
+      pagination: {
+        total: totalItems,
+        per_page: limit,
+        current_page: page,
+        last_page: totalPages,
+        from: offset + 1,
+        to: Math.min(offset + limit, totalItems),
+        has_more_pages: page < totalPages
+      }
+    });
+  } catch (err) {
+    console.error('Search Error:', err);
+    return res.status(500).json({ error: 'Database search failed' });
+  }
 });
 
-// Sort Suppliers with Pagination
-router.get('/supplier/sort', requireAuth, (req, res) => {
-  const { column = 'SupplierID', order = 'asc', page = 1, limit = 10 } = req.query;
-  const offset = (page - 1) * limit;
-
-  // Validate column to prevent SQL injection
-  const allowedColumns = ['SupplierID', 'SupplierCode', 'SupplierName', 'SupplierAddress', 'EmailAddress'];
-  if (!allowedColumns.includes(column)) {
-    return res.status(400).json({ error: 'Invalid sort column' });
-  }
-
-  // Validate order
-  const allowedOrders = ['asc', 'desc'];
-  if (!allowedOrders.includes(order.toLowerCase())) {
-    return res.status(400).json({ error: 'Invalid sort order' });
-  }
-
-  let sql = `SELECT * FROM supplier ORDER BY ${column} ${order.toUpperCase()} LIMIT ? OFFSET ?`;
-
-  pool.query(sql, [parseInt(limit), parseInt(offset)], (err, results) => {
-    if (err) {
-      console.error('Sort Error:', err);
-      return res.status(500).json({ error: 'Sorting failed' });
+// Sort Suppliers with improved Pagination
+router.get('/supplier/sort', requireAuth, async (req, res) => {
+  try {
+    const { column = 'SupplierID', order = 'asc', page = 1, limit = 10 } = req.query;
+    
+    // Parse pagination parameters
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    
+    // Validate pagination parameters
+    if (pageNum < 1 || limitNum < 1 || limitNum > 100) {
+      return res.status(400).json({ error: 'Invalid pagination parameters' });
     }
-    res.json(results);
-  });
+    
+    const offset = (pageNum - 1) * limitNum;
+
+    // Validate column to prevent SQL injection
+    const allowedColumns = ['SupplierID', 'SupplierCode', 'SupplierName', 'SupplierAddress', 'EmailAddress'];
+    if (!allowedColumns.includes(column)) {
+      return res.status(400).json({ error: 'Invalid sort column' });
+    }
+
+    // Validate order
+    const allowedOrders = ['asc', 'desc'];
+    if (!allowedOrders.includes(order.toLowerCase())) {
+      return res.status(400).json({ error: 'Invalid sort order' });
+    }
+
+    // Query for paginated and sorted suppliers
+    const sortSql = `SELECT * FROM supplier ORDER BY ${column} ${order.toUpperCase()} LIMIT ? OFFSET ?`;
+    
+    const [suppliers] = await pool.promise().query(sortSql, [limitNum, offset]);
+    
+    // Query for total count
+    const [countResult] = await pool.promise().query('SELECT COUNT(*) as total FROM supplier');
+    
+    const totalItems = countResult[0].total;
+    const totalPages = Math.ceil(totalItems / limitNum);
+    
+    // Return paginated response
+    res.json({
+      data: suppliers,
+      pagination: {
+        total: totalItems,
+        per_page: limitNum,
+        current_page: pageNum,
+        last_page: totalPages,
+        from: offset + 1,
+        to: Math.min(offset + limitNum, totalItems),
+        has_more_pages: pageNum < totalPages,
+        sort_column: column,
+        sort_order: order
+      }
+    });
+  } catch (err) {
+    console.error('Sort Error:', err);
+    return res.status(500).json({ error: 'Sorting failed' });
+  }
 });
 
 // Email validation helper

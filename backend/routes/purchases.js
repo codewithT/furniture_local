@@ -14,43 +14,125 @@ const transporter = nodemailer.createTransport({
 });
 
 // Get all purchases
-router.get('/purchase', requireAuth,(req, res) => {
-    const query = `
-    SELECT 
-    PurchaseID, 
-    sales.SONumber, 
-    DATE_FORMAT(sales.Delivery_date, '%Y-%m-%d') AS Delivery_date, 
-    POStatus, 
-    pm.PONumber,
-    DATE_FORMAT(pm.Supplier_Date, '%Y-%m-%d') AS Supplier_Date,
-    sup.SupplierCode, 
-    prom.ProductCode, 
-    sales.Qty, 
-    DATE_FORMAT(pm.Delayed_Date, '%Y-%m-%d') AS Delayed_Date
-FROM purchasemaster pm 
-JOIN supplier sup ON pm.SupplierID = sup.SupplierID
-JOIN productmaster prom ON pm.ProductID = prom.ProductID
-JOIN salestable sales ON pm.SalesID = sales.SalesID
-ORDER BY pm.PurchaseID DESC;
+// router.get('/purchase', requireAuth,(req, res) => {
+//     const query = `
+//     SELECT 
+//     PurchaseID, 
+//     sales.SONumber, 
+//     DATE_FORMAT(sales.Delivery_date, '%Y-%m-%d') AS Delivery_date, 
+//     POStatus, 
+//     pm.PONumber,
+//     DATE_FORMAT(pm.Supplier_Date, '%Y-%m-%d') AS Supplier_Date,
+//     sup.SupplierCode, 
+//     prom.ProductCode, 
+//     sales.Qty, 
+//     DATE_FORMAT(pm.Delayed_Date, '%Y-%m-%d') AS Delayed_Date
+// FROM purchasemaster pm 
+// JOIN supplier sup ON pm.SupplierID = sup.SupplierID
+// JOIN productmaster prom ON pm.ProductID = prom.ProductID
+// JOIN salestable sales ON pm.SalesID = sales.SalesID
+// ORDER BY pm.PurchaseID DESC;
 
-     `;
+//      `;
     
-    db.getConnection((err, connection) => {
-        if (err) {
-            console.error("Database connection error:", err);
-            return res.status(500).json({ error: "Database connection failed" });
+//     db.getConnection((err, connection) => {
+//         if (err) {
+//             console.error("Database connection error:", err);
+//             return res.status(500).json({ error: "Database connection failed" });
+//         }
+
+//         connection.query(query, (error, results) => {
+//             connection.release();
+//             if (error) {
+//                 console.error("Error fetching data:", error);
+//                 return res.status(500).json({ error: "Database query error" });
+//             }
+//             res.json(results);
+//         });
+//     });
+// });
+// Get all purchases with pagination
+router.get('/purchase', requireAuth, (req, res) => {
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+
+  // Validate pagination parameters
+  if (page < 1 || limit < 1 || limit > 200) {
+    return res.status(400).json({ error: 'Invalid pagination parameters' });
+  }
+
+  const offset = (page - 1) * limit;
+
+  const dataQuery = `
+    SELECT 
+      pm.PurchaseID, 
+      sales.SONumber, 
+      DATE_FORMAT(sales.Delivery_date, '%Y-%m-%d') AS Delivery_date, 
+      POStatus, 
+      pm.PONumber,
+      DATE_FORMAT(pm.Supplier_Date, '%Y-%m-%d') AS Supplier_Date,
+      sup.SupplierCode, 
+      prom.ProductCode, 
+      sales.Qty, 
+      DATE_FORMAT(pm.Delayed_Date, '%Y-%m-%d') AS Delayed_Date
+    FROM purchasemaster pm 
+    JOIN supplier sup ON pm.SupplierID = sup.SupplierID
+    JOIN productmaster prom ON pm.ProductID = prom.ProductID
+    JOIN salestable sales ON pm.SalesID = sales.SalesID
+    ORDER BY pm.PurchaseID DESC
+    LIMIT ? OFFSET ?;
+  `;
+
+  const countQuery = `
+    SELECT COUNT(*) AS total
+    FROM purchasemaster pm 
+    JOIN supplier sup ON pm.SupplierID = sup.SupplierID
+    JOIN productmaster prom ON pm.ProductID = prom.ProductID
+    JOIN salestable sales ON pm.SalesID = sales.SalesID;
+  `;
+
+  db.getConnection((err, connection) => {
+    if (err) {
+      console.error("Database connection error:", err);
+      return res.status(500).json({ error: "Database connection failed" });
+    }
+
+    // First fetch paginated data
+    connection.query(dataQuery, [limit, offset], (dataErr, results) => {
+      if (dataErr) {
+        connection.release();
+        console.error("Error fetching data:", dataErr);
+        return res.status(500).json({ error: "Database query error" });
+      }
+
+      // Then fetch total count
+      connection.query(countQuery, (countErr, countResult) => {
+        connection.release();
+        if (countErr) {
+          console.error("Error fetching count:", countErr);
+          return res.status(500).json({ error: "Failed to get count" });
         }
 
-        connection.query(query, (error, results) => {
-            connection.release();
-            if (error) {
-                console.error("Error fetching data:", error);
-                return res.status(500).json({ error: "Database query error" });
-            }
-            res.json(results);
+        const totalItems = countResult[0].total;
+        const totalPages = Math.ceil(totalItems / limit);
+
+        res.json({
+          data: results,
+          pagination: {
+            total: totalItems,
+            per_page: limit,
+            current_page: page,
+            last_page: totalPages,
+            from: offset + 1,
+            to: Math.min(offset + limit, totalItems),
+            has_more_pages: page < totalPages
+          }
         });
+      });
     });
+  });
 });
+
 
 // add purchase request
 router.post('/purchase',requireAuth, requireAuth, (req, res) => {
@@ -65,7 +147,7 @@ router.post('/purchase',requireAuth, requireAuth, (req, res) => {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
-    const values = [SONumber, formatedDate, POStatus, PONumber, ProductCode, SupplierCode, Qty, createdBy];
+    const values = [SONumber, formatedDate, POStatus, PONumber, ProductCode, SupplierCode, Qty, createdBy.email];
 
     db.getConnection((err, connection) => {
         if (err) {
@@ -90,9 +172,12 @@ router.post('/purchase',requireAuth, requireAuth, (req, res) => {
 router.put('/purchase/:id', requireAuth, (req, res) => {
     const purchaseId = req.params.id;
     console.log(req.body);
-    const { SONumber, Delivery_date, POStatus, PONumber, ProductCode, SupplierCode, Supplier_Date, Qty, Delayed_Date } = req.body;
-    const changedBy = req.Changed_by; // Assuming requireAuth middleware adds user info to req.user
-
+    const { SONumber, Delivery_date, POStatus, PONumber, ProductCode, SupplierCode, Supplier_Date,
+         Qty, Delayed_Date } = req.body;
+    const changedBy = req.session.user?.email; 
+    const currentDate = moment().format("YYYY-MM-DD");
+    const currentTime = moment().format("HH:mm:ss");
+    console.log(changedBy);
     if (!purchaseId) {
         return res.status(400).json({ error: "Purchase ID is required" });
     }
@@ -118,11 +203,14 @@ router.put('/purchase/:id', requireAuth, (req, res) => {
         sales.Qty = ?, 
         pm.Supplier_Date = ?, 
         pm.Delayed_Date = ?,
-        pm.Changed_by = ?
+        pm.Changed_by = ?,
+        pm.Changed_date = ?,
+        pm.Changed_time = ?
     WHERE pm.PurchaseID = ?
 `;
 
-const values = [SONumber, formatedDate, POStatus, Qty, formatedSupplierDate,formatedDelayedDate, changedBy, purchaseId];
+const values = [SONumber, formatedDate, POStatus, Qty,
+    formatedSupplierDate, formatedDelayedDate, changedBy, currentDate, currentTime, purchaseId];
 
 
     db.getConnection((err, connection) => {
@@ -147,38 +235,84 @@ const values = [SONumber, formatedDate, POStatus, Qty, formatedSupplierDate,form
     });
 });
 
-// Search purchases
-router.get('/purchase/search', (requireAuth),(req, res) => {
-    
-    let { query } = req.query;
-  
-    // Trim leading and trailing spaces
+router.get('/purchase/search', requireAuth, async (req, res) => {
+  try {
+    let { query, page, limit } = req.query;
+
+    page = parseInt(page) || 1;
+    limit = parseInt(limit) || 10;
+
+    if (page < 1 || limit < 1 || limit > 200) {
+      return res.status(400).json({ error: 'Invalid pagination parameters' });
+    }
+
+    const offset = (page - 1) * limit;
     query = query ? query.trim() : '';
-    let sql = `SELECT * FROM purchasemaster pm
-               join productmaster prom on pm.ProductID = prom.ProductID
-               join salestable st on pm.SalesID = st.SalesID
-               join supplier sup on pm.SupplierID = sup.SupplierID
-               WHERE sup.SupplierCode LIKE ? 
-               OR st.Qty LIKE ? 
-               OR PurchaseID LIKE ?
-               OR pm.Delivery_date LIKE ?
-               OR prom.ProductCode LIKE ?
-               OR pm.PONumber LIKE ?
-               OR pm.SONumber LIKE ?
-               OR pm.Supplier_Date LIKE ?
-               OR pm.POStatus LIKE ?`;
-  
-    db.query(sql, [`%${query}%`, `%${query}%`, `%${query}%`, `%${query}%`
-        ,  `%${query}%`,  `%${query}%`,  `%${query}%`, `%${query}%`, `%${query}%`
-    ], (err, results) => {
-      if (err) {
-        console.error('Search Error:', err);
-        return res.status(500).json({ error: 'Database search failed' });
+
+    const searchSql = `
+      SELECT * FROM purchasemaster pm
+      JOIN productmaster prom ON pm.ProductID = prom.ProductID
+      JOIN salestable st ON pm.SalesID = st.SalesID
+      JOIN supplier sup ON pm.SupplierID = sup.SupplierID
+      WHERE sup.SupplierCode LIKE ?
+      OR st.Qty LIKE ?
+      OR pm.PurchaseID LIKE ?
+      OR pm.Delivery_date LIKE ?
+      OR prom.ProductCode LIKE ?
+      OR pm.PONumber LIKE ?
+      OR pm.SONumber LIKE ?
+      OR pm.Supplier_Date LIKE ?
+      OR pm.POStatus LIKE ?
+      LIMIT ? OFFSET ?
+    `;
+
+    const [data] = await db.promise().query(
+      searchSql,
+      [`%${query}%`, `%${query}%`, `%${query}%`, `%${query}%`, `%${query}%`, `%${query}%`, `%${query}%`, `%${query}%`, `%${query}%`, limit, offset]
+    );
+
+    const countSql = `
+      SELECT COUNT(*) AS total FROM purchasemaster pm
+      JOIN productmaster prom ON pm.ProductID = prom.ProductID
+      JOIN salestable st ON pm.SalesID = st.SalesID
+      JOIN supplier sup ON pm.SupplierID = sup.SupplierID
+      WHERE sup.SupplierCode LIKE ?
+      OR st.Qty LIKE ?
+      OR pm.PurchaseID LIKE ?
+      OR pm.Delivery_date LIKE ?
+      OR prom.ProductCode LIKE ?
+      OR pm.PONumber LIKE ?
+      OR pm.SONumber LIKE ?
+      OR pm.Supplier_Date LIKE ?
+      OR pm.POStatus LIKE ?
+    `;
+
+    const [countResult] = await db.promise().query(
+      countSql,
+      [`%${query}%`, `%${query}%`, `%${query}%`, `%${query}%`, `%${query}%`, `%${query}%`, `%${query}%`, `%${query}%`, `%${query}%`]
+    );
+
+    const totalItems = countResult[0].total;
+    const totalPages = Math.ceil(totalItems / limit);
+
+    res.json({
+      data,
+      pagination: {
+        total: totalItems,
+        per_page: limit,
+        current_page: page,
+        last_page: totalPages,
+        from: offset + 1,
+        to: Math.min(offset + limit, totalItems),
+        has_more_pages: page < totalPages
       }
-      res.json(results);
     });
-  });
-  
+  } catch (err) {
+    console.error('Search Error:', err);
+    res.status(500).json({ error: 'Database search failed' });
+  }
+});
+
    
 
 

@@ -40,7 +40,7 @@
       </thead>
       
       <tbody>
-        <tr *ngFor="let purchase of paginatedPurchases">
+        <tr *ngFor="let purchase of purchases">
           
           <td><input type="checkbox" [(ngModel)]="purchase.selected" /></td>
           <td>{{ purchase?.PurchaseID }}</td>

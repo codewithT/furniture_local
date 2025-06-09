@@ -1,4 +1,5 @@
 const express = require('express');
+const path = require('path');
 const session = require('express-session');
 const cors = require('cors');
 const bodyParser = require("body-parser");
@@ -16,6 +17,7 @@ const supplierConfirm = require('./routes/supplierConfirm');
 const purchase = require('./routes/purchases');
 const receivedProducts = require('./routes/receivedProducts');
 const scheduleDelivery= require('./routes/scheduleDelivery')
+
 const cookieParser = require('cookie-parser');
 const app = express();
 const db = require('./config/db');
@@ -32,6 +34,8 @@ const sessionStore = new MySQLStore({}, db.promise());
 // ✅ Dynamic CORS for Local & Production
 const allowedOrigins = [
   'http://localhost:4200', 
+  'http://calgaryfurniturebucket.s3-website.us-east-2.amazonaws.com/furniture',
+  'http://calgaryfurniturebucket.s3-website.us-east-2.amazonaws.com',
   'https://sdmssschool.com/furniture',
   'https://sdmssschool.com'
 ];
@@ -50,7 +54,8 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Cookie']
 }));
- 
+ app.set('trust proxy', 1); // trust first proxy
+
 app.use(session({
   key: 'connect.sid',  // Ensure session ID is stored
   secret: process.env.SESSION_SECRET || 'your-secret-key',
@@ -69,7 +74,9 @@ app.use(session({
 const BASE_URL1 = process.env.BASE_URL1 || ''; // Set default if not found
 console.log(`Using BASE_URL1: ${BASE_URL1}`); // Debugging log
 
- 
+// Serve static files
+app.use('/images', express.static(path.join(__dirname, 'public', 'images')));
+
 app.use(`${BASE_URL1}/auth`, authRoutes);
 app.use(`${BASE_URL1}/u`, dashboardRoutes); 
 app.use(`${BASE_URL1}/u`, supplier);

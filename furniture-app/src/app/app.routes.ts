@@ -17,6 +17,10 @@ import { AuthGuard } from './auth.guard';  // Import the AuthGuard
 import { environment } from '../environments/environment';
 import { ReceiveProductsComponent } from './components/receive-products/receive-products.component';
 import { ScheduleDeliveryComponent } from './components/schedule-delivery/schedule-delivery.component';
+import { Sidebar } from 'lucide';
+import { SidebarComponent } from './dashboards/sidebar/sidebar.component';
+import { ViewPurchasesComponent } from './dashboards/view-purchases/view-purchases.component';
+import { ViewProductsReportsComponent } from './dashboards/view-products-reports/view-products-reports.component';
 export const routes: Routes = [
   { path: '', redirectTo: '/auth/login', pathMatch: 'full' },
   
@@ -45,6 +49,10 @@ export const routes: Routes = [
       { path: 'order-details/:soNumber', component: OrderDetailsComponent },
      {path : 'receive', component: ReceiveProductsComponent},
      {path: 'delivery', component: ScheduleDeliveryComponent},
+     {path: 'dashboard/view-purchases', component: ViewPurchasesComponent},
+     {path: 'dashboard/view-products-reports', component: ViewProductsReportsComponent},
+     {path: 'dashboard/view-sales-reports', loadComponent: () => import('./dashboards/view-sales-reports/view-sales-reports.component').then(m => m.ViewSalesReportsComponent) },
+     {path: 'dashboard/view-sales-products-reports', loadComponent: () => import('./dashboards/view-sales-and-products-reports/view-sales-and-products-reports.component').then(m => m.SalesAndProductsReportsComponent) },
     ],
   },
 

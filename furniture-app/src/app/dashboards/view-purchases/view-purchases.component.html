@@ -1,0 +1,258 @@
+<div class="purchase-container">
+  <!-- Loading indicator -->
+  <div *ngIf="loading" class="loading-container">
+    <div class="loading-spinner"></div>
+    <p>Loading purchases...</p>
+  </div>
+
+  <!-- Error message -->
+  <div *ngIf="error" class="error-container">
+    <p class="error-message">{{ error }}</p>
+    <button (click)="loadPurchases()" class="retry-btn">Retry</button>
+  </div>
+<div class="header">
+    <h1>Purchase Report</h1>
+  </div>
+  <div class="filter-toggle" >
+  <button (click)="toggleFilters()" class="toggle-filters-btn">
+    {{ showFilters ? 'Hide Filters ▲' : 'Show Filters ▼' }}
+  </button>
+</div>
+  <!-- Filters section -->
+  <div class="filters-section"  *ngIf="showFilters">
+    <h3>Filters</h3>
+    <div class="filter-row">
+        <!-- <label for="purchaseId">Purchase ID:</label> -->
+      <!-- <input 
+        type="text" 
+        [(ngModel)]="filters.PurchaseID" 
+        placeholder="Purchase ID"
+        class="filter-input"
+      > -->
+        <!-- <label for="productCode">Product Code:</label>
+      <input 
+        type="text" 
+        [(ngModel)]="filters.ProductCode" 
+        placeholder="Product Code"
+        class="filter-input"
+      >
+        <label for="supplierCode">Supplier Code:</label>
+      <input 
+        type="text" 
+        [(ngModel)]="filters.SupplierCode" 
+        placeholder="Supplier Code"
+        class="filter-input"
+      > -->
+        <!-- <label for="quantity">Quantity:</label>
+        <input 
+            type="number" 
+            [(ngModel)]="filters.Qty" 
+            placeholder="Quantity"
+            class="filter-input"
+        > -->
+        <label for="soNumber">SO Number:</label>
+        <input 
+            type="text" 
+            [(ngModel)]="filters.SONumber" 
+            placeholder="SO Number"
+            class="filter-input"
+         >
+         <label for="deliveryDate">Cust Exp Del Date:</label>
+         <input 
+            type="date" 
+            [(ngModel)]="filters.Delivery_date" 
+            placeholder="Cust Exp Del Date"
+            class="filter-input"
+        >
+        <label for="supplierDate">Pick Up Date:</label>
+        <input 
+            type="date" 
+            [(ngModel)]="filters.Supplier_Date" 
+            placeholder="Pick Up Date"
+            class="filter-input"
+        >
+        <label for="poNumber">PO Number:</label>
+        <input 
+            type="text" 
+            [(ngModel)]="filters.PONumber" 
+            placeholder="PO Number"
+            class="filter-input"
+        >
+        <label for="poStatus">PO Status:</label>
+      <select [(ngModel)]="filters.POStatus" class="filter-select">
+        <option value="">All Status</option>
+        <option value="Received">Received</option>
+        <option value="Awaiting">Awaiting</option>
+        <option value="Not Ordered">Not Ordered</option>
+        <option value="PO created">PO created</option>
+        <option value="Confirmed">Confirmed</option>
+        <option value="Arriving Late">Arriving Late</option>
+        <option value="Discontinued">Discontinued</option>
+        <option value="Out for Delivery">Out for Delivery</option>
+        <option value="Delivered">Delivered</option>
+      </select>
+      <label for="createdStart">Created <br> Start Date:</label>
+<input 
+  type="date" 
+  [(ngModel)]="filters.CreatedStartDate" 
+  placeholder="Start Date"
+  class="filter-input"
+/>
+
+<label for="createdEnd">Created End Date:</label>
+<input 
+  type="date" 
+  [(ngModel)]="filters.CreatedEndDate" 
+  placeholder="End Date"
+  class="filter-input"
+/>
+
+      <button (click)="applyFilters()" class="apply-filters-btn">Apply Filters</button>
+      <button (click)="clearFilters()" class="clear-filters-btn">Clear</button>
+    </div>
+  </div>
+
+  <!-- Results info -->
+  <div class="results-info">
+    <p>Showing {{ getDisplayRange() }} entries</p>
+  </div>
+
+  <!-- Table container -->
+  <div class="table-container" *ngIf="!loading && !error">
+    <table>
+      <thead>
+  <tr>
+    <th>Purchase ID</th>
+    <th>SO Number</th>
+    <th>Cust Exp Del Date</th>
+    <th>PO Status</th>
+    <th>Delayed Date</th>
+    <th>Pick Up Date</th>
+    <th>PO Number</th>
+    <th>Created By</th>
+    <th>Created Date</th>
+    <th>Created Time</th>
+    <th>Changed By</th>
+    <th>Changed Date</th>
+    <th>Changed Time</th>
+  </tr>
+</thead>
+<tbody>
+  <tr *ngFor="let purchase of purchases; trackBy: trackByPurchaseId">
+    <td>{{ purchase?.PurchaseID }}</td>
+    <td>{{ purchase?.SONumber }}</td>
+    <td>{{ purchase?.Delivery_date | date:'mediumDate' }}</td>
+    <td>
+      <span
+        class="po-status-box"
+        [ngClass]="{
+          'status-received': purchase?.POStatus === 'Received',
+          'status-awaiting': purchase?.POStatus === 'Awaiting',
+          'status-not-ordered': purchase?.POStatus === 'Not Ordered',
+          'status-po-created': purchase?.POStatus === 'PO created',
+          'status-confirmed': purchase?.POStatus === 'Confirmed',
+          'status-delayed': purchase?.POStatus === 'Arriving Late',
+          'status-discontinued': purchase?.POStatus === 'Discontinued',
+          'status-out-for-delivery': purchase?.POStatus === 'Out for Delivery',
+          'status-delivered': purchase?.POStatus === 'Delivered'
+        }"
+      >
+        {{ purchase?.POStatus }}
+      </span>
+    </td>
+    <td>
+      {{ purchase?.Delayed_Date | date:'mediumDate' }}
+    </td>
+    <td>{{ purchase?.Supplier_Date | date:'mediumDate' }}</td>
+    <td>{{ purchase?.PONumber }}</td>
+    <td>{{ purchase?.Created_by }}</td>
+    <td>{{ purchase?.Created_date | date:'mediumDate' }}</td>
+    <td>{{ purchase?.Created_time }}</td>
+    <td>{{ purchase?.Changed_by }}</td>
+    <td>{{purchase?.Changed_date | date:'mediumDate'}}</td>
+    <td>{{ purchase?.Changed_time }}</td>
+  </tr>
+  <tr *ngIf="!purchases || purchases.length === 0">
+    <td colspan="10" class="no-data">No purchases found</td>
+  </tr>
+</tbody>
+
+    </table>
+  </div>
+
+  <!-- Enhanced pagination controls -->
+  <div class="pagination-wrapper" *ngIf="!loading && !error && totalRecords > 0">
+    <div class="pagination-info">
+      <div class="page-size-selector">
+        <span>Show:</span>
+        <select [(ngModel)]="pageSize" (change)="onPageSizeChange()">
+          <option *ngFor="let size of pageSizeOptions" [value]="size">
+            {{ size }} entries
+          </option>
+        </select>
+      </div>
+      
+      <div class="record-count">
+        {{ getDisplayRange() }}
+      </div>
+    </div>
+
+    <div class="pagination-controls">
+      <!-- First page button -->
+      <button
+        [disabled]="currentPage <= 1"
+        (click)="goToPage(1)"
+        class="page-btn first-page"
+        title="First Page"
+      >
+        ««
+      </button>
+
+      <!-- Previous page button -->
+      <button
+        [disabled]="currentPage <= 1"
+        (click)="previousPage()"
+        class="page-btn prev-page"
+        title="Previous Page"
+      >
+        ‹ Previous
+      </button>
+
+      <!-- Page number buttons -->
+      <div class="page-numbers">
+        <button
+          *ngFor="let pageNum of getPageNumbers()"
+          [class.active]="pageNum === currentPage"
+          (click)="goToPage(pageNum)"
+          class="page-number-btn"
+        >
+          {{ pageNum }}
+        </button>
+      </div>
+
+      <!-- Next page button -->
+      <button
+        [disabled]="currentPage >= totalPages"
+        (click)="nextPage()"
+        class="page-btn next-page"
+        title="Next Page"
+      >
+        Next ›
+      </button>
+
+      <!-- Last page button -->
+      <button
+        [disabled]="currentPage >= totalPages"
+        (click)="goToPage(totalPages)"
+        class="page-btn last-page"
+        title="Last Page"
+      >
+        »»
+      </button>
+    </div>
+
+    <div class="page-info">
+      Page {{ currentPage }} of {{ totalPages }}
+    </div>
+  </div>
+</div>

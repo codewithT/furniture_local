@@ -5,7 +5,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { ChangeDetectorRef } from '@angular/core';
-import { Supplier } from '../../models/supplier.model';
+import { Supplier, PaginationResponse } from '../../models/supplier.model';
 import { debounceTime, distinctUntilChanged, Subject, Subscription } from 'rxjs';
 
 @Component({
@@ -19,19 +19,24 @@ export class SupplierComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('supplierModal') modalElement!: ElementRef;
   private modal!: Modal;
 
+  // Data and pagination
   suppliers: Supplier[] = [];
-  entriesPerPage: number = 20;
+  totalItems: number = 0;
+  itemsPerPage: number = 10;
   currentPage: number = 1;
+  totalPages: number = 0;
+  pages: number[] = [];
+  
+  // Search and sort
   searchTerm: string = '';
+  sortColumn: string = 'SupplierID';
+  sortDirection: 'asc' | 'desc' = 'asc';
+  
+  // Form and edit state
   isEdit: boolean = false;
   file: File | null = null;
-  newSupplier: Supplier = {
-    SupplierID: -1,
-    SupplierCode: '',
-    SupplierName: '',
-    SupplierAddress: '', 
-    EmailAddress: '',
-  };
+  fileName: string = '';
+  newSupplier: Supplier = this.resetSupplierObject();
   
   // Upload progress tracking
   uploadProgress: number = 0;
@@ -42,6 +47,7 @@ export class SupplierComponent implements OnInit, AfterViewInit, OnDestroy {
   uploadJobId: string = '';
   pollInterval: any = null;
   
+  // RxJS subscriptions
   private searchSubject = new Subject<string>();
   private uploadSubscription: Subscription | null = null;
   private progressSubscription: Subscription | null = null;
@@ -50,10 +56,13 @@ export class SupplierComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnInit(): void {
     this.loadSuppliers();
+    
+    // Set up search debounce
     this.searchSubject.pipe(
       debounceTime(300),
       distinctUntilChanged()
     ).subscribe(query => {
+      this.currentPage = 1; // Reset to first page on new search
       this.searchSuppliers(query);
     });
   }
@@ -65,12 +74,10 @@ export class SupplierComponent implements OnInit, AfterViewInit, OnDestroy {
   ngOnDestroy() {
     if (this.uploadSubscription) {
       this.uploadSubscription.unsubscribe();
-      this.uploadSubscription = null;
     }
     
     if (this.progressSubscription) {
       this.progressSubscription.unsubscribe();
-      this.progressSubscription = null;
     }
     
     if (this.pollInterval) {
@@ -80,16 +87,15 @@ export class SupplierComponent implements OnInit, AfterViewInit, OnDestroy {
     this.searchSubject.complete();
   }
   
+  /**
+   * Load suppliers with server-side pagination
+   */
   loadSuppliers() {
-    this.supplierService.getSupplierDetails().subscribe({
-      next: (data) => {
-        if (Array.isArray(data)) {
-          this.suppliers = data;
-          this.updatePagination();
-          this.cdr.detectChanges();
-        } else {
-          console.error('Data is not an array:', data);
-        }
+    this.supplierService.getSuppliers(this.currentPage, this.itemsPerPage).subscribe({
+      next: (response) => {
+        this.suppliers = response.data;
+        this.updatePaginationInfo(response.pagination);
+        this.cdr.detectChanges();
       },
       error: (error) => {
         console.error('Error fetching suppliers', error);
@@ -97,6 +103,50 @@ export class SupplierComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
   
+  /**
+   * Update pagination information from server response
+   */
+  updatePaginationInfo(pagination: any) {
+    this.totalItems = pagination.total;
+    this.currentPage = pagination.current_page;
+    this.itemsPerPage = pagination.per_page;
+    this.totalPages = pagination.last_page;
+    
+    // Generate page numbers array for pagination controls
+    this.generatePageNumbers();
+  }
+  
+  /**
+   * Generate page numbers for pagination component
+   * Shows at most 5 pages with current page in middle when possible
+   */
+  generatePageNumbers() {
+    this.pages = [];
+    
+    if (this.totalPages <= 5) {
+      // If 5 or fewer pages, show all
+      for (let i = 1; i <= this.totalPages; i++) {
+        this.pages.push(i);
+      }
+    } else {
+      // More than 5 pages, show current page in middle when possible
+      let start = Math.max(1, this.currentPage - 2);
+      let end = Math.min(this.totalPages, start + 4);
+      
+      // Adjust start if end is at max
+      if (end === this.totalPages) {
+        start = Math.max(1, end - 4);
+      }
+      
+      for (let i = start; i <= end; i++) {
+        this.pages.push(i);
+      }
+    }
+  }
+  
+  /**
+   * Handle file selection for Excel import
+   */
   onFileChange(event: Event) {
     const input = event.target as HTMLInputElement;
     if (input.files && input.files.length > 0) {
@@ -128,8 +178,9 @@ export class SupplierComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
   
-  fileName: string = '';
-  
+  /**
+   * Upload Excel file for bulk import
+   */
   uploadExcel() {
     if (!this.file || this.isUploading) {
       return;
@@ -146,7 +197,6 @@ export class SupplierComponent implements OnInit, AfterViewInit, OnDestroy {
 
     if (this.uploadSubscription) {
       this.uploadSubscription.unsubscribe();
-      this.uploadSubscription = null;
     }
     
     this.uploadSubscription = this.supplierService.uploadExcelFile(formData).subscribe({
@@ -167,6 +217,9 @@ export class SupplierComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
   
+  /**
+   * Start polling for upload progress
+   */
   startProgressPolling() {
     // Clear any existing interval
     if (this.pollInterval) {
@@ -179,11 +232,14 @@ export class SupplierComponent implements OnInit, AfterViewInit, OnDestroy {
     }, 2000);
   }
   
+  /**
+   * Check upload job progress
+   */
   checkUploadProgress() {
     if (!this.uploadJobId) return;
     
     this.supplierService.checkJobProgress(this.uploadJobId).subscribe({
-      next: (progressData : any) => {
+      next: (progressData: any) => {
         this.uploadProgress = progressData.percentage || 0;
         this.uploadMessage = progressData.message || 'Processing...';
         
@@ -194,7 +250,7 @@ export class SupplierComponent implements OnInit, AfterViewInit, OnDestroy {
         } 
         // Job failed
         else if (progressData.status === 'failed') {
-          this.handleUploadError(new Error(progressData.error || 'Upload failed'));
+          this.handleUploadError(new Error(progressData.message || 'Upload failed'));
           clearInterval(this.pollInterval);
         }
         
@@ -207,6 +263,9 @@ export class SupplierComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
   
+  /**
+   * Handle successful upload completion
+   */
   handleUploadSuccess(response: any) {
     this.uploadStatus = 'success';
     this.isUploading = false;
@@ -235,10 +294,11 @@ export class SupplierComponent implements OnInit, AfterViewInit, OnDestroy {
       this.uploadStatus = 'idle';
       this.cdr.detectChanges();
     }, 5000);
-    
-    this.cdr.detectChanges();
   }
   
+  /**
+   * Handle upload error
+   */
   handleUploadError(error: any) {
     this.uploadStatus = 'error';
     this.isUploading = false;
@@ -251,10 +311,11 @@ export class SupplierComponent implements OnInit, AfterViewInit, OnDestroy {
       this.uploadStatus = 'idle';
       this.cdr.detectChanges();
     }, 5000);
-    
-    this.cdr.detectChanges();
   }
   
+  /**
+   * Cancel ongoing upload
+   */
   cancelUpload() {
     if (this.uploadJobId && this.isUploading) {
       this.supplierService.cancelJob(this.uploadJobId).subscribe({
@@ -267,8 +328,6 @@ export class SupplierComponent implements OnInit, AfterViewInit, OnDestroy {
           if (this.pollInterval) {
             clearInterval(this.pollInterval);
           }
-          
-          this.cdr.detectChanges();
         },
         error: (error) => {
           console.error('Error cancelling job:', error);
@@ -277,21 +336,30 @@ export class SupplierComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  /**
+   * Open supplier modal for add/edit
+   */
   openModal() {
     if (!this.isEdit) {
-      this.resetSupplier();
+      this.newSupplier = this.resetSupplierObject();
     }
     this.modal.show();
   }
 
+  /**
+   * Close supplier modal
+   */
   closeModal() {
     this.modal.hide();
-    this.resetSupplier();
+    this.newSupplier = this.resetSupplierObject();
     this.isEdit = false;
   }
 
-  resetSupplier() {
-    this.newSupplier = {
+  /**
+   * Reset supplier object to default values
+   */
+  resetSupplierObject(): Supplier {
+    return {
       SupplierID: -1,
       SupplierCode: '',
       SupplierName: '',
@@ -300,18 +368,24 @@ export class SupplierComponent implements OnInit, AfterViewInit, OnDestroy {
     };
   }
 
+  /**
+   * Open edit modal for supplier
+   */
   editSupplier(supplier: Supplier) {
     this.newSupplier = { ...supplier };
     this.isEdit = true;
     this.openModal();
   }
 
+  /**
+   * Delete supplier after confirmation
+   */
   deleteSupplier(supplierID: number) {
     if (confirm('Are you sure you want to delete this supplier?')) {
       this.supplierService.deleteSupplier(supplierID).subscribe({
         next: () => {
-          this.suppliers = this.suppliers.filter(p => p.SupplierID !== supplierID);
-          this.updatePagination();
+          // Reload the current page
+          this.loadSuppliers();
         },
         error: (error) => {
           console.error('Error deleting supplier', error);
@@ -320,6 +394,9 @@ export class SupplierComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  /**
+   * Save supplier (create or update)
+   */
   saveSupplier() {
     if (!this.newSupplier.SupplierCode || !this.newSupplier.SupplierName || !this.newSupplier.SupplierAddress) {
       alert('Please fill all the required fields.');
@@ -329,10 +406,6 @@ export class SupplierComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.isEdit) {
       this.supplierService.updateSupplier(this.newSupplier).subscribe({
         next: () => {
-          const index = this.suppliers.findIndex(s => s.SupplierID === this.newSupplier.SupplierID);
-          if (index !== -1) {
-            this.suppliers[index] = { ...this.newSupplier };  
-          }
           this.loadSuppliers();
           this.closeModal();
         },
@@ -342,10 +415,9 @@ export class SupplierComponent implements OnInit, AfterViewInit, OnDestroy {
       });
     } else {
       this.supplierService.addSupplier(this.newSupplier).subscribe({
-        next: (newSupplier) => {
-          this.suppliers = [...this.suppliers, newSupplier]; 
+        next: () => {
+          this.loadSuppliers();
           this.closeModal();
-          this.updatePagination();
         },
         error: (error) => {
           console.error('Error adding supplier', error);
@@ -354,10 +426,10 @@ export class SupplierComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  sortColumn: keyof Supplier | '' = '';
-  sortDirection: 'asc' | 'desc' = 'asc';
-
-  sortBy(column: keyof Supplier) {
+  /**
+   * Sort suppliers by column
+   */
+  sortBy(column: string) {
     if (this.sortColumn === column) {
       this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
     } else {
@@ -365,63 +437,114 @@ export class SupplierComponent implements OnInit, AfterViewInit, OnDestroy {
       this.sortDirection = 'asc';
     }
 
-    this.supplierService.sortSuppliers(this.sortColumn, this.sortDirection, this.currentPage, this.entriesPerPage).subscribe(
-      (data: Supplier[]) => {
-        this.suppliers = data;
-      },
-      (error) => console.error('Error sorting suppliers:', error)
-    );
+    this.currentPage = 1; // Reset to first page on sort change
+    this.supplierService.sortSuppliers(this.sortColumn, this.sortDirection, this.currentPage, this.itemsPerPage)
+      .subscribe({
+        next: (response) => {
+          this.suppliers = response.data;
+          this.updatePaginationInfo(response.pagination);
+          this.cdr.detectChanges();
+        },
+        error: (error) => {
+          console.error('Error sorting suppliers:', error);
+        }
+      });
   }
   
+  /**
+   * Handle search input changes
+   */
   onSearchChange() {
     this.searchSubject.next(this.searchTerm);
   }
 
+  /**
+   * Search suppliers with server-side filtering
+   */
   searchSuppliers(query: string) {
-    this.supplierService.searchSuppliers(query).subscribe(
-      (data: Supplier[]) => {
-        this.suppliers = data;
-        this.updatePagination();
+    this.supplierService.searchSuppliers(query, this.currentPage, this.itemsPerPage).subscribe({
+      next: (response) => {
+        this.suppliers = response.data;
+        this.updatePaginationInfo(response.pagination);
+        this.cdr.detectChanges();
       },
-      error => console.error('Error fetching suppliers:', error)
-    );
+      error: (error) => {
+        console.error('Error searching suppliers:', error);
+      }
+    });
   }
 
-  get totalPages() {
-    return Math.ceil(this.suppliers.length / this.entriesPerPage);
-  }
-
-  get paginatedSuppliers() {
-    const start = (this.currentPage - 1) * this.entriesPerPage;
-    return this.suppliers.slice(start, start + this.entriesPerPage);
-  }
-
-  updatePagination() {
-    if (this.currentPage > this.totalPages) {
-      this.currentPage = Math.max(1, this.totalPages);
-    }
-  }
-
+  /**
+   * Navigate to previous page
+   */
   prevPage() {
     if (this.currentPage > 1) {
       this.currentPage--;
-      this.searchSuppliers(this.searchTerm);
+      this.loadCurrentPageData();
     }
   }
 
+  /**
+   * Navigate to next page
+   */
   nextPage() {
     if (this.currentPage < this.totalPages) {
       this.currentPage++;
-      this.searchSuppliers(this.searchTerm);
+      this.loadCurrentPageData();
     }
   }
 
+  /**
+   * Go to specific page
+   */
   goToPage(page: number) {
-    this.currentPage = page;
-    this.searchSuppliers(this.searchTerm);
+    if (page !== this.currentPage && page >= 1 && page <= this.totalPages) {
+      this.currentPage = page;
+      this.loadCurrentPageData();
+    }
   }
 
-  get totalPagesArray() {
-    return Array.from({ length: this.totalPages }, (_, i) => i + 1);
+  /**
+   * Load data for current page (handles search vs normal pagination)
+   */
+  loadCurrentPageData() {
+    if (this.searchTerm) {
+      this.searchSuppliers(this.searchTerm);
+    } else if (this.sortColumn !== 'SupplierID' || this.sortDirection !== 'asc') {
+      this.supplierService.sortSuppliers(this.sortColumn, this.sortDirection, this.currentPage, this.itemsPerPage)
+        .subscribe({
+          next: (response) => {
+            this.suppliers = response.data;
+            this.updatePaginationInfo(response.pagination);
+          },
+          error: (error) => console.error('Error loading page:', error)
+        });
+    } else {
+      this.loadSuppliers();
+    }
+  }
+  
+  /**
+   * Change items per page
+   */
+  changeItemsPerPage(event: Event) {
+    const select = event.target as HTMLSelectElement;
+    this.itemsPerPage = parseInt(select.value, 10);
+    this.currentPage = 1; // Reset to first page
+    this.loadCurrentPageData();
+  }
+  
+  /**
+   * Check if current pagination state has previous page
+   */
+  get hasPreviousPage(): boolean {
+    return this.currentPage > 1;
+  }
+  
+  /**
+   * Check if current pagination state has next page
+   */
+  get hasNextPage(): boolean {
+    return this.currentPage < this.totalPages;
   }
 }

@@ -65,7 +65,7 @@
                 </tr>
             </thead>
             <tbody>
-                <tr *ngFor="let supplier of paginatedSuppliers, let i = index">
+                <tr *ngFor="let supplier of suppliers, let i = index">
                     <td>{{ supplier?.SupplierID }}</td>
                     <td *ngIf="supplier">{{ supplier.SupplierCode }}</td>
                     <td *ngIf="supplier">{{ supplier.SupplierName }}</td>
@@ -86,9 +86,10 @@
             <li class="page-item" [class.disabled]="currentPage === 1">
                 <button class="page-link" (click)="prevPage()">Previous</button>
             </li>
-            <li class="page-item" *ngFor="let page of totalPagesArray" [class.active]="currentPage === page">
-                <button class="page-link" (click)="goToPage(page)">{{ page }}</button>
-            </li>
+            <li class="page-item" *ngFor="let page of [].constructor(totalPages); let i = index" [class.active]="currentPage === i + 1">
+  <button class="page-link" (click)="goToPage(i + 1)">{{ i + 1 }}</button>
+</li>
+
             <li class="page-item" [class.disabled]="currentPage === totalPages">
                 <button class="page-link" (click)="nextPage()">Next</button>
             </li>

@@ -1,17 +1,39 @@
-.dashboard-container {
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
-  
-  .stats-container {
-    display: flex;
-    justify-content: space-between;
-  }
-  
-  .widgets-container {
-    display: flex;
-    gap: 16px;
-  }
-  
+/* Root layout: host fills entire screen */
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* Sticky toolbar that stays at the top */
+.mat-toolbar.mat-primary {
+  position: sticky;
+  top: 0;
+  z-index: 500;
+}
+
+/* Sidenav layout container below toolbar */
+.sidenav-container {
+  flex: 1;
+  display: flex;
+  height: 100%;
+}
+
+/* Width of the side navigation */
+.sidenav {
+  width: 280px;
+}
+
+/* Content container for dynamic views */
+.content-container {
+  padding: 16px;
+  height: 100%;
+  overflow: visible;   /* Needed for dropdowns */
+  position: relative;  /* Required to manage z-index stacking */
+  z-index: 0;
+}
+
+/* Ensure Angular Material overlays like mat-menu stay on top */
+.cdk-overlay-container, .cdk-overlay-pane {
+  z-index: 2000 !important;
+}

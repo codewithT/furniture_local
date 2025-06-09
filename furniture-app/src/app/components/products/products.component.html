@@ -8,7 +8,7 @@
 <!-- Update the button section -->
 <div class="search-container">
   <input type="text" class="form-control search-bar mb-3" placeholder="Search by Product Name or Code" [(ngModel)]="searchTerm"
-  (input)="onSearchTermChange()">
+  (input)="onSearchChange()">
   <div class="header">
     <button class="btn btn-primary mb-3 me-2" (click)="openAddModal()">Add Product</button>
     <button class="btn btn-success mb-3" (click)="openUploadExcelModal()">Upload Excel</button>
@@ -50,7 +50,7 @@
           <td>{{ product.SupplierItemNumber }}</td>
           <td>₹{{ product.FinalPrice | number:'1.2-2' }}</td>
           <td>
-            <img [src]="product.Picture" alt="Product Image" class="img-thumbnail" width="50">
+            <img [src]="'http://localhost:5000' +product.Picture" alt="Product Image" class="img-thumbnail" width="100" height="100">
           </td>
           <td>
             <button class="btn btn-sm btn-warning me-1" (click)="openEditModal(product)">Edit</button>
@@ -203,7 +203,7 @@
             <input type="file" class="form-control" (change)="onEditFileSelected($event)">
             <!-- Display image preview if available -->
             <div *ngIf="editedProduct.Picture" class="mt-2">
-              <img [src]="editedProduct.Picture" alt="Product Image Preview" class="img-thumbnail" style="max-height: 100px;">
+              <img [src]="'http://localhost:5000' +editedProduct.Picture" alt="Product Image Preview" class="img-thumbnail" style="max-height: 100px;">
             </div>
           </div>
         </form>

@@ -2,13 +2,14 @@ import { CommonModule } from '@angular/common';
 import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
- 
+import {  PaginationResponse } from '../../models/product.model';
 import { Modal } from 'bootstrap';
 import { ProductService } from '../../services/product.service';
 import { Product } from '../../models/product.model';
-import { Subscription } from 'rxjs';
+
+import { Subject, Subscription } from 'rxjs';
 import { interval } from 'rxjs';
-import { takeWhile } from 'rxjs/operators';
+import { debounceTime, distinctUntilChanged, takeWhile } from 'rxjs/operators';
 @Component({
   selector: 'app-products',
   templateUrl: './products.component.html',
@@ -21,7 +22,7 @@ export class ProductsComponent implements OnInit {
   @ViewChild('editProductModal') editProductModal!: ElementRef;
   @ViewChild('uploadExcelModal') uploadExcelModal!: ElementRef;
    
-
+ private searchSubject = new Subject<string>();
   private addModal: Modal | null = null;
   private editModal: Modal | null = null;
   private uploadModal: Modal | null = null;
@@ -41,9 +42,10 @@ uploadStats: any = null;
 uploadFailures: any[] = [];
 
   // Pagination properties
-  entriesPerPage: number = 5;
+  entriesPerPage: number = 10;
   currentPage: number = 1;
-  
+  totalPages: number = 0;
+  totalItems: number = 0;
   // For adding new products
   newProduct: Product = {
     ProductID: 0,
@@ -78,15 +80,54 @@ uploadFailures: any[] = [];
   
   ngOnInit(): void {
     this.loadProducts();
+     // Set up search debounce
+        this.searchSubject.pipe(
+          debounceTime(200),
+          distinctUntilChanged()
+        ).subscribe(query => {
+          this.currentPage = 1; // Reset to first page on new search
+          this.searchProducts(this.searchTerm);
+        });
   }
-  
+
+  pagination: any = {
+  total: 0,
+  per_page: 10,
+  current_page: 1,
+  last_page: 1,
+  from: 0,
+  to: 0,
+  has_more_pages: false
+};
+
   loadProducts() {
-    this.productService.getProducts().subscribe((data: Product[]) => {
-      this.products = data;
-      this.updatePagination();
+    this.productService.getProducts({ page: this.currentPage, limit: this.entriesPerPage }).subscribe((response :any) => {
+      this.products = response.data;
+    console.log('total response ', response);
+    this.pagination = response.pagination;
+    this.totalPages = this.pagination.last_page;
+    this.totalItems = this.pagination.total;
+     
     });
   }
-  
+   onSearchChange() {
+    this.searchSubject.next(this.searchTerm);
+  }
+
+  searchProducts( searchTerm: string) {
+    this.currentPage = 1; // Reset to first page on new search
+    if (searchTerm.trim() === '') {
+      this.loadProducts();
+    } else {
+      this.productService.searchProducts(searchTerm, { page: this.currentPage, limit: this.entriesPerPage }).subscribe((response: any) => {
+        this.products = response.data;
+        this.pagination = response.pagination;
+        this.totalPages = this.pagination.last_page;
+        this.totalItems = this.pagination.total;
+      });
+    }
+  }
+
   ngAfterViewInit() {
     if (this.addProductModal) {
       this.addModal = new Modal(this.addProductModal.nativeElement);
@@ -237,6 +278,7 @@ uploadFailures: any[] = [];
     }
     
     // Create a deep copy to avoid modifying the original object
+    console.log('Editing product:', product);
     this.editedProduct = { ...product };
     
     if (this.editModal) {
@@ -327,7 +369,13 @@ uploadFailures: any[] = [];
       return;
     }
     console.log('Updating product:', this.editedProduct);
-    this.productService.updateProduct(this.editedProduct).subscribe({
+    const formData = new FormData();
+    // Append the product JSON as a string
+  formData.append('product', JSON.stringify(this.editedProduct));
+   if (this.selectedFile) {
+    formData.append('image', this.selectedFile);
+  }
+    this.productService.updateProduct(formData).subscribe({
       next: () => {
         alert('Product updated successfully.');
         this.loadProducts();
@@ -380,7 +428,7 @@ uploadFailures: any[] = [];
       this.productService.deleteProduct(productID).subscribe({
         next: () => {
           this.products = this.products.filter(p => p.ProductID !== productID);
-          this.updatePagination();
+        
           alert('Product deleted successfully.');
         },
         error: (error) => {
@@ -417,60 +465,42 @@ uploadFailures: any[] = [];
     });
   }
   
-  // Search Filter
-  get filteredProducts() {
-    return this.products.filter(product =>
-      product.ProductName.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
-      product.ProductCode.toLowerCase().includes(this.searchTerm.toLowerCase())
-    );
-  }
   
-  onSearchTermChange() {
-    this.updatePagination();
-  }
+  
+  
   
   // Pagination Methods
-  get totalPages() {
-    return Math.ceil(this.filteredProducts.length / this.entriesPerPage);
-  }
+  // get totalPages() {
+  //   return Math.ceil(this.filteredProducts.length / this.entriesPerPage);
+  // }
 
-  get paginatedProducts() {
-    const start = (this.currentPage - 1) * this.entriesPerPage;
-    return this.filteredProducts.slice(start, start + this.entriesPerPage);
-  }
+get paginatedProducts() {
+  return this.products;
+}
 
-  get startItem() {
-    return (this.currentPage - 1) * this.entriesPerPage;
-  }
+ 
 
-  get endItem() {
-    return Math.min(this.startItem + this.entriesPerPage, this.filteredProducts.length);
+// Pagination navigation
+prevPage() {
+  if (this.currentPage > 1) {
+    this.currentPage--;
+    this.loadProducts();
   }
+}
 
-  updatePagination() {
-    const total = Math.ceil(this.filteredProducts.length / this.entriesPerPage);
-    if (this.currentPage > total) {
-      this.currentPage = Math.max(1, total);
-    }
+nextPage() {
+  if (this.currentPage < this.totalPages) {
+    this.currentPage++;
+    this.loadProducts();
   }
-  
-  prevPage() {
-    if (this.currentPage > 1) {
-      this.currentPage--;
-    }
-  }
+}
 
-  nextPage() {
-    if (this.currentPage < this.totalPages) {
-      this.currentPage++;
-    }
-  }
+goToPage(page: number) {
+  this.currentPage = page;
+  this.loadProducts();
+}
 
-  goToPage(page: number) {
-    this.currentPage = page;
-  }
-
-  get totalPagesArray() {
-    return Array.from({ length: this.totalPages }, (_, i) => i + 1);
-  }
+get totalPagesArray() {
+  return Array.from({ length: this.totalPages }, (_, i) => i + 1);
+}
 }

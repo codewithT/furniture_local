@@ -241,6 +241,6 @@ router.get('/product-search/:searchTerm', requireAuth, (req, res) => {
         });
     });
 });
-  
+
 
 module.exports = router;

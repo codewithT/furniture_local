@@ -1,0 +1,365 @@
+<div class="purchase-container">
+  <!-- Loading indicator -->
+  <div *ngIf="loading" class="loading-container">
+    <div class="loading-spinner"></div>
+    <p>Loading sales reports...</p>
+  </div>
+
+  <!-- Error message -->
+  <div *ngIf="error" class="error-container">
+    <p class="error-message">{{ error }}</p>
+    <button (click)="loadSalesReports()" class="retry-btn">Retry</button>
+  </div>
+<div class="header">
+    <h1>Sales Report</h1>
+    <p>Unified view of sales transactions</p>
+  </div>
+  <div class="filter-toggle">
+    <button (click)="toggleFilters()" class="toggle-filters-btn">
+      {{ showFilters ? 'Hide Filters ▲' : 'Show Filters ▼' }}
+    </button>
+  </div>
+
+  <!-- Filters section -->
+  <div class="filters-section" *ngIf="showFilters">
+    <h3>Filters</h3>
+    
+    <!-- Basic Filters Row -->
+    <div class="filter-row">
+      <label for="soNumber">SO Number:</label>
+      <input 
+        type="text" 
+        [(ngModel)]="filters.SONumber" 
+        placeholder="SO Number"
+        class="filter-input"
+      >
+
+      <label for="customerName">Customer Name:</label>
+      <input 
+        type="text" 
+        [(ngModel)]="filters.Customer_name" 
+        placeholder="Customer Name"
+        class="filter-input"
+      >
+
+      <label for="soldToParty">Sold To Party:</label>
+      <input 
+        type="text" 
+        [(ngModel)]="filters.SoldToParty" 
+        placeholder="Sold To Party"
+        class="filter-input"
+      >
+
+      <label for="customerContact">Customer Contact:</label>
+      <input 
+        type="text" 
+        [(ngModel)]="filters.Customer_Contact" 
+        placeholder="Customer Contact"
+        class="filter-input"
+      >
+    </div>
+
+    <!-- Price Range Filters -->
+    <div class="filter-row">
+      <label for="priceMin">Price Range:</label>
+      <input 
+        type="number" 
+        [(ngModel)]="filters.PriceMin" 
+        placeholder="Min Price"
+        class="filter-input range-input"
+        step="0.01"
+      >
+      <span class="range-separator">to</span>
+      <input 
+        type="number" 
+        [(ngModel)]="filters.PriceMax" 
+        placeholder="Max Price"
+        class="filter-input range-input"
+        step="0.01"
+      >
+
+      <label for="qtyMin">Quantity Range:</label>
+      <input 
+        type="number" 
+        [(ngModel)]="filters.QtyMin" 
+        placeholder="Min Qty"
+        class="filter-input range-input"
+        min="0"
+      >
+      <span class="range-separator">to</span>
+      <input 
+        type="number" 
+        [(ngModel)]="filters.QtyMax" 
+        placeholder="Max Qty"
+        class="filter-input range-input"
+        min="0"
+      >
+    </div>
+
+    <!-- Total Price Range and GST Range -->
+    <div class="filter-row">
+      <label for="totalPriceMin">Total Price Range:</label>
+      <input 
+        type="number" 
+        [(ngModel)]="filters.TotalPriceMin" 
+        placeholder="Min Total"
+        class="filter-input range-input"
+        step="0.01"
+      >
+      <span class="range-separator">to</span>
+      <input 
+        type="number" 
+        [(ngModel)]="filters.TotalPriceMax" 
+        placeholder="Max Total"
+        class="filter-input range-input"
+        step="0.01"
+      >
+
+      <label for="gstMin">GST Range (%):</label>
+      <input 
+        type="number" 
+        [(ngModel)]="filters.GSTMin" 
+        placeholder="Min GST"
+        class="filter-input range-input"
+        step="0.01"
+        min="0"
+        max="100"
+      >
+      <span class="range-separator">to</span>
+      <input 
+        type="number" 
+        [(ngModel)]="filters.GSTMax" 
+        placeholder="Max GST"
+        class="filter-input range-input"
+        step="0.01"
+        min="0"
+        max="100"
+      >
+    </div>
+
+    <!-- Date Filters Row -->
+    <div class="filter-row">
+      <label for="deliveryDateStart">Delivery Date Range:</label>
+      <input 
+        type="date" 
+        [(ngModel)]="filters.DeliveryStartDate" 
+        placeholder="Start Date"
+        class="filter-input range-input"
+      />
+      <span class="range-separator">to</span>
+      <input 
+        type="date" 
+        [(ngModel)]="filters.DeliveryEndDate" 
+        placeholder="End Date"
+        class="filter-input range-input"
+      />
+
+      <label for="createdStart">Created Date Range:</label>
+      <input 
+        type="date" 
+        [(ngModel)]="filters.CreatedStartDate" 
+        placeholder="Start Date"
+        class="filter-input range-input"
+      />
+      <span class="range-separator">to</span>
+      <input 
+        type="date" 
+        [(ngModel)]="filters.CreatedEndDate" 
+        placeholder="End Date"
+        class="filter-input range-input"
+      />
+    </div>
+
+    <!-- User and Status Filters -->
+    <div class="filter-row">
+      <label for="createdBy">Created By:</label>
+      <input 
+        type="text" 
+        [(ngModel)]="filters.Created_by" 
+        placeholder="Created By"
+        class="filter-input"
+      >
+
+      <label for="changedBy">Changed By:</label>
+      <input 
+        type="text" 
+        [(ngModel)]="filters.Changed_by" 
+        placeholder="Changed By"
+        class="filter-input"
+      >
+
+      <label for="paymentStatus">Payment Status:</label>
+      <select [(ngModel)]="filters.Payment_Status" class="filter-select">
+        <option value="">All Status</option>
+        <option value="Full Paid">Full Paid</option>
+        <option value="Pending">Pending</option>
+        <option value="Partial">Partial</option>
+      </select>
+
+      <label for="paymentMode">Payment Mode:</label>
+      <select [(ngModel)]="filters.Payment_Mode" class="filter-select">
+        <option value="">All Modes</option>
+        <option value="Debit">Debit</option>
+        <option value="Visas">Visa</option>
+        <option value="Cash">Cash</option>
+        <option value="Master">Master</option>
+        <option value="E-transfer">E-transfer</option>
+        <option value="Cheque">Cheque</option>
+        <option value="Finance">Finance</option>
+      </select>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="filter-actions">
+      <button (click)="applyFilters()" class="apply-filters-btn">Apply Filters</button>
+      <button (click)="clearFilters()" class="clear-filters-btn">Clear All</button>
+    </div>
+  </div>
+
+  <!-- Results info -->
+  <div class="results-info">
+    <p>Showing {{ getDisplayRange() }} entries</p>
+  </div>
+
+  <!-- Table container -->
+  <div class="table-container" *ngIf="!loading && !error">
+    <table>
+      <thead>
+        <tr>
+          <th>Sales ID</th>
+          <th>SO Number</th>
+          <th>Customer Name</th>
+          <th>Sold To Party</th>
+          <th>Ship To Party</th>
+          <th>Qty</th>
+          <th>Price</th>
+          <th>GST</th>
+          <th>Total Price</th>
+          <th>Payment Status</th>
+          <th>Payment Mode</th>
+          <th>Delivery Date</th>
+          <th>Customer Contact</th>
+          <th>Created By</th>
+          <th>Created Date</th>
+          <th>Created Time</th>
+          <th>Changed By</th>
+          <th>Changed Date</th>
+          <th>Changed Time</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let sale of salesReports; trackBy: trackBySalesId">
+          <td>{{ sale?.SalesID }}</td>
+          <td>{{ sale?.SONumber }}</td>
+          <td>{{ sale?.Customer_name }}</td>
+          <td>{{ sale?.SoldToParty }}</td>
+          <td>{{ sale?.ShipToParty }}</td>
+          <td>{{ sale?.Qty }}</td>
+          <td>{{ sale?.Price | currency:'INR':'symbol':'1.2-2' }}</td>
+          <td>{{ sale?.GST }}%</td>
+          <td>{{ sale?.TotalPrice | currency:'INR':'symbol':'1.2-2' }}</td>
+          <td>
+            <span
+              class="po-status-box"
+              [ngClass]="{
+                'status-paid': sale?.Payment_Status === 'Full Paid',
+                'status-pending': sale?.Payment_Status === 'Pending',
+                'status-partial': sale?.Payment_Status === 'Partial'
+              }"
+            >
+              {{ sale?.Payment_Status }}
+            </span>
+          </td>
+          <td>{{ sale?.Payment_Mode }}</td>
+          <td>{{ sale?.Delivery_date | date:'mediumDate' }}</td>
+          <td>{{ sale?.Customer_Contact }}</td>
+          <td>{{ sale?.Created_by }}</td>
+          <td>{{ sale?.Created_date | date:'mediumDate' }}</td>
+          <td>{{ sale?.Created_time }}</td>
+          <td>{{ sale?.Changed_by }}</td>
+          <td>{{ sale?.Changed_date | date:'mediumDate' }}</td>
+          <td>{{ sale?.Changed_time }}</td>
+        </tr>
+        <tr *ngIf="!salesReports || salesReports.length === 0">
+          <td colspan="19" class="no-data">No sales reports found</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Enhanced pagination controls -->
+  <div class="pagination-wrapper" *ngIf="!loading && !error && totalRecords > 0">
+    <div class="pagination-info">
+      <div class="page-size-selector">
+        <span>Show:</span>
+        <select [(ngModel)]="pageSize" (change)="onPageSizeChange()">
+          <option *ngFor="let size of pageSizeOptions" [value]="size">
+            {{ size }} entries
+          </option>
+        </select>
+      </div>
+      
+      <div class="record-count">
+        {{ getDisplayRange() }}
+      </div>
+    </div>
+
+    <div class="pagination-controls">
+      <!-- First page button -->
+      <button
+        [disabled]="currentPage <= 1"
+        (click)="goToPage(1)"
+        class="page-btn first-page"
+        title="First Page"
+      >
+        ««
+      </button>
+
+      <!-- Previous page button -->
+      <button
+        [disabled]="currentPage <= 1"
+        (click)="previousPage()"
+        class="page-btn prev-page"
+        title="Previous Page"
+      >
+        ‹ Previous
+      </button>
+
+      <!-- Page number buttons -->
+      <div class="page-numbers">
+        <button
+          *ngFor="let pageNum of getPageNumbers()"
+          [class.active]="pageNum === currentPage"
+          (click)="goToPage(pageNum)"
+          class="page-number-btn"
+        >
+          {{ pageNum }}
+        </button>
+      </div>
+
+      <!-- Next page button -->
+      <button
+        [disabled]="currentPage >= totalPages"
+        (click)="nextPage()"
+        class="page-btn next-page"
+        title="Next Page"
+      >
+        Next ›
+      </button>
+
+      <!-- Last page button -->
+      <button
+        [disabled]="currentPage >= totalPages"
+        (click)="goToPage(totalPages)"
+        class="page-btn last-page"
+        title="Last Page"
+      >
+        »»
+      </button>
+    </div>
+
+    <div class="page-info">
+      Page {{ currentPage }} of {{ totalPages }}
+    </div>
+  </div>
+</div>

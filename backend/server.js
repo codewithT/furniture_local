@@ -31,13 +31,8 @@ app.use(cookieParser());
 // MySQL Session Store
 const sessionStore = new MySQLStore({}, db.promise());
 
-// ✅ Dynamic CORS for Local & Production
 const allowedOrigins = [
   'http://localhost:4200', 
-  'http://calgaryfurniturebucket.s3-website.us-east-2.amazonaws.com/furniture',
-  'http://calgaryfurniturebucket.s3-website.us-east-2.amazonaws.com',
-  'https://sdmssschool.com/furniture',
-  'https://sdmssschool.com'
 ];
 
 // cors 
@@ -71,10 +66,9 @@ app.use(session({
 }));
 
 
-const BASE_URL1 = process.env.BASE_URL1 || ''; // Set default if not found
-console.log(`Using BASE_URL1: ${BASE_URL1}`); // Debugging log
+const BASE_URL1 = process.env.BASE_URL1 || ''; 
+console.log(`Using BASE_URL1: ${BASE_URL1}`); 
 
-// Serve static files
 app.use('/images', express.static(path.join(__dirname, 'public', 'images')));
 
 app.use(`${BASE_URL1}/auth`, authRoutes);
@@ -88,6 +82,6 @@ app.use(`${BASE_URL1}/u`, orderDetails);
 app.use(`${BASE_URL1}/u`, receivedProducts);
 app.use(`${BASE_URL1}/`, supplierConfirm); 
 app.use(`${BASE_URL1}/u`, scheduleDelivery);
-// ✅ Start Server
+
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

@@ -2,16 +2,26 @@
   <h2>Manage Orders</h2>
 
   <!-- Search Input -->
+ <div class="search-container">
   <mat-form-field appearance="outline">
     <mat-label>Search Orders</mat-label>
-    <input matInput [(ngModel)]="searchTerm" (keyup)="applySearchFilter()" placeholder="Search by ProductId, Date">
+    <input matInput [(ngModel)]="searchTerm" (input)="applySearchFilter()" placeholder="Search by Product Name, Customer Email, SO Number">
+    <mat-icon matSuffix>search</mat-icon>
   </mat-form-field>
+
   <button mat-raised-button color="accent" (click)="sendEmailsToCustomers()" class="send-email-btn">
     <mat-icon>email</mat-icon> Send Email
   </button>
+</div>
+
+  <!-- Loading indicator -->
+  <div *ngIf="isLoading" class="loading-container">
+    <mat-spinner></mat-spinner>
+    <p>Loading orders...</p>
+  </div>
   
   <!-- Table wrapped in scrollable container -->
-  <div class="mat-table-container">
+  <div class="mat-table-container" *ngIf="!isLoading">
     <table mat-table [dataSource]="dataSource" matSort class="mat-elevation-z8">
       
       <!-- Checkbox Column -->
@@ -36,12 +46,6 @@
         <td mat-cell *matCellDef="let order"> {{ order.Created_date }} </td>
       </ng-container>
 
-      <!-- Client Name Column -->
-      <!-- <ng-container matColumnDef="ProductID">
-        <th mat-header-cell *matHeaderCellDef mat-sort-header> ProductID</th>
-        <td mat-cell *matCellDef="let order"> {{ order.ProductID }} </td>
-      </ng-container> -->
-
       <ng-container matColumnDef="ProductName">
         <th mat-header-cell *matHeaderCellDef mat-sort-header> Product Name </th>
         <td mat-cell *matCellDef="let order"> {{ order.ProductName }} </td>
@@ -52,11 +56,13 @@
           Email </th>
         <td mat-cell *matCellDef="let order"> {{ order.CustomerEmail }} </td>
       </ng-container>
+
       <ng-container matColumnDef="Customer_name">
         <th mat-header-cell *matHeaderCellDef mat-sort-header> Customer <br>
            Name </th>
         <td mat-cell *matCellDef="let order"> {{ order.Customer_name }} </td>
       </ng-container>
+
       <ng-container matColumnDef="Qty">
         <th mat-header-cell *matHeaderCellDef mat-sort-header> Qty </th>
         <td mat-cell *matCellDef="let order"> {{ order.Qty }} </td>
@@ -66,10 +72,17 @@
         <th mat-header-cell *matHeaderCellDef mat-sort-header> Customer<br> Delivery Date </th>
         <td mat-cell *matCellDef="let order"> {{ order.Delivery_date }} </td>
       </ng-container>
-      <ng-container matColumnDef="POStatus">
-        <th mat-header-cell *matHeaderCellDef mat-sort-header> PO Status </th>
-        <td mat-cell *matCellDef="let order"> {{ order.POStatus }} </td>
+
+      <ng-container matColumnDef="SOStatus">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header> SO Status </th>
+        <td mat-cell *matCellDef="let order"> {{ order.SOStatus }} </td>
       </ng-container>
+
+      <ng-container matColumnDef="Total_Paid_Amount">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header> Total Paid Amount<br>per SO </th>
+        <td mat-cell *matCellDef="let order"> {{ order.Total_Paid_Amount }} </td>
+      </ng-container>
+
       <!-- Payment Status Column -->
       <ng-container matColumnDef="Payment_Status">
         <th mat-header-cell *matHeaderCellDef mat-sort-header> Payment<br> Status </th>
@@ -114,10 +127,21 @@
       <!-- Table Data Rows -->
       <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
     </table>
+
+    <!-- No data message -->
+    <div *ngIf="dataSource.data.length === 0" class="no-data-message">
+      <p>No orders found</p>
+    </div>
   </div>
 
   <!-- Paginator -->
-  <mat-paginator [length]="dataSource.data.length" [pageSize]="pageSize" [pageSizeOptions]="pageSizeOptions"
-    (page)="onPageChange($event)">
+  <mat-paginator 
+    *ngIf="!isLoading"
+    [length]="totalRecords" 
+    [pageSize]="pageSize" 
+    [pageSizeOptions]="pageSizeOptions"
+    [pageIndex]="pageIndex"
+    (page)="onPageChange($event)"
+    showFirstLastButtons>
   </mat-paginator>
 </div>

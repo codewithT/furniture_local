@@ -41,24 +41,46 @@
         </div>
     </div>
 
+    <!-- Entries per page dropdown -->
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <div class="d-flex align-items-center">
+                <label class="me-2">Show</label>
+                <select class="form-select form-select-sm" style="width: auto;" 
+                        [(ngModel)]="itemsPerPage" (change)="changeItemsPerPage($event)">
+                    <option *ngFor="let option of itemsPerPageOptions" [value]="option">
+                        {{ option }}
+                    </option>
+                </select>
+                <label class="ms-2">entries</label>
+            </div>
+        </div>
+        <div class="col-md-6 text-end">
+            <small class="text-muted">
+                Showing {{ ((currentPage - 1) * itemsPerPage) + 1 }} to 
+                {{ Math.min(currentPage * itemsPerPage, totalItems) }} of {{ totalItems }} entries
+            </small>
+        </div>
+    </div>
+
     <!-- Supplier Table with Horizontal Scrolling -->
     <div class="table-responsive">
         <table class="table table-bordered table-striped">
             <thead>
                 <tr>
-                    <th (click)="sortBy('SupplierID')">Serial No
+                    <th (click)="sortBy('SupplierID')" style="cursor: pointer;">Serial No
                         <span *ngIf="sortColumn === 'SupplierID'">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
                     </th>
-                    <th (click)="sortBy('SupplierCode')">Supplier Code 
+                    <th (click)="sortBy('SupplierCode')" style="cursor: pointer;">Supplier Code 
                         <span *ngIf="sortColumn === 'SupplierCode'">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
                     </th>
-                    <th (click)="sortBy('SupplierName')">Supplier Name 
+                    <th (click)="sortBy('SupplierName')" style="cursor: pointer;">Supplier Name 
                         <span *ngIf="sortColumn === 'SupplierName'">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
                     </th>
-                    <th (click)="sortBy('SupplierAddress')">Supplier Address 
+                    <th (click)="sortBy('SupplierAddress')" style="cursor: pointer;">Supplier Address 
                         <span *ngIf="sortColumn === 'SupplierAddress'">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
                     </th>
-                    <th (click)="sortBy('EmailAddress')">Email Address
+                    <th (click)="sortBy('EmailAddress')" style="cursor: pointer;">Email Address
                         <span *ngIf="sortColumn === 'EmailAddress'">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
                     </th>
                     <th>Actions</th>
@@ -81,17 +103,40 @@
     </div>
 
     <!-- Pagination Controls -->
-    <nav *ngIf="totalPages > 1">
-        <ul class="pagination">
-            <li class="page-item" [class.disabled]="currentPage === 1">
-                <button class="page-link" (click)="prevPage()">Previous</button>
+    <nav *ngIf="totalPages > 1" class="d-flex justify-content-between align-items-center mt-3">
+        <div>
+            <small class="text-muted">
+                Page {{ currentPage }} of {{ totalPages }}
+            </small>
+        </div>
+        <ul class="pagination mb-0">
+            <li class="page-item" [class.disabled]="!hasPreviousPage">
+                <button class="page-link" (click)="prevPage()" [disabled]="!hasPreviousPage">Previous</button>
             </li>
-            <li class="page-item" *ngFor="let page of [].constructor(totalPages); let i = index" [class.active]="currentPage === i + 1">
-  <button class="page-link" (click)="goToPage(i + 1)">{{ i + 1 }}</button>
-</li>
-
-            <li class="page-item" [class.disabled]="currentPage === totalPages">
-                <button class="page-link" (click)="nextPage()">Next</button>
+            
+            <!-- Show first page if not in visible range -->
+            <li class="page-item" *ngIf="pages[0] > 1">
+                <button class="page-link" (click)="goToPage(1)">1</button>
+            </li>
+            <li class="page-item disabled" *ngIf="pages[0] > 2">
+                <span class="page-link">...</span>
+            </li>
+            
+            <!-- Show visible page range -->
+            <li class="page-item" *ngFor="let page of pages" [class.active]="currentPage === page">
+                <button class="page-link" (click)="goToPage(page)">{{ page }}</button>
+            </li>
+            
+            <!-- Show last page if not in visible range -->
+            <li class="page-item disabled" *ngIf="pages[pages.length - 1] < totalPages - 1">
+                <span class="page-link">...</span>
+            </li>
+            <li class="page-item" *ngIf="pages[pages.length - 1] < totalPages">
+                <button class="page-link" (click)="goToPage(totalPages)">{{ totalPages }}</button>
+            </li>
+            
+            <li class="page-item" [class.disabled]="!hasNextPage">
+                <button class="page-link" (click)="nextPage()" [disabled]="!hasNextPage">Next</button>
             </li>
         </ul>
     </nav>

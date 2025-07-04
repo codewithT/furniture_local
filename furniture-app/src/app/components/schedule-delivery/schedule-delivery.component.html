@@ -34,55 +34,117 @@
   </div>
 
   <div class="table-container">
-    <table>
-      <thead>
-        <tr>
-          <th><input type="checkbox" (change)="selectAll($event)" /></th>
-          <th (click)="sortTable('ProductCode')">Product Code</th>
-          <th (click)="sortTable('ProductName')">Product Name</th>
-          <th (click)="sortTable('Qty')">Quantity</th>
-          <th (click)="sortTable('SONumber')">SO Number</th>
-          <th (click)="sortTable('Delivery_date')">Cust Exp Del Date</th>
-          <th (click)="sortTable('Customer_name')">Customer Name</th>
-          <th (click)="sortTable('POStatus')">PO Status</th>
-          <th (click)="sortTable('Payment_Status')">Payment Status</th>
-          <th (click)="sortTable('Transfer_Date')">Delivery Date</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      
-      <tbody>
-        <tr *ngFor="let deliver of paginatedDeliveryProducts">
-          <td><input type="checkbox" [(ngModel)]="deliver.selected" /></td>
-          <td>{{ deliver?.ProductCode }}</td>
-          <td>{{ deliver?.ProductName }}</td>
-          <td>{{ deliver?.Qty }}</td>
-          <td>{{ deliver?.SONumber }}</td>
-          <td>{{ deliver?.Delivery_date | date:'mediumDate' }}</td>
-          <td>{{ deliver?.Customer_name }}</td>
-          <td>{{ deliver?.POStatus }}</td>
-          <td>{{ deliver?.Payment_Status }}</td>
-          <td>{{ deliver?.Transfer_Date   | date:'mediumDate' }}</td>
-          <td class="actions">
-            <button 
+  <table>
+    <thead>
+      <tr>
+        <th><input type="checkbox" (change)="selectAll($event)" /></th>
+        <th (click)="sortTable('ProductCode')">Product Code</th>
+        <th (click)="sortTable('ProductName')">Product Name</th>
+        <th (click)="sortTable('Qty')">Quantity</th>
+        <th (click)="sortTable('SONumber')">SO Number</th>
+        <th (click)="sortTable('Delivery_date')">Cust Exp Del Date</th>
+        <th (click)="sortTable('Customer_name')">Customer Name</th>
+        <th (click)="sortTable('SOStatus')">SO Status</th>
+        <th (click)="sortTable('Payment_Status')">Payment Status</th>
+        <th (click)="sortTable('Transfer_Date')">Delivery Date</th>
+        <th>Delivery Picture</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    
+    <tbody>
+      <tr *ngFor="let deliver of deliveryProducts" 
+          class="selectable-row"
+          [class.selected]="deliver.selected"
+          (click)="toggleRowSelection(deliver, $event)">
+        
+        <td (click)="$event.stopPropagation()">
+          <input type="checkbox" 
+                 [(ngModel)]="deliver.selected" 
+                 (change)="onCheckboxChange(deliver)" />
+        </td>
+        
+        <td>{{ deliver?.ProductCode }}</td>
+        <td>{{ deliver?.ProductName }}</td>
+        <td>{{ deliver?.Qty }}</td>
+        <td>{{ deliver?.SONumber }}</td>
+        <td>{{ deliver?.Delivery_date | date:'mediumDate' }}</td>
+        <td>{{ deliver?.Customer_name }}</td>
+        
+        <td (click)="$event.stopPropagation()">
+          <select 
+            [(ngModel)]="deliver.SOStatus" 
+            (change)="updateSOStatus(deliver)"
+            [ngClass]="getStatusClass(deliver.SOStatus)"
+            class="status-select">
+            <option value="Scheduled for Delivery">Scheduled for Delivery</option>
+            <option value="Out for Delivery">Out for Delivery</option>
+            <option value="Not Delivered">Not Delivered</option>
+            <option value="Delivered">Delivered</option>
+          </select>
+        </td>
+        
+        <td>{{ deliver?.Payment_Status }}</td>
+        <td>{{ deliver?.Transfer_Date | date:'mediumDate' }}</td>
+      <td class="delivery-picture-cell" (click)="$event.stopPropagation()">
+  <div class="picture-container">
+
+    <!-- Show image if available -->
+    <a *ngIf="deliver?.Delivery_Picture" [href]="deliver.Delivery_Picture" target="_blank">
+      <img 
+        [src]="deliver.Delivery_Picture" 
+        alt="Delivery Picture" 
+        class="img-thumbnail delivery-img" 
+        style="max-height: 100px;"
+      />
+    </a>
+
+    <!-- Fallback message if no image -->
+    <div *ngIf="!deliver?.Delivery_Picture" class="no-image-placeholder">
+      No Image
+    </div>
+
+    <!-- Upload Button -->
+    <div class="upload-controls mt-2">
+      <input 
+        type="file" 
+        class="form-control d-none" 
+        #deliveryFileInput 
+        (change)="onDeliveryImageSelected($event, deliver.SalesID)"
+        accept="image/*"
+      />
+      <button 
+        class="btn btn-sm btn-outline-primary upload-btn"
+        type="button"
+        (click)="deliveryFileInput.click()"
+        title="Upload Delivery Picture"
+      >
+        <i class="fas fa-upload"></i>
+      </button>
+    </div>
+
+  </div>
+</td>
+
+        <td class="actions" (click)="$event.stopPropagation()">
+          <button 
             [ngClass]="deliver.Signature ? 'btn btn-success' : 'btn btn-secondary'" 
             (click)="openSignatureDialog(deliver)">
             <i class="fas fa-signature"></i> Sign
           </button>
           
-
-            <button class="btn btn-info" (click)="viewSignature(deliver)">
-              <i class="fas fa-eye"></i> View Signature
-            </button>
-          </td>
-        </tr>
-        
-        <tr *ngIf="deliveryProducts.length === 0">
-          <td colspan="10" class="no-data">No deliveries found</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+          <button class="btn btn-info" (click)="viewSignature(deliver)">
+            <i class="fas fa-eye"></i> View Signature
+          </button>
+        </td>
+      </tr>
+      
+      <tr *ngIf="deliveryProducts.length === 0">
+        <td colspan="11" class="no-data">No deliveries found</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
 
   <div class="pagination-controls">
     <div class="page-size-selector">
@@ -147,6 +209,19 @@
 
     <div class="dialog-actions">
       <button mat-button (click)="closeSignatureDialog()">Close</button>
+    </div>
+  </div>
+</ng-template>
+
+<!-- Status Update Confirmation Dialog -->
+<ng-template #statusUpdateDialog>
+  <div class="status-dialog-content">
+    <h3>Confirm Status Update</h3>
+    <p>Are you sure you want to update the SO status to "{{ pendingStatusUpdate?.newStatus }}" for SO Number {{ pendingStatusUpdate?.product?.SONumber }}?</p>
+    
+    <div class="dialog-actions">
+      <button mat-button (click)="cancelStatusUpdate()">Cancel</button>
+      <button mat-button (click)="confirmStatusUpdate()" class="btn-primary">Confirm</button>
     </div>
   </div>
 </ng-template>

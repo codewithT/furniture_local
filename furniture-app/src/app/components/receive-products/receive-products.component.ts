@@ -1,19 +1,25 @@
 import { Component, OnInit } from '@angular/core';
 import { ReceiveProductsService, ReceivedProduct } from '../../services/receive-products.service';
 import { HttpClient } from '@angular/common/http';    
-import { from } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'app-receive-products',
-  imports: [ FormsModule, CommonModule],
   standalone: true,
+  imports: [FormsModule, CommonModule],
   templateUrl: './receive-products.component.html',
   styleUrls: ['./receive-products.component.css']
 })
 export class ReceiveProductsComponent implements OnInit {
   receiveProducts: ReceivedProduct[] = [];
+  Math = Math;  
+  itemsPerPageOptions: number[] = [10, 50, 100, 200];
+  itemsPerPage = 10;
+  currentPage = 1;
+  totalItems = 0;
+  totalPages = 0;
+  pages: number[] = [];
 
   constructor(private receiveProductsService: ReceiveProductsService) {}
 
@@ -22,25 +28,68 @@ export class ReceiveProductsComponent implements OnInit {
   }
 
   loadReceivedProducts(): void {
-    this.receiveProductsService.getReceivedProducts().subscribe({
-      next: (products) => this.receiveProducts = products,
+    this.receiveProductsService.getReceivedProducts(this.currentPage, this.itemsPerPage).subscribe({
+      next: (res) => {
+        this.receiveProducts = res.data;
+        this.totalItems = res.totalItems;
+        this.totalPages = res.totalPages;
+        this.currentPage = res.currentPage;
+        this.updatePages();
+      },
       error: (error) => console.error('Error fetching received products', error)
     });
   }
 
-  updateStatus(product : any){
-     this.receiveProductsService.updateStatus(product).subscribe({
-      next: (response : any) => { 
+  changeItemsPerPage(event: any) {
+    this.itemsPerPage = +event.target.value;
+    this.currentPage = 1;
+    this.loadReceivedProducts();
+  }
+
+  prevPage() {
+    if (this.currentPage > 1) {
+      this.currentPage--;
+      this.loadReceivedProducts();
+    }
+  }
+
+  nextPage() {
+    if (this.currentPage < this.totalPages) {
+      this.currentPage++;
+      this.loadReceivedProducts();
+    }
+  }
+
+  goToPage(page: number) {
+    this.currentPage = page;
+    this.loadReceivedProducts();
+  }
+
+  updatePages() {
+    const visibleRange = 5;
+    const half = Math.floor(visibleRange / 2);
+    let start = Math.max(this.currentPage - half, 1);
+    let end = Math.min(start + visibleRange - 1, this.totalPages);
+
+    if (end - start < visibleRange - 1) {
+      start = Math.max(end - visibleRange + 1, 1);
+    }
+
+    this.pages = Array.from({ length: end - start + 1 }, (_, i) => start + i);
+  }
+
+  updateStatus(product: any) {
+    this.receiveProductsService.updateStatus(product).subscribe({
+      next: (response: any) => {
         alert('Status updated successfully');
         console.log('Status updated successfully', response);
-        this.loadReceivedProducts(); // Reload the products after updating status
-      }
-      , error: (error) => console.error('Error updating status', error) 
+        this.loadReceivedProducts();
+      },
+      error: (error) => console.error('Error updating status', error)
     });
   }
 
   printDetails(received: ReceivedProduct): void {
-    
     const printContent = `
       <h2>Product Receiving Details</h2>
       <p><strong>SO Number:</strong> ${received.SONumber || 'N/A'}</p>

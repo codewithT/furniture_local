@@ -280,4 +280,37 @@ export class ViewSalesReportsComponent implements OnInit {
     this.error = null;
     return true;
   }
+    // Export functionality
+  exportToCsv() {
+    const csvContent = this.generateCsvContent();
+    this.downloadCsv(csvContent, 'sales-reports.csv');
+  }
+  generateCsvContent(): string {
+    if (!this.salesReports || this.salesReports.length === 0) {
+      return '';
+    }
+    const headers = Object.keys(this.salesReports[0]);
+    const csvRows = [
+      headers.join(','),
+      ...this.salesReports.map(row =>
+        headers.map(field => {
+          const value = row[field] !== null && row[field] !== undefined ? row[field] : '';
+          // Escape double quotes and commas
+          return `"${String(value).replace(/"/g, '""')}"`;
+        }).join(',')
+      )
+    ];
+    return csvRows.join('\r\n');
+  }
+  downloadCsv(csvContent: string, filename: string) {
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
 }

@@ -55,18 +55,7 @@ export class ProductService {
       .pipe(catchError(this.handleError<Product>('add Product')));
   }
 
-  // Update an existing product
-  // updateProduct(formData: FormData): Observable<any> {
-  //   const currentUserEmail = this.authService.getCurrentUser();
-  //   formData.append('Changed_by', currentUserEmail);
-  //   return this.http.put<Product>(`${this.apiUrl}/update-product`, formData, {
-  //     ...this.httpOptions,
-  //     reportProgress: true,
-  //     observe: 'events'
-  //   }).pipe(catchError(this.handleError<Product>('updateProduct')));
-  // }
-// No type constraint on 'formData' since it's multipart
-updateProduct(formData: FormData): Observable<any> {
+  updateProduct(formData: FormData): Observable<any> {
   const currentUserEmail = this.authService.getCurrentUser();
   formData.append('Changed_by', currentUserEmail);
   return this.http.put(`${this.apiUrl}/update-product`, formData, {
@@ -74,6 +63,12 @@ updateProduct(formData: FormData): Observable<any> {
     // Don't set content-type header for FormData
   })
     .pipe(catchError(this.handleError<any>('updateProduct')));
+}
+ 
+uploadProductImage(productId: number, formData: FormData) {
+
+  return this.http.post(`${this.apiUrl}/${productId}/image`, formData, {withCredentials: true})
+    .pipe(catchError(this.handleError<any>('uploadProductImage')));
 }
 
   // Delete a product

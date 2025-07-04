@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../config/db'); // Assuming db is a connection pool
+const pool = require('../config/db'); // Assuming db is a connection pool
 const requireAuth = require('./authMiddleware');
 const nodemailer = require("nodemailer");
 const moment = require("moment");
@@ -12,45 +12,11 @@ const transporter = nodemailer.createTransport({
         pass: process.env.USER_PASSWORD,
     },
 });
+ // Inserting date/time with UTC conversion:
+const currentDateUTC = moment.utc().format("YYYY-MM-DD");
+const currentTimeUTC = moment.utc().format("HH:mm:ss");
+const timestampUTC = moment.utc().format("YYYY-MM-DD HH:mm:ss");
 
-// Get all purchases
-// router.get('/purchase', requireAuth,(req, res) => {
-//     const query = `
-//     SELECT 
-//     PurchaseID, 
-//     sales.SONumber, 
-//     DATE_FORMAT(sales.Delivery_date, '%Y-%m-%d') AS Delivery_date, 
-//     POStatus, 
-//     pm.PONumber,
-//     DATE_FORMAT(pm.Supplier_Date, '%Y-%m-%d') AS Supplier_Date,
-//     sup.SupplierCode, 
-//     prom.ProductCode, 
-//     sales.Qty, 
-//     DATE_FORMAT(pm.Delayed_Date, '%Y-%m-%d') AS Delayed_Date
-// FROM purchasemaster pm 
-// JOIN supplier sup ON pm.SupplierID = sup.SupplierID
-// JOIN productmaster prom ON pm.ProductID = prom.ProductID
-// JOIN salestable sales ON pm.SalesID = sales.SalesID
-// ORDER BY pm.PurchaseID DESC;
-
-//      `;
-    
-//     db.getConnection((err, connection) => {
-//         if (err) {
-//             console.error("Database connection error:", err);
-//             return res.status(500).json({ error: "Database connection failed" });
-//         }
-
-//         connection.query(query, (error, results) => {
-//             connection.release();
-//             if (error) {
-//                 console.error("Error fetching data:", error);
-//                 return res.status(500).json({ error: "Database query error" });
-//             }
-//             res.json(results);
-//         });
-//     });
-// });
 // Get all purchases with pagination
 router.get('/purchase', requireAuth, (req, res) => {
   const page = parseInt(req.query.page) || 1;
@@ -79,6 +45,7 @@ router.get('/purchase', requireAuth, (req, res) => {
     JOIN supplier sup ON pm.SupplierID = sup.SupplierID
     JOIN productmaster prom ON pm.ProductID = prom.ProductID
     JOIN salestable sales ON pm.SalesID = sales.SalesID
+    Where pm.isActive = 1
     ORDER BY pm.PurchaseID DESC
     LIMIT ? OFFSET ?;
   `;
@@ -88,10 +55,11 @@ router.get('/purchase', requireAuth, (req, res) => {
     FROM purchasemaster pm 
     JOIN supplier sup ON pm.SupplierID = sup.SupplierID
     JOIN productmaster prom ON pm.ProductID = prom.ProductID
-    JOIN salestable sales ON pm.SalesID = sales.SalesID;
+    JOIN salestable sales ON pm.SalesID = sales.SalesID
+    WHERE pm.isActive = 1;
   `;
 
-  db.getConnection((err, connection) => {
+  pool.getConnection((err, connection) => {
     if (err) {
       console.error("Database connection error:", err);
       return res.status(500).json({ error: "Database connection failed" });
@@ -135,96 +103,203 @@ router.get('/purchase', requireAuth, (req, res) => {
 
 
 // add purchase request
-router.post('/purchase',requireAuth, requireAuth, (req, res) => {
-    const { SONumber, Delivery_date, POStatus, ProductCode,ProductID, SupplierID, SupplierCode, Qty , Created_by} = req.body;
-    const createdBy = req.Created_by.email; // Assuming requireAuth middleware adds user info to req.user
-    let formatedDate = 0;
-    if (Delivery_date) {
-        formatedDate = moment(Delivery_date).format("YYYY-MM-DD HH:mm:ss");
+// Backend API Route - Add this to your routes file
+router.post('/purchase/addPurchase', requireAuth, (req, res) => {
+    console.log('Received request to add purchase order:', req.body);
+    
+    const { 
+        ProductCode, 
+        ProductID, 
+        SupplierID, 
+        SupplierCode, 
+        Qty, 
+        POStatus,
+        FinalPrice
+    } = req.body;
+   const Created_by = req.session.user.email; // Assuming you have user info in session
+    // Validation
+    if (!ProductCode || !SupplierCode || !Qty || Qty <= 0) {
+        return res.status(400).json({ error: 'Product Code, Supplier, and Quantity are required' });
     }
-    const query = `
-        INSERT INTO purchasemaster (SONumber, Delivery_date, POStatus, ProductCode, SupplierCode, Qty, Created_by)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+
+    const insertQuerySales = `
+        INSERT INTO salestable 
+        (SONumber, ProductID, SupplierID, Qty, Price, GST, TotalPrice, 
+        SoldToParty, ShipToParty, CustomerEmail, InternalNote, Created_by,
+         Created_date, Created_time, Time_stamp, Delivery_date, Payment_Status,
+          Customer_name, Customer_Contact, Payment_Mode, Total_Paid_Amount, isActive, SOStatus) 
+        VALUES ?
     `;
 
-    const values = [SONumber, formatedDate, POStatus, PONumber, ProductCode, SupplierCode, Qty, createdBy.email];
+    const insertQueryPurchase = `
+        INSERT INTO purchasemaster 
+        (ProductID, SupplierID, SalesID, RecordMargin, Created_by, Created_date, 
+         Created_time, Delivery_date, POStatus, PONumber, Time_stamp, isActive) 
+        VALUES ?
+    `;
 
-    db.getConnection((err, connection) => {
+    const currentDate = new Date().toISOString().slice(0, 10);
+    const currentTime = new Date().toISOString().slice(11, 19);
+    const formattedTimestamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
+    const deliveryDate = new Date();
+    deliveryDate.setDate(deliveryDate.getDate() + 21);  
+    const formattedDeliveryDate = deliveryDate.toISOString().slice(0, 10);
+
+    pool.getConnection((err, connection) => {
         if (err) {
-            console.error("Database connection error:", err);
-            return res.status(500).json({ error: "Database connection failed" });
+            console.error('Error acquiring connection:', err);
+            return res.status(500).json({ error: 'Database connection error' });
         }
 
-        connection.query(query, values, (error, results) => {
-            connection.release();
-            if (error) {
-                console.error("Error adding purchase:", error);
-                return res.status(500).json({ error: "Database insert error" });
-            }
+        // Generate SONumber
+        connection.query(
+            `SELECT SONumber FROM salestable st WHERE st.Created_date = ? AND st.isActive = 1 ORDER BY st.SONumber DESC LIMIT 1`, 
+            [currentDate], 
+            (err, results) => {
+                if (err) {
+                    connection.release();
+                    return res.status(500).json({ error: 'Error fetching SONumber', details: err });
+                }
 
-            res.json({ message: "Purchase added successfully", purchaseId: results.insertId });
-        });
+                let SONumber = results.length > 0 
+                    ? `SO-${currentDate.replace(/-/g, '')}-${parseInt(results[0].SONumber.split('-')[2]) + 1}`
+                    : `SO-${currentDate.replace(/-/g, '')}-1`;
+
+                // Create sales record with company default values
+                const salesValues = [[
+                    SONumber,
+                    ProductID || null,
+                    SupplierID || null,
+                    Qty,
+                    FinalPrice, // Default price for internal showcase
+                    0, // Default GST
+                    Qty * FinalPrice, // Default total price
+                    'Internal Company', // SoldToParty - company default
+                    'Internal Warehouse', // ShipToParty - company default
+                    'internal@cfe.com', // CustomerEmail - company default
+                    `Internal purchase order for ${ProductCode}`, // InternalNote
+                    Created_by || 'System',
+                    currentDate,
+                    currentTime,
+                    formattedTimestamp,
+                    formattedDeliveryDate,
+                    'Internal Order', // Payment_Status - company default
+                    'Internal Company', // Customer_name - company default
+                    'Internal', // Customer_Contact - company default
+                    'Internal Transfer', // Payment_Mode - company default
+                    0, // Total_Paid_Amount - company default
+                    1, // isActive - company default
+                    'Internal' // SOStatus - company default
+                ]];
+
+                connection.beginTransaction(err => {
+                    if (err) {
+                        connection.release();
+                        return res.status(500).json({ error: 'Transaction error', details: err });
+                    }
+
+                    // Insert into sales table
+                    connection.query(insertQuerySales, [salesValues], (err, salesResult) => {
+                        if (err) {
+                            return connection.rollback(() => {
+                                connection.release();
+                                res.status(500).json({ error: 'Error inserting sales data', details: err });
+                            });
+                        }
+
+                        const insertedSalesId = salesResult.insertId;
+                        
+                        // Create purchase record
+                        const purchaseValues = [[
+                            ProductID || null,
+                            SupplierID || null,
+                            insertedSalesId,
+                            0.00, // RecordMargin
+                            Created_by || 'Unknown',
+                            currentDate,
+                            currentTime,
+                            formattedDeliveryDate,
+                            POStatus || 'Not Ordered',
+                            '', // PONumber - will be generated later when PO is created
+                            formattedTimestamp,
+                            1 // isActive
+                        ]];
+
+                        // Insert into purchase table
+                        connection.query(insertQueryPurchase, [purchaseValues], (err, purchaseResult) => {
+                            if (err) {
+                                return connection.rollback(() => {
+                                    connection.release();
+                                    res.status(500).json({ error: 'Error inserting purchase data', details: err });
+                                });
+                            }
+
+                            connection.commit(err => {
+                                if (err) {
+                                    return connection.rollback(() => {
+                                        connection.release();
+                                        res.status(500).json({ error: 'Transaction commit error', details: err });
+                                    });
+                                }
+
+                                connection.release();
+                                res.json({ 
+                                    message: 'Purchase order created successfully!', 
+                                    SONumber,
+                                    PurchaseID: purchaseResult.insertId,
+                                    SalesID: insertedSalesId
+                                });
+                            });
+                        });
+                    });
+                });
+            }
+        );
     });
-}
-);
+});
+
 
 // Update purchase
+
+
+// Update purchase route (use UTC)
 router.put('/purchase/:id', requireAuth, (req, res) => {
     const purchaseId = req.params.id;
-    console.log(req.body);
-    const { SONumber, Delivery_date, POStatus, PONumber, ProductCode, SupplierCode, Supplier_Date,
-         Qty, Delayed_Date } = req.body;
-    const changedBy = req.session.user?.email; 
-    const currentDate = moment().format("YYYY-MM-DD");
-    const currentTime = moment().format("HH:mm:ss");
-    console.log(changedBy);
+    const { SONumber, Delivery_date, POStatus, SupplierCode, Supplier_Date, Qty, Delayed_Date } = req.body;
+    const changedBy = req.session.user?.email;
+
     if (!purchaseId) {
         return res.status(400).json({ error: "Purchase ID is required" });
     }
-    let formatedDate = null;
-    if (Delivery_date) {
-        formatedDate = moment(Delivery_date).format("YYYY-MM-DD HH:mm:ss");
-    }
-    let formatedSupplierDate = null;
-    if(Supplier_Date) {
-        formatedSupplierDate = moment(Supplier_Date).format("YYYY-MM-DD HH:mm:ss");
-    }
-    let formatedDelayedDate = null;
-    if(Delayed_Date) {
-        formatedDelayedDate = moment(Delayed_Date).format("YYYY-MM-DD HH:mm:ss");
-    }
+
+    const formatedDate = Delivery_date ? moment.utc(Delivery_date).format("YYYY-MM-DD HH:mm:ss") : null;
+    const formatedSupplierDate = Supplier_Date ? moment.utc(Supplier_Date).format("YYYY-MM-DD HH:mm:ss") : null;
+    const formatedDelayedDate = Delayed_Date ? moment.utc(Delayed_Date).format("YYYY-MM-DD HH:mm:ss") : null;
+
     const query = `
-    UPDATE purchasemaster pm
-    JOIN salestable sales ON pm.SalesID = sales.SalesID
-     
-    SET pm.SONumber = ?, 
-        sales.Delivery_date = ?, 
-        pm.POStatus = ?, 
-        sales.Qty = ?, 
-        pm.Supplier_Date = ?, 
-        pm.Delayed_Date = ?,
-        pm.Changed_by = ?,
-        pm.Changed_date = ?,
-        pm.Changed_time = ?
-    WHERE pm.PurchaseID = ?
-`;
+        UPDATE purchasemaster pm
+        JOIN salestable sales ON pm.SalesID = sales.SalesID
+        SET sales.SONumber = ?, 
+            sales.Delivery_date = ?, 
+            pm.POStatus = ?, 
+            sales.Qty = ?, 
+            pm.Supplier_Date = ?, 
+            pm.Delayed_Date = ?,
+            pm.Changed_by = ?,
+            pm.Changed_date = ?,
+            pm.Changed_time = ?
+        WHERE pm.PurchaseID = ?
+    `;
 
-const values = [SONumber, formatedDate, POStatus, Qty,
-    formatedSupplierDate, formatedDelayedDate, changedBy, currentDate, currentTime, purchaseId];
+    const values = [SONumber, formatedDate, POStatus, Qty,
+        formatedSupplierDate, formatedDelayedDate, changedBy, currentDateUTC, currentTimeUTC, purchaseId];
 
-
-    db.getConnection((err, connection) => {
-        if (err) {
-            console.error("Database connection error:", err);
-            return res.status(500).json({ error: "Database connection failed" });
-        }
+    pool.getConnection((err, connection) => {
+        if (err) return res.status(500).json({ error: "DB connection error" });
 
         connection.query(query, values, (error, results) => {
             connection.release();
-            if (error) {
-                console.error("Error updating purchase:", error);
-                return res.status(500).json({ error: "Database update error" });
-            }
+            if (error) return res.status(500).json({ error: "DB update error" });
 
             if (results.affectedRows === 0) {
                 return res.status(404).json({ error: "Purchase not found" });
@@ -254,19 +329,19 @@ router.get('/purchase/search', requireAuth, async (req, res) => {
       JOIN productmaster prom ON pm.ProductID = prom.ProductID
       JOIN salestable st ON pm.SalesID = st.SalesID
       JOIN supplier sup ON pm.SupplierID = sup.SupplierID
-      WHERE sup.SupplierCode LIKE ?
+      WHERE (sup.SupplierCode LIKE ? 
       OR st.Qty LIKE ?
       OR pm.PurchaseID LIKE ?
       OR pm.Delivery_date LIKE ?
       OR prom.ProductCode LIKE ?
       OR pm.PONumber LIKE ?
-      OR pm.SONumber LIKE ?
+      OR st.SONumber LIKE ?
       OR pm.Supplier_Date LIKE ?
-      OR pm.POStatus LIKE ?
+      OR pm.POStatus LIKE ?) AND pm.isActive = 1
       LIMIT ? OFFSET ?
     `;
 
-    const [data] = await db.promise().query(
+    const [data] = await pool.promise().query(
       searchSql,
       [`%${query}%`, `%${query}%`, `%${query}%`, `%${query}%`, `%${query}%`, `%${query}%`, `%${query}%`, `%${query}%`, `%${query}%`, limit, offset]
     );
@@ -276,18 +351,18 @@ router.get('/purchase/search', requireAuth, async (req, res) => {
       JOIN productmaster prom ON pm.ProductID = prom.ProductID
       JOIN salestable st ON pm.SalesID = st.SalesID
       JOIN supplier sup ON pm.SupplierID = sup.SupplierID
-      WHERE sup.SupplierCode LIKE ?
+      WHERE (sup.SupplierCode LIKE ?
       OR st.Qty LIKE ?
       OR pm.PurchaseID LIKE ?
       OR pm.Delivery_date LIKE ?
       OR prom.ProductCode LIKE ?
       OR pm.PONumber LIKE ?
-      OR pm.SONumber LIKE ?
+      OR st.SONumber LIKE ?
       OR pm.Supplier_Date LIKE ?
-      OR pm.POStatus LIKE ?
+      OR pm.POStatus LIKE ?) AND pm.isActive = 1
     `;
 
-    const [countResult] = await db.promise().query(
+    const [countResult] = await pool.promise().query(
       countSql,
       [`%${query}%`, `%${query}%`, `%${query}%`, `%${query}%`, `%${query}%`, `%${query}%`, `%${query}%`, `%${query}%`, `%${query}%`]
     );
@@ -313,11 +388,6 @@ router.get('/purchase/search', requireAuth, async (req, res) => {
   }
 });
 
-   
-
-
-
-
 // Send purchase order emails
 router.post("/purchase/send-mails", requireAuth, async (req, res) => {
     const selectedPurchases = req.body;
@@ -329,11 +399,12 @@ router.post("/purchase/send-mails", requireAuth, async (req, res) => {
     try {
         const emailQueries = selectedPurchases.map((purchase) => {
             return new Promise((resolve, reject) => {
-                db.getConnection((err, connection) => {
+                pool.getConnection((err, connection) => {
                     if (err) return reject(err);
 
                     const query = `
-                        SELECT sup.EmailAddress, sup.SupplierCode, st.Qty, prom.ProductCode, prom.SupplierItemNumber,
+                        SELECT sup.EmailAddress, sup.SupplierCode, st.Qty, 
+                        prom.ProductCode, prom.SupplierItemNumber,st.SONumber,
                         prom.ProductName
                         FROM supplier sup
                         JOIN purchasemaster pm ON sup.SupplierID = pm.SupplierID
@@ -350,13 +421,16 @@ router.post("/purchase/send-mails", requireAuth, async (req, res) => {
                          
                         const vendorCode = results[0].SupplierCode;
                         const orderedQty = results[0].Qty;
-                        const poNumber = `${moment().format("YYYYMMDD")}-${vendorCode}`;
+                        const soNumber = results[0].SONumber;
+                       const [_, soDatePart, soOrderCount] = soNumber.split("-");
+                       const poNumber = `PO-${soDatePart}-${soOrderCount}-${vendorCode}`;
+
                         const supplierItemNumber = results[0].SupplierItemNumber;
                         const supplierDate = purchase?.Supplier_Date
-                        ? moment(purchase.Supplier_Date).format("YYYY-MM-DD") : null;  
+                        ? moment.utc(purchase.Supplier_Date).format("YYYY-MM-DD") : null;  
                         const productName = results[0].ProductName;
                         resolve({ purchase, supplierEmail, supplierItemNumber, poNumber, orderedQty ,
-                            supplierDate, productName 
+                            supplierDate, productName, soNumber
 });
                     });
                 });
@@ -432,7 +506,7 @@ router.post("/purchase/send-mails", requireAuth, async (req, res) => {
         
 
         // Update database records
-        db.getConnection((err, connection) => {
+        pool.getConnection((err, connection) => {
             if (err) {
                 console.error("Database connection error:", err);
                 return res.status(500).json({ error: "Database connection failed" });
@@ -483,11 +557,12 @@ router.post("/purchase/save-ToSendMail", requireAuth, async(req, res)=>{
 
         const emailQueries = selectedPurchases.map((purchase) => {
             return new Promise((resolve, reject) => {
-                db.getConnection((err, connection) => {
+                pool.getConnection((err, connection) => {
                     if (err) return reject(err);
 
                     const query = `
-                        SELECT sup.EmailAddress, pm.Created_date, sup.SupplierCode, st.Qty
+                        SELECT sup.EmailAddress, pm.Created_date, sup.SupplierCode, st.Qty,
+                        st.SONumber 
                         FROM supplier sup
                         JOIN purchasemaster pm ON sup.SupplierID = pm.SupplierID
                         JOIN salestable st ON pm.SalesID = st.SalesID
@@ -505,12 +580,15 @@ router.post("/purchase/save-ToSendMail", requireAuth, async(req, res)=>{
 
                         const vendorCode = results[0].SupplierCode;
                         const orderedQty = results[0].Qty;
-                        const poNumber = `${moment().format("YYYYMMDD")}-${vendorCode}`;
-                        // no need all these details just PO number
-                        resolve({ purchase, supplierEmail, poNumber, orderedQty });
-                    });
-                });
-            });
+
+                        const soNumber = results[0].SONumber;
+                       const [_, soDatePart, soOrderCount] = soNumber.split("-");
+                       const poNumber = `PO-${soDatePart}-${soOrderCount}-${vendorCode}`;
+
+                       resolve({ purchase, supplierEmail, poNumber, orderedQty });
+                   });
+               });
+           });
         });
 
         const emailResults = await Promise.allSettled(emailQueries);
@@ -521,7 +599,7 @@ router.post("/purchase/save-ToSendMail", requireAuth, async(req, res)=>{
         }
      
          // Update database records
-        db.getConnection((err, connection) => {
+        pool.getConnection((err, connection) => {
             if (err) {
                 console.error("Database connection error:", err);
                 return res.status(500).json({ error: "Database connection failed" });
@@ -569,7 +647,7 @@ router.post("/purchase/save-ToSendMail", requireAuth, async(req, res)=>{
 router.delete("/purchase/:id", requireAuth, async (req, res) => {
     const { id } = req.params;
 
-    db.getConnection((err, connection) => {
+    pool.getConnection((err, connection) => {
         if (err) {
             console.error("Database connection error:", err);
             return res.status(500).json({ error: "Database connection failed" });
@@ -579,10 +657,12 @@ router.delete("/purchase/:id", requireAuth, async (req, res) => {
             if (err) return res.status(500).json({ error: "Transaction failed" });
 
             try {
-                const sqlQuery = `DELETE FROM purchasemaster WHERE PurchaseID = ?`;
-                connection.query(sqlQuery, [id], (deleteErr, result) => {
-                    if (deleteErr) {
-                        connection.rollback(() => res.status(500).json({ error: "Unable to delete purchase" }));
+                const sqlQuery = `UPDATE purchasemaster SET isActive = 0 WHERE PurchaseID = ?`;
+
+                connection.query(sqlQuery, [id], (updateErr, result) => {
+                    if (updateErr) {
+                        connection.rollback(() => res.status(500).json({ error: "Unable to update purchase status" }));
+                        return;
                     }
 
                     if (result.affectedRows === 0) {
@@ -593,7 +673,7 @@ router.delete("/purchase/:id", requireAuth, async (req, res) => {
                         connection.release();
                         if (commitErr) return res.status(500).json({ error: "Commit failed" });
 
-                        res.json({ msg: "Purchase deleted successfully" });
+                        res.json({ msg: "Purchase marked as inactive (soft deleted) successfully" });
                     });
                 });
             } catch (error) {
@@ -605,5 +685,6 @@ router.delete("/purchase/:id", requireAuth, async (req, res) => {
         });
     });
 });
+
 
 module.exports = router;

@@ -1,3 +1,4 @@
+// supplier.component.ts
 import { Component, ElementRef, OnInit, ViewChild, AfterViewInit, OnDestroy } from '@angular/core';
 import { SupplierService } from '../../services/supplier.service';
 import { Modal } from 'bootstrap';
@@ -27,6 +28,9 @@ export class SupplierComponent implements OnInit, AfterViewInit, OnDestroy {
   totalPages: number = 0;
   pages: number[] = [];
   
+  // Items per page options
+  itemsPerPageOptions: number[] = [5, 10, 20, 50, 100];
+  
   // Search and sort
   searchTerm: string = '';
   sortColumn: string = 'SupplierID';
@@ -46,7 +50,7 @@ export class SupplierComponent implements OnInit, AfterViewInit, OnDestroy {
   uploadStatus: 'idle' | 'processing' | 'success' | 'error' = 'idle';
   uploadJobId: string = '';
   pollInterval: any = null;
-  
+  Math = Math;
   // RxJS subscriptions
   private searchSubject = new Subject<string>();
   private uploadSubscription: Subscription | null = null;
@@ -279,6 +283,7 @@ export class SupplierComponent implements OnInit, AfterViewInit, OnDestroy {
       console.warn('Failed records:', response.failures);
     } else {
       this.uploadMessage = `Successfully processed ${successCount} records.`;
+      alert('Upload completed successfully!');
     }
     
     this.file = null;

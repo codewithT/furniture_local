@@ -43,7 +43,8 @@ export class ViewProductsReportsComponent implements OnInit {
     CreatedStartDate: '',
     CreatedEndDate: '',
     ChangedStartDate: '',
-    ChangedEndDate: ''
+    ChangedEndDate: '',
+    Created_By: ''
   };
 
   constructor(
@@ -142,7 +143,8 @@ export class ViewProductsReportsComponent implements OnInit {
       CreatedStartDate: '',
       CreatedEndDate: '',
       ChangedStartDate: '',
-      ChangedEndDate: ''
+      ChangedEndDate: '',
+      Created_By: ''
     };
     this.currentPage = 1;
     this.loadProducts();
@@ -177,5 +179,40 @@ export class ViewProductsReportsComponent implements OnInit {
   // Track by method for better performance
   trackByProductId(index: number, item: any): any {
     return item.ProductID || index;
+  }
+    exportToCsv() {
+    const csvContent = this.generateCsvContent();
+    this.downloadCsv(csvContent, 'products-reports.csv');
+  }
+  generateCsvContent(): string {
+    const headers = [
+      'ProductID', 'ProductCode', 'ProductName', 'SupplierID', 
+      'SupplierItemNumber', 'SupplierPrice', 'MultiplicationFactor', 
+      'FinalPrice', 'CreatedDate', 'ChangedDate', 'Created_By',
+    ];
+    
+    const rows = this.products.map(product => [
+      product.ProductID, product.ProductCode, product.ProductName, 
+      product.SupplierID, product.SupplierItemNumber, 
+      product.SupplierPrice, product.MultiplicationFactor, 
+      product.FinalPrice, product.CreatedDate, product.ChangedDate
+    ]);
+    
+    const csvContent = [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
+    return csvContent;
+  }
+
+  downloadCsv(content: string, filename: string) {
+    const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    if (link.download !== undefined) { // feature detection
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', filename);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
   }
 }

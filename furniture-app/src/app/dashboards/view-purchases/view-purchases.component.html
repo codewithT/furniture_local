@@ -88,10 +88,8 @@
         <option value="Confirmed">Confirmed</option>
         <option value="Arriving Late">Arriving Late</option>
         <option value="Discontinued">Discontinued</option>
-        <option value="Out for Delivery">Out for Delivery</option>
-        <option value="Delivered">Delivered</option>
       </select>
-      <label for="createdStart">Created <br> Start Date:</label>
+      <label for="createdStart">PO Created <br> Start Date:</label>
 <input 
   type="date" 
   [(ngModel)]="filters.CreatedStartDate" 
@@ -99,7 +97,7 @@
   class="filter-input"
 />
 
-<label for="createdEnd">Created End Date:</label>
+<label for="createdEnd">PO  Created End Date:</label>
 <input 
   type="date" 
   [(ngModel)]="filters.CreatedEndDate" 
@@ -109,6 +107,10 @@
 
       <button (click)="applyFilters()" class="apply-filters-btn">Apply Filters</button>
       <button (click)="clearFilters()" class="clear-filters-btn">Clear</button>
+      <button (click)="exportToCsv()" class="apply-filters-btn" style="background: #17a2b8;">
+        <span class="btn-icon">↓</span>
+        Export Excel
+      </button>
     </div>
   </div>
 
@@ -124,6 +126,8 @@
   <tr>
     <th>Purchase ID</th>
     <th>SO Number</th>
+    <th>Product Name</th>
+    <th>CFE Product Code</th>
     <th>Cust Exp Del Date</th>
     <th>PO Status</th>
     <th>Delayed Date</th>
@@ -141,6 +145,8 @@
   <tr *ngFor="let purchase of purchases; trackBy: trackByPurchaseId">
     <td>{{ purchase?.PurchaseID }}</td>
     <td>{{ purchase?.SONumber }}</td>
+    <td>{{ purchase?.ProductName }}</td>
+    <td>{{ purchase?.ProductCode }}</td>
     <td>{{ purchase?.Delivery_date | date:'mediumDate' }}</td>
     <td>
       <span

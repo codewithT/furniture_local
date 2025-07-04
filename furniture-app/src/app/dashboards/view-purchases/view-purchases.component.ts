@@ -117,7 +117,37 @@ filters = {
     this.currentPage = 1;
     this.loadPurchases();
   }
-
+  exportToCsv() {
+    const csvContent = this.generateCsvContent();
+    this.downloadCsv(csvContent, 'purchase-reports.csv');
+  }
+  generateCsvContent() {
+    const headers = Object.keys(this.purchases[0]);
+    const csvRows = [
+      headers.join(','),
+      ...this.purchases.map(row =>
+        headers.map(field => {
+          const value = row[field] !== null && row[field] !== undefined ? row[field] : '';
+          // Escape double quotes and commas
+          return `"${String(value).replace(/"/g, '""')}"`;
+        }).join(',')
+      )
+    ];
+    return csvRows.join('\r\n');
+  }
+  downloadCsv(content: string, filename: string) {
+    const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    if (link.download !== undefined) { // feature detection
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', filename);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  }
   // Method to clear filters
   clearFilters() {
     this.filters = {

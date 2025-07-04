@@ -1,90 +1,173 @@
 import { Injectable } from "@angular/core";
 import { environment } from "../../environments/environment";
-import { HttpClient, HttpHeaders } from "@angular/common/http";
+import { HttpClient, HttpHeaders, HttpParams } from "@angular/common/http";
 import { catchError, Observable } from "rxjs";
 
 export interface DeliveryProduct {
-    selected?: boolean; 
-    PurchaseID: number;
-    SalesID : number;
-  Supplier_Date: string; // pick up date
+  selected?: boolean; 
+  PurchaseID: number;
+  SalesID: number;
+  Supplier_Date: string;
   PONumber: string;
   ProductCode: string;
   ProductName: string;
   Customer_name: string;
-  POStatus: string;
+  SOStatus: string;
   SONumber: string;
-  Qty : number;
+  Qty: number;
   Payment_Status: string;
-  Transfer_Date ?: string;
-  Delivery_date?: Date;
+  Transfer_Date?: string | Date; // Changed to string or Date
+  Delivery_date?: string | Date;
   Signature?: Blob;
+  Delivery_Picture?: string;
+}
+
+export interface PaginationInfo {
+  currentPage: number;
+  totalPages: number;
+  totalRecords: number;
+  limit: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+}
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  pagination: PaginationInfo;
+}
+
+export interface PaginationParams {
+  page?: number;
+  limit?: number;
+  sortBy?: string;
+  sortOrder?: 'ASC' | 'DESC';
 }
 
 @Injectable({
   providedIn: 'root'
 })
+export class ScheduleDeliveryService {
+  private apiUrl = `${environment.apiBaseUrl}/u/delivery`;
+  
+  constructor(private http: HttpClient) {}
+  
+  private httpOptions = {
+    headers: new HttpHeaders({
+      'Content-Type': 'application/json'
+    }),
+    withCredentials: true  
+  };
 
-export class ScheduleDeliveryService{
-    private apiUrl = `${environment.apiBaseUrl}/u/delivery`;
-    constructor(private http: HttpClient) {}
-    private httpOptions = {
-        headers: new HttpHeaders({
-            'Content-Type': 'application/json'
-        }),
-        withCredentials: true  
-      };
-    getDeliveryProducts (): Observable<DeliveryProduct[]> {
-        return this.http.get<DeliveryProduct[]>(this.apiUrl, this.httpOptions)
-        .pipe(catchError(this.handleError<any>('Get about to receive products ', [])));
-      }
-      searchDeliveryProducts (query: string): Observable<DeliveryProduct[]> {
-        return this.http.get<DeliveryProduct[]>(`${this.apiUrl}/search/${encodeURIComponent(query)}`, this.httpOptions) 
-        .pipe(catchError(this.handleError<any>('Search delivery products', [])));
-      }
-      updateTransferDate(selectedProducts: DeliveryProduct[], transferDate: string): Observable<any> {
-        const payload = selectedProducts.map(product => ({
-          SalesID: product.SalesID,
-          transferDate: transferDate
-        }));
-      
-        return this.http.put(`${this.apiUrl}/updateTransferDate`, payload, this.httpOptions)
-          .pipe(catchError(this.handleError<any>('Update Transfer Date', [])));
-      }
+  // Updated method to support pagination
+  getDeliveryProducts(params: PaginationParams = {}): Observable<PaginatedResponse<DeliveryProduct>> {
+    let httpParams = new HttpParams();
+    
+    if (params.page) httpParams = httpParams.set('page', params.page.toString());
+    if (params.limit) httpParams = httpParams.set('limit', params.limit.toString());
+    if (params.sortBy) httpParams = httpParams.set('sortBy', params.sortBy);
+    if (params.sortOrder) httpParams = httpParams.set('sortOrder', params.sortOrder);
 
-      uploadSignature(formData: FormData): Observable<any> {
-        return this.http.put(`${this.apiUrl}/uploadSignature`, formData, {
-          withCredentials: true
-        }).pipe(
-          catchError(this.handleError<any>('Upload Signature'))
-        );
-      }
-      
+    const options = {
+      ...this.httpOptions,
+      params: httpParams
+    };
 
-      // schedule-delivery.service.ts
-      getSignature(salesID: number): Observable<Blob> {
-        const options = {
-          headers: new HttpHeaders({
-            'Content-Type': 'application/json'
-          }),
-          responseType: 'blob' as const,
-          withCredentials: true   //  important for sending cookies/session
-        };
-        return this.http.get(`${this.apiUrl}/${salesID}`, options)
-          .pipe(catchError(this.handleError<Blob>('Get Signature')));
+    return this.http.get<PaginatedResponse<DeliveryProduct>>(this.apiUrl, options)
+      .pipe(catchError(this.handleError<PaginatedResponse<DeliveryProduct>>('Get delivery products', {
+        data: [],
+        pagination: {
+          currentPage: 1,
+          totalPages: 0,
+          totalRecords: 0,
+          limit: 10,
+          hasNext: false,
+          hasPrev: false
+        }
+      })));
+  }
+
+  // Updated search method to support pagination
+  searchDeliveryProducts(query: string, params: PaginationParams = {}): Observable<PaginatedResponse<DeliveryProduct>> {
+    let httpParams = new HttpParams();
+    
+    if (params.page) httpParams = httpParams.set('page', params.page.toString());
+    if (params.limit) httpParams = httpParams.set('limit', params.limit.toString());
+    if (params.sortBy) httpParams = httpParams.set('sortBy', params.sortBy);
+    if (params.sortOrder) httpParams = httpParams.set('sortOrder', params.sortOrder);
+
+    const options = {
+      ...this.httpOptions,
+      params: httpParams
+    };
+
+    return this.http.get<PaginatedResponse<DeliveryProduct>>(
+      `${this.apiUrl}/search/${encodeURIComponent(query)}`, 
+      options
+    ).pipe(catchError(this.handleError<PaginatedResponse<DeliveryProduct>>('Search delivery products', {
+      data: [],
+      pagination: {
+        currentPage: 1,
+        totalPages: 0,
+        totalRecords: 0,
+        limit: 10,
+        hasNext: false,
+        hasPrev: false
       }
-      
-      
-      
-       // Handle HTTP errors
+    })));
+  }
+
+  // Keep existing methods unchanged
+  updateTransferDate(selectedProducts: DeliveryProduct[]): Observable<any> {
+    const payload = selectedProducts.map(product => ({
+      SalesID: product.SalesID,
+      Transfer_Date: product.Transfer_Date
+    }));
+
+    return this.http.put(`${this.apiUrl}/updateTransferDate`, payload, this.httpOptions)
+      .pipe(catchError(this.handleError<any>('Update Transfer Date', [])));
+  }
+
+  uploadSignature(formData: FormData): Observable<any> {
+    return this.http.put(`${this.apiUrl}/uploadSignature`, formData, {
+      withCredentials: true
+    }).pipe(
+      catchError(this.handleError<any>('Upload Signature'))
+    );
+  }
+
+  getSignature(salesID: number): Observable<Blob> {
+    const options = {
+      headers: new HttpHeaders({
+        'Content-Type': 'application/json'
+      }),
+      responseType: 'blob' as const,
+      withCredentials: true
+    };
+    return this.http.get(`${this.apiUrl}/${salesID}`, options)
+      .pipe(catchError(this.handleError<Blob>('Get Signature')));
+  }
+
+  updateSOStatus(updateData: { salesID: number; soNumber: string; newStatus: string; }) {
+    return this.http.put(`${this.apiUrl}/updateSOStatus`, updateData, this.httpOptions)
+      .pipe(catchError(this.handleError<any>('Update SO Status')));
+  }
+
+  uploadDeliveryPicture(formData: FormData): Observable<any> {
+    return this.http.put(`${this.apiUrl}/uploadDeliveryPicture`, formData, {
+      withCredentials: true
+    }).pipe(
+      catchError(this.handleError<any>('Upload Delivery Picture'))
+    );
+  }
+
+  // Handle HTTP errors
   private handleError<T>(operation = 'operation', result?: T) {
     return (error: any): Observable<T> => {
       console.error(`${operation} failed:`, error);
       if (error.status === 404) {
-        // Specific handling for "Not Found" (e.g., signature not uploaded)
         alert(`Signature not uploaded yet`);
-      }else{
-      alert(`${operation} failed: ${error.message}`); // Show error to user
+      } else {
+        alert(`${operation} failed: ${error.message}`);
       }
       return new Observable<T>((observer) => {
         observer.next(result as T);
@@ -92,6 +175,4 @@ export class ScheduleDeliveryService{
       });
     };
   }
-
-
-    }
+}

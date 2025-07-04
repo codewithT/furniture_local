@@ -43,9 +43,9 @@ router.post('/supplier/getProductID', requireAuth, (req, res) => {
     }
 
     const query = `
-        SELECT ProductID, ProductName, FinalPrice 
+        SELECT ProductID, ProductName, FinalPrice, SupplierID
         FROM productmaster 
-        WHERE ProductCode = ? AND SupplierID = ?
+        WHERE ProductCode = ? AND SupplierID = ? AND isActive = 1
     `;
 
     pool.getConnection((err, connection) => {
@@ -66,20 +66,20 @@ router.post('/supplier/getProductID', requireAuth, (req, res) => {
                 return res.status(404).json({ message: 'No matching product found' });
             }
 
-            res.status(200).json({
-                ProductID: results[0].ProductID,
-                ProductName: results[0].ProductName,
-                FinalPrice: results[0].FinalPrice,
-            });
+            res.status(200).json(results);
         });
     });
 });
 
-router.post('/addOrders/submit-purchase', (req, res) => {
+router.post('/addOrders/submit-purchase', requireAuth, (req, res) => {
     console.log('Received request to submit purchase order:', req.body);
-    const { Created_by, Delivery_date, POStatus, PONumber, CustomerEmail, Payment_Status, GST, ShipToParty, InternalNote, items, Customer_name,
-        Customer_Contact, Payment_Mode
-     } = req.body;
+
+    const {
+        Created_by, Delivery_date, POStatus, PONumber, CustomerEmail, Payment_Status, GST,
+        ShipToParty, SoldToParty, InternalNote, items, Customer_name,
+        Customer_Contact, Payment_Mode, Total_Paid_Amount, DiscountAmount, SubTotal, GrandTotal,
+        PaymentDetails
+    } = req.body;
 
     if (!items || items.length === 0) {
         return res.status(400).json({ error: 'No items to insert' });
@@ -89,24 +89,28 @@ router.post('/addOrders/submit-purchase', (req, res) => {
         INSERT INTO salestable 
         (SONumber, ProductID, SupplierID, Qty, Price, GST, TotalPrice, 
         SoldToParty, ShipToParty, CustomerEmail, InternalNote, Created_by,
-         Created_date, Created_time, Time_stamp, Delivery_date, Payment_Status,
-          Customer_name , Customer_Contact, Payment_Mode) 
+        Created_date, Created_time, Time_stamp, Delivery_date, Payment_Status,
+        Customer_name, Customer_Contact, Payment_Mode, Total_Paid_Amount, Discount, SOStatus, isActive) 
         VALUES ?
     `;
 
     const insertQueryPurchase = `
         INSERT INTO purchasemaster 
-        (SONumber, ProductID, SupplierID, SalesID, RecordMargin, Created_by, Created_date, Created_time, Delivery_date, POStatus, PONumber,
-         Time_stamp) 
+        (ProductID, SupplierID, SalesID, RecordMargin, Created_by, Created_date, Created_time, 
+        Delivery_date, POStatus, PONumber, Time_stamp, isActive) 
         VALUES ?
     `;
 
-    const currentDate = new Date().toISOString().slice(0, 10);
-    const currentTime = new Date().toISOString().slice(11, 19);
-    const formattedTimestamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
-    const deliveryDate = Delivery_date ? new Date(Delivery_date) : new Date();
-    const formattedDeliveryDate = deliveryDate.toISOString().slice(0, 10);
+    const deliveryDateUTC = Delivery_date ? new Date(Delivery_date) : new Date();
+const formattedDeliveryDate = deliveryDateUTC.toISOString().slice(0, 19).replace('T', ' '); // 'YYYY-MM-DD HH:mm:ss'
+
+const now = new Date();
+const currentDate = now.toISOString().slice(0, 10);         // 'YYYY-MM-DD'
+const currentTime = now.toTimeString().slice(0, 8);         // 'HH:mm:ss'
+const formattedTimestamp = now.toISOString().slice(0, 19).replace('T', ' '); // full timestamp for Time_stamp
+
     const recordMargin = 0;
+    const formattedPayment_Mode = (Payment_Mode === 'Others') ? (PaymentDetails || '') : Payment_Mode;
 
     pool.getConnection((err, connection) => {
         if (err) {
@@ -115,15 +119,15 @@ router.post('/addOrders/submit-purchase', (req, res) => {
         }
 
         connection.query(
-            `SELECT SONumber FROM salestable WHERE Created_date = ? ORDER BY SONumber DESC LIMIT 1`, 
-            [currentDate], 
+            `SELECT SONumber FROM salestable WHERE Created_date = ? ORDER BY SONumber DESC LIMIT 1`,
+            [currentDate],
             (err, results) => {
                 if (err) {
                     connection.release();
                     return res.status(500).json({ error: 'Error fetching SONumber', details: err });
                 }
 
-                let SONumber = results.length > 0 
+                let SONumber = results.length > 0
                     ? `SO-${currentDate.replace(/-/g, '')}-${parseInt(results[0].SONumber.split('-')[2]) + 1}`
                     : `SO-${currentDate.replace(/-/g, '')}-1`;
 
@@ -135,8 +139,8 @@ router.post('/addOrders/submit-purchase', (req, res) => {
                     item.Price || 0,
                     GST || 0,
                     item.TotalPrice || 0,
-                    '',
-                    ShipToParty || 'DefaultParty',
+                    SoldToParty || 'Internal purpose',
+                    ShipToParty || 'Internal purpose',
                     CustomerEmail || '',
                     InternalNote || '',
                     Created_by.email || 'Unknown',
@@ -147,7 +151,11 @@ router.post('/addOrders/submit-purchase', (req, res) => {
                     Payment_Status || 'pending',
                     Customer_name || 'not filled',
                     Customer_Contact || 'not filled',
-                    Payment_Mode || 'not filled'
+                    formattedPayment_Mode || 'not filled',
+                    Total_Paid_Amount || 0,
+                    DiscountAmount || 0,
+                    'Not Delivered',
+                    1
                 ]);
 
                 connection.beginTransaction(err => {
@@ -165,29 +173,26 @@ router.post('/addOrders/submit-purchase', (req, res) => {
                         }
 
                         const insertedSalesIds = salesResult.insertId;
-                        const purchaseValues = items.map((item, index) => [
-                            SONumber,
+                        const filteredItems = items.filter(item => item.Check === false);
+
+                        const purchaseValues = filteredItems.map((item, index) => [
                             item.ProductID || null,
                             item.SupplierID || null,
-                            insertedSalesIds + index,  // Use incremented ID for each row
+                            insertedSalesIds + index,
                             recordMargin || 0.00,
                             Created_by.email || 'Unknown',
                             currentDate,
                             currentTime,
                             formattedDeliveryDate,
                             POStatus || 'Not Ordered',
-                            PONumber || '',
-                            formattedTimestamp
+                            PONumber || '-',
+                            formattedTimestamp,
+                            1
                         ]);
 
-                        connection.query(insertQueryPurchase, [purchaseValues], (err) => {
-                            if (err) {
-                                return connection.rollback(() => {
-                                    connection.release();
-                                    res.status(500).json({ error: 'Error inserting purchase data', details: err });
-                                });
-                            }
-
+                        // ✅ Check if purchaseValues is empty
+                        if (purchaseValues.length === 0) {
+                            // Skip purchase insert
                             connection.commit(err => {
                                 if (err) {
                                     return connection.rollback(() => {
@@ -197,15 +202,38 @@ router.post('/addOrders/submit-purchase', (req, res) => {
                                 }
 
                                 connection.release();
-                                res.json({ message: 'Order placed successfully!', SONumber });
+                                res.json({ message: 'Order placed successfully! (No purchase requests)', SONumber });
                             });
-                        });
+                        } else {
+                            // Insert into purchasemaster
+                            connection.query(insertQueryPurchase, [purchaseValues], (err) => {
+                                if (err) {
+                                    return connection.rollback(() => {
+                                        connection.release();
+                                        res.status(500).json({ error: 'Error inserting purchase data', details: err });
+                                    });
+                                }
+
+                                connection.commit(err => {
+                                    if (err) {
+                                        return connection.rollback(() => {
+                                            connection.release();
+                                            res.status(500).json({ error: 'Transaction commit error', details: err });
+                                        });
+                                    }
+
+                                    connection.release();
+                                    res.json({ message: 'Order and Purchase request placed successfully!', SONumber });
+                                });
+                            });
+                        }
                     });
                 });
             }
         );
     });
 });
+
 
 // Search products by code
 router.get('/product-search/:searchTerm', requireAuth, (req, res) => {
@@ -218,7 +246,7 @@ router.get('/product-search/:searchTerm', requireAuth, (req, res) => {
     const query = `
         SELECT pm.ProductID, pm.ProductCode, pm.ProductName, pm.FinalPrice, pm.SupplierID
         FROM productmaster pm
-        WHERE pm.ProductCode LIKE ? OR pm.ProductName LIKE ?
+        WHERE (pm.ProductCode LIKE ? OR pm.ProductName LIKE ?) AND pm.isActive = 1
         ORDER BY pm.ProductCode
         LIMIT 10
     `;

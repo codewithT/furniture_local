@@ -17,7 +17,6 @@ const supplierConfirm = require('./routes/supplierConfirm');
 const purchase = require('./routes/purchases');
 const receivedProducts = require('./routes/receivedProducts');
 const scheduleDelivery= require('./routes/scheduleDelivery')
-
 const cookieParser = require('cookie-parser');
 const app = express();
 const db = require('./config/db');
@@ -27,21 +26,16 @@ app.use(express.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
 app.use(cookieParser());
-
-// MySQL Session Store
+ 
 const sessionStore = new MySQLStore({}, db.promise());
-
-// ✅ Dynamic CORS for Local & Production
+ 
 const allowedOrigins = [
-  'http://localhost:4200', 
-  'http://calgaryfurniturebucket.s3-website.us-east-2.amazonaws.com/furniture',
-  'http://calgaryfurniturebucket.s3-website.us-east-2.amazonaws.com',
-  'https://sdmssschool.com/furniture',
-  'https://sdmssschool.com'
+   'https://d10z8gloj3uanj.cloudfront.net', //  CloudFront frontend
+    'http://localhost:4200', // Local development
+   'https://erpcalfurnitureemp.ca',
 ];
-
-// cors 
-// cors 
+app.set('trust proxy', 1); // trust first proxy
+// cors
 app.use(cors({
   origin: function(origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
@@ -54,8 +48,7 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Cookie']
 }));
- app.set('trust proxy', 1); // trust first proxy
-
+ 
 app.use(session({
   key: 'connect.sid',  // Ensure session ID is stored
   secret: process.env.SESSION_SECRET || 'your-secret-key',
@@ -64,9 +57,10 @@ app.use(session({
   saveUninitialized: false,
   cookie: {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production', // Enable HTTPS in production
-    maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+    secure: false, // Enable HTTPS in production
+    maxAge: 12 * 60 * 60 * 1000, // 12 hours
+    sameSite: 'lax',
+    
   }
 }));
 
@@ -76,6 +70,7 @@ console.log(`Using BASE_URL1: ${BASE_URL1}`); // Debugging log
 
 // Serve static files
 app.use('/images', express.static(path.join(__dirname, 'public', 'images')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.use(`${BASE_URL1}/auth`, authRoutes);
 app.use(`${BASE_URL1}/u`, dashboardRoutes); 

@@ -323,13 +323,13 @@ router.get('/supplier', requireAuth, async (req, res) => {
     
     // Query for paginated suppliers
     const [suppliers] = await pool.promise().query(
-      "SELECT SupplierID, SupplierCode, SupplierName, SupplierAddress, EmailAddress FROM supplier LIMIT ? OFFSET ?",
+      "SELECT SupplierID, SupplierCode, SupplierName, SupplierAddress, EmailAddress FROM supplier WHERE isActive = 1 LIMIT ? OFFSET ?",
       [limit, offset]
     );
     
     // Query for total count
     const [countResult] = await pool.promise().query(
-      "SELECT COUNT(*) as total FROM supplier"
+      "SELECT COUNT(*) as total FROM supplier WHERE isActive = 1"
     );
     
     const totalItems = countResult[0].total;
@@ -386,10 +386,11 @@ router.post('/supplier', requireAuth, async (req, res) => {
       }
 
       const query = `INSERT INTO supplier 
-      (SupplierCode, SupplierName, SupplierAddress, Created_by, EmailAddress, Created_date, Created_time) 
-      VALUES (?, ?, ?, ?, ?, CURDATE(), CURTIME())`;
-    
-      connection.query(query, [SupplierCode, SupplierName, SupplierAddress, creater, EmailAddress || null], (err, result) => {
+      (SupplierCode, SupplierName, SupplierAddress, Created_by, EmailAddress, Created_date, Created_time,
+      isActive) 
+      VALUES (?, ?, ?, ?, ?, CURDATE(), CURTIME(), ?)`;
+
+      connection.query(query, [SupplierCode, SupplierName, SupplierAddress, creater, EmailAddress || null, 1], (err, result) => {
         if (err) {
           return connection.rollback(() => {
             connection.release();
@@ -501,7 +502,7 @@ router.delete('/supplier/:id', requireAuth, (req, res) => {
         return res.status(500).json({ error: "Transaction failed" });
       }
 
-      const query = "DELETE FROM supplier WHERE SupplierID = ?";
+      const query = "UPDATE supplier SET isActive = 0 WHERE SupplierID = ?";
 
       connection.query(query, [id], (err, result) => {
         if (err || result.affectedRows === 0) {
@@ -555,6 +556,7 @@ router.get('/supplier/search', requireAuth, async (req, res) => {
       OR SupplierName LIKE ? 
       OR EmailAddress LIKE ?
       OR SupplierAddress LIKE ?
+      AND isActive = 1
       LIMIT ? OFFSET ?
     `;
     
@@ -570,6 +572,7 @@ router.get('/supplier/search', requireAuth, async (req, res) => {
       OR SupplierName LIKE ? 
       OR EmailAddress LIKE ?
       OR SupplierAddress LIKE ?
+      AND isActive = 1
     `;
     
     const [countResult] = await pool.promise().query(
@@ -628,13 +631,13 @@ router.get('/supplier/sort', requireAuth, async (req, res) => {
     }
 
     // Query for paginated and sorted suppliers
-    const sortSql = `SELECT * FROM supplier ORDER BY ${column} ${order.toUpperCase()} LIMIT ? OFFSET ?`;
-    
+    const sortSql = `SELECT * FROM supplier WHERE isActive = 1 ORDER BY ${column} ${order.toUpperCase()} LIMIT ? OFFSET ?`;
+
     const [suppliers] = await pool.promise().query(sortSql, [limitNum, offset]);
     
     // Query for total count
-    const [countResult] = await pool.promise().query('SELECT COUNT(*) as total FROM supplier');
-    
+    const [countResult] = await pool.promise().query('SELECT COUNT(*) as total FROM supplier WHERE isActive = 1');
+
     const totalItems = countResult[0].total;
     const totalPages = Math.ceil(totalItems / limitNum);
     

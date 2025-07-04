@@ -61,7 +61,7 @@
                     <input type="text" formControlName="subAmount" [disabled]="true" />
                 </div>
                 <div class="form-group">
-                    <label>Discount</label>
+                    <label>Discount (Flat$)</label>
                     <input type="number" formControlName="discount" placeholder="Enter Discount" />
                 </div>
                 <div class="form-group">
@@ -72,51 +72,82 @@
                     <label>Grand Total</label>
                     <input type="text" formControlName="grandTotal" />
                 </div>
-                <div class="form-group">
-                    <label>Expected Delivery Date</label>
-                    <input type="date" formControlName="expectedDeliveryDate" />
-                </div>
+               
             </div>
-
             <div class="summary-column">
                 <div class="form-group">
+                    <label>Paid Amount</label>
+                    <input type="number" formControlName="paidAmount" placeholder="Enter Paid Amount" />
+                </div>
+                <div class="form-group">
+                    <label>Due Amount</label>
+                    <input type="text" formControlName="dueAmount" [disabled]="true" />
+                </div>
+                <div class="form-group">
                     <label>Payment Status</label>
-                    <select formControlName="paymentStatus">
+                    <select formControlName="paymentStatus"
+                        [ngClass]="{ 'is-invalid': orderForm.get('paymentStatus')?.invalid && orderForm.get('paymentStatus')?.touched }">
                         <option value="">~~SELECT~~</option>
                         <option value="Pending">Pending</option>
                         <option value="Full Paid">Full Paid</option>
                         <option value="Partial">Partial</option>
                     </select>
+                    <div class="invalid-feedback"
+                        *ngIf="orderForm.get('paymentStatus')?.invalid && orderForm.get('paymentStatus')?.touched">
+                        Please select a payment status.
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Mode of Payment</label>
+                    <select formControlName="paymentMode"
+                        [ngClass]="{ 'is-invalid': orderForm.get('paymentMode')?.invalid && orderForm.get('paymentMode')?.touched }">
+                        <option value="">-- Select Payment Mode --</option>
+                        <option value="Debit">Debit</option>
+                        <option value="Visa">Visa</option>
+                        <option value="Cash">Cash</option>
+                        <option value="Master">Master</option>
+                        <option value="E-transfer">E-transfer</option>
+                        <option value="Cheque">Cheque</option>
+                        <option value="Finance">Finance</option>
+                        <option value="Others">Others</option>
+                    </select>
+                    <div class="invalid-feedback"
+                        *ngIf="orderForm.get('paymentMode')?.invalid && orderForm.get('paymentMode')?.touched">
+                        Please select a payment mode.
+                    </div>
+                </div>
+                <div class="form-group" *ngIf="orderForm.get('paymentMode')?.value === 'Others'">
+                    <label>Specify Other Payment Mode</label>
+                    <input type="text" formControlName="otherPaymentDetails" placeholder="Enter Payment Details" />
+                </div>
+            </div>
+
+            <div class="summary-column">
+                  <div class="form-group">
+                    <label>Expected Delivery Date</label>
+                    <input type="date" formControlName="expectedDeliveryDate" />
                 </div>
                 <div class="form-group">
                     <label>Ship To Party</label>
                     <input type="text" formControlName="shipToParty" />
+                </div>
+              
+                <div class="form-group">
+                    <label>Sold To Party</label>
+                    <input type="text" formControlName="soldToParty" />
                 </div>
                 <div class="form-group">
                     <label>Internal Note</label>
                     <input type="text" formControlName="internalNote" />
                 </div>
                                  
-<div class="form-group">
-    <label>Mode of Payment</label>
-    <select formControlName="paymentMode">
-      <option value="">-- Select Payment Mode --</option>
-      <option value="Debit">Debit</option>
-      <option value="Visa">Visa</option>
-      <option value="Cash">Cash</option>
-      <option value="Master">Master</option>
-      <option value="E-transfer">E-transfer</option>
-      <option value="Cheque">Cheque</option>
-      <option value="Others">Others</option>
-    </select>
-  </div>
             </div>
             
         </div>
 
         <!-- Submit and Action Buttons -->
-        <!-- <div class="button-group">
-            <button type="submit" class="submit-btn">Place Order</button>
-        </div> -->
+        <div class="button-group">
+            <button type="submit" class="submit-btn">Update Order</button>
+        </div>
     </form>
 </div>

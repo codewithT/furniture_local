@@ -47,7 +47,8 @@ export class PurchaseService {
 
 // add purchase : 
 addPurchase(purchase : Purchase) : Observable<any>{ 
-  return this.http.post<any>(this.apiUrl, purchase, this.httpOptions)
+  console.log(" hitting purchase ", purchase);
+  return this.http.post<any>(`${this.apiUrl}/addPurchase`, purchase, this.httpOptions)
   .pipe(catchError(this.handleError<any>('Error on adding purchase', [])));
 }
 

@@ -29,10 +29,28 @@ private apiUrl = `${environment.apiBaseUrl}/u/receive`;
     withCredentials: true  
   };
 
-  getReceivedProducts(): Observable<ReceivedProduct[]> {
-    return this.http.get<ReceivedProduct[]>(this.apiUrl, this.httpOptions)
-    .pipe(catchError(this.handleError<any>('Get about to receive products ', [])));
-  }
+  getReceivedProducts(page = 1, limit = 10): Observable<{
+  data: ReceivedProduct[];
+  totalItems: number;
+  totalPages: number;
+  currentPage: number;
+  itemsPerPage: number;
+}> {
+  return this.http.get<{
+    data: ReceivedProduct[];
+    totalItems: number;
+    totalPages: number;
+    currentPage: number;
+    itemsPerPage: number;
+  }>(`${this.apiUrl}?page=${page}&limit=${limit}`, this.httpOptions)
+  .pipe(catchError(this.handleError<any>('Get about to receive products', {
+    data: [],
+    totalItems: 0,
+    totalPages: 0,
+    currentPage: page,
+    itemsPerPage: limit
+  })));
+}
 
     updateStatus(product: ReceivedProduct): Observable<any> {
         return this.http.put(`${this.apiUrl}/${product.PurchaseID}`, product, this.httpOptions)

@@ -248,3 +248,41 @@ input[formControlName="ProductCode"].selected {
     background-color: #e8f0fe;
     outline: none;
 }
+/* Add these styles to your existing CSS file */
+
+.discount-type-container {
+  margin: 8px 0;
+}
+
+.checkbox-container {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: 14px;
+  user-select: none;
+}
+
+.checkbox-container input[type="checkbox"] {
+  margin-right: 8px;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.checkbox-container:hover {
+  color: #007bff;
+}
+
+/* Style for disabled input fields */
+.form-group input:disabled {
+  background-color: #f8f9fa;
+  color: #6c757d;
+  cursor: not-allowed;
+}
+
+/* Highlight the calculated discount amount */
+input[formControlName="calculatedDiscountAmount"] {
+  background-color: #e9ecef !important;
+  font-weight: 600;
+  color: #495057 !important;
+}

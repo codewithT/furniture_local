@@ -75,6 +75,13 @@ export class AddOrderService {
         catchError(this.handleError<any[]>('order details by SO', []))
       );
   }
+  // Update order by SONumber
+  updateOrder(soNumber: string, updateData: any): Observable<any> {
+    return this.http.put<any>(`${this.orderDetailUrl}/${soNumber}`, updateData, this.httpOptions)
+      .pipe(
+        catchError(this.handleError<any>('update order', null))
+      );
+  }
   
   // Handle HTTP errors
   private handleError<T>(operation = 'operation', result?: T) {

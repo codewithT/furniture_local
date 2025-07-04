@@ -20,8 +20,9 @@ router.post('/dashboard/fetch-purchase-orders', requireAuth, (req, res) => {
       pm.*,
       s.SupplierCode, 
       p.ProductCode, 
-      st.SONumber AS SalesSONumber, 
-      st.Qty 
+      st.SONumber, 
+      st.Qty, p.ProductName,
+      st.Delivery_date
     FROM purchasemaster pm
     JOIN supplier s ON pm.SupplierID = s.SupplierID
     JOIN productmaster p ON pm.ProductID = p.ProductID
@@ -584,45 +585,49 @@ router.post('/dashboard/fetch-sales-products-reports', requireAuth, (req, res) =
   const queryParams = [];
   const countParams = [];
 
-  // Filters (from your snippet)
-  
-
+  // Sales ID filter
   if (filters.SalesID) {
     whereConditions.push("s.SalesID = ?");
     queryParams.push(filters.SalesID);
     countParams.push(filters.SalesID);
   }
 
+  // SO Number filter
   if (filters.SONumber) {
     whereConditions.push("s.SONumber LIKE ?");
     queryParams.push(`%${filters.SONumber}%`);
     countParams.push(`%${filters.SONumber}%`);
   }
 
+  // Customer name filter
   if (filters.Customer_name) {
     whereConditions.push("s.Customer_name LIKE ?");
     queryParams.push(`%${filters.Customer_name}%`);
     countParams.push(`%${filters.Customer_name}%`);
   }
 
+  // Sold to party filter
   if (filters.SoldToParty) {
     whereConditions.push("s.SoldToParty LIKE ?");
     queryParams.push(`%${filters.SoldToParty}%`);
     countParams.push(`%${filters.SoldToParty}%`);
   }
 
+  // Payment status filter
   if (filters.Payment_Status) {
     whereConditions.push("s.Payment_Status = ?");
     queryParams.push(filters.Payment_Status);
     countParams.push(filters.Payment_Status);
   }
 
+  // Payment mode filter
   if (filters.Payment_Mode) {
     whereConditions.push("s.Payment_Mode = ?");
     queryParams.push(filters.Payment_Mode);
     countParams.push(filters.Payment_Mode);
   }
 
+  // Price range filters
   if (filters.PriceMin != null) {
     whereConditions.push("s.Price >= ?");
     queryParams.push(filters.PriceMin);
@@ -635,6 +640,7 @@ router.post('/dashboard/fetch-sales-products-reports', requireAuth, (req, res) =
     countParams.push(filters.PriceMax);
   }
 
+  // Quantity range filters
   if (filters.QtyMin != null) {
     whereConditions.push("s.Qty >= ?");
     queryParams.push(filters.QtyMin);
@@ -647,30 +653,48 @@ router.post('/dashboard/fetch-sales-products-reports', requireAuth, (req, res) =
     countParams.push(filters.QtyMax);
   }
 
+  // DELIVERY DATE RANGE FILTERS - FIXED
+  if (filters.DeliveryStartDate) {
+    whereConditions.push("DATE(s.Delivery_date) >= DATE(?)");
+    queryParams.push(filters.DeliveryStartDate);
+    countParams.push(filters.DeliveryStartDate);
+  }
+
+  if (filters.DeliveryEndDate) {
+    whereConditions.push("DATE(s.Delivery_date) <= DATE(?)");
+    queryParams.push(filters.DeliveryEndDate);
+    countParams.push(filters.DeliveryEndDate);
+  }
+
+  // Product ID filter
   if (filters.ProductID) {
     whereConditions.push("s.ProductID = ?");
     queryParams.push(filters.ProductID);
     countParams.push(filters.ProductID);
   }
 
+  // Product code filter
   if (filters.ProductCode) {
     whereConditions.push("p.ProductCode LIKE ?");
     queryParams.push(`%${filters.ProductCode}%`);
     countParams.push(`%${filters.ProductCode}%`);
   }
 
+  // Product name filter
   if (filters.ProductName) {
     whereConditions.push("p.ProductName LIKE ?");
     queryParams.push(`%${filters.ProductName}%`);
     countParams.push(`%${filters.ProductName}%`);
   }
 
+  // Supplier ID filter
   if (filters.SupplierID) {
     whereConditions.push("(s.SupplierID = ? OR p.SupplierID = ?)");
     queryParams.push(filters.SupplierID, filters.SupplierID);
     countParams.push(filters.SupplierID, filters.SupplierID);
   }
 
+  // Supplier price range filters
   if (filters.SupplierPriceMin != null) {
     whereConditions.push("p.SupplierPrice >= ?");
     queryParams.push(filters.SupplierPriceMin);
@@ -683,6 +707,7 @@ router.post('/dashboard/fetch-sales-products-reports', requireAuth, (req, res) =
     countParams.push(filters.SupplierPriceMax);
   }
 
+  // Final price range filters
   if (filters.FinalPriceMin != null) {
     whereConditions.push("p.FinalPrice >= ?");
     queryParams.push(filters.FinalPriceMin);

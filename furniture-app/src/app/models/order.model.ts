@@ -8,7 +8,8 @@ export interface Order {
     Customer_name : string;
     Qty: number;
     Delivery_date: string;
-    POStatus : string;
+    SOStatus : string;
     Payment_Status: string;
+    Total_Paid_Amount: number;
   }
   

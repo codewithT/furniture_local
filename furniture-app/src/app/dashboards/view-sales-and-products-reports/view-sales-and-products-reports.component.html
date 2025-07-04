@@ -33,10 +33,10 @@
     <div class="sales-filters">
       <h4>Sales Filters</h4>
       <div class="filter-row">
-        <div class="filter-group">
+        <!-- <div class="filter-group">
           <label>Sales ID</label>
           <input type="text" [(ngModel)]="filters.SalesID" placeholder="Enter Sales ID" class="filter-input" />
-        </div>
+        </div> -->
         <div class="filter-group">
           <label>SO Number</label>
           <input type="text" [(ngModel)]="filters.SONumber" placeholder="Enter SO Number" class="filter-input" />
@@ -83,7 +83,7 @@
           </div>
         </div>
         <div class="filter-group">
-          <label>Delivery Date Range</label>
+          <label>Customer Delivery Date Range</label>
           <div class="date-range-container">
             <input type="date" [(ngModel)]="filters.DeliveryStartDate" class="filter-input range-input" />
             <span class="range-separator">to</span>
@@ -97,10 +97,10 @@
     <div class="product-filters">
       <h4>Product Filters</h4>
       <div class="filter-row">
-        <div class="filter-group">
+        <!-- <div class="filter-group">
           <label>Product ID</label>
           <input type="text" [(ngModel)]="filters.ProductID" placeholder="Enter Product ID" class="filter-input" />
-        </div>
+        </div> -->
         <div class="filter-group">
           <label>Product Code</label>
           <input type="text" [(ngModel)]="filters.ProductCode" placeholder="Enter Product Code" class="filter-input" />
@@ -109,10 +109,10 @@
           <label>Product Name</label>
           <input type="text" [(ngModel)]="filters.ProductName" placeholder="Enter Product Name" class="filter-input" />
         </div>
-        <div class="filter-group">
+        <!-- <div class="filter-group">
           <label>Supplier ID</label>
           <input type="text" [(ngModel)]="filters.SupplierID" placeholder="Enter Supplier ID" class="filter-input" />
-        </div>
+        </div> -->
       </div>
 
       <div class="filter-row">
@@ -146,7 +146,7 @@
       </button>
       <button (click)="exportToCsv()" class="apply-filters-btn" style="background: #17a2b8;">
         <span class="btn-icon">↓</span>
-        Export CSV
+        Export Excel
       </button>
     </div>
   </div>
@@ -171,15 +171,15 @@
             <th>Product Name</th>
             <th>Supplier Code</th>
             <th>Quantity</th>
-            <th>Price</th>
+            <th>Sale Price</th>
             <th>GST (%)</th>
-            <th>Total Price</th>
+            <th>Sale Total Price</th>
             <th>Payment Status</th>
             <th>Payment Mode</th>
             <th>Cust-Expected Delivery Date</th>
             <th>Door Delivery Date</th>
             <th>Supplier Price</th>
-            <th>Final Price</th>
+            <th>Product Price</th>
           </tr>
         </thead>
         <tbody>

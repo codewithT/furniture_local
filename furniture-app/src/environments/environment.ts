@@ -5,9 +5,3 @@ export const environment = {
   BASE_URL : 'furniture'
   // /furniture
   };
-  
-// export const environment = {
-//     production: true,
-//     apiBaseUrl: 'https://sdmssschool.com/furniture' // Replace with your actual API base URL
-//   };
-  

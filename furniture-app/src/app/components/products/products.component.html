@@ -3,17 +3,34 @@
 
   <h2>Home / product</h2>
  
-  <!-- Search Bar -->
-  <!-- components/products/products.component.html -->
-<!-- Update the button section -->
-<div class="search-container">
-  <input type="text" class="form-control search-bar mb-3" placeholder="Search by Product Name or Code" [(ngModel)]="searchTerm"
-  (input)="onSearchChange()">
-  <div class="header">
-    <button class="btn btn-primary mb-3 me-2" (click)="openAddModal()">Add Product</button>
-    <button class="btn btn-success mb-3" (click)="openUploadExcelModal()">Upload Excel</button>
+  <!-- Search Bar and Controls -->
+  <div class="search-container">
+    <div class="row mb-3">
+      <!-- Search Input -->
+      <div class="col-md-6">
+        <input type="text" class="form-control search-bar" placeholder="Search by Product Name or Code" [(ngModel)]="searchTerm"
+        (input)="onSearchChange()">
+      </div>
+      
+  
+      
+      <!-- Action Buttons -->
+      <div class="col-md-3">
+        <div class="d-flex justify-content-end">
+          <button class="btn btn-primary me-2" (click)="openAddModal()">Add Product</button>
+          <button class="btn btn-success" (click)="openUploadExcelModal()">Upload Excel</button>
+        </div>
+      </div>
+    </div>
   </div>
-</div>
+  
+  <!-- Table Info -->
+  <div class="mb-3">
+    <small class="text-muted">
+      Showing {{ pagination.from }} to {{ pagination.to }} of {{ pagination.total }} entries
+      <span *ngIf="searchTerm.trim() !== ''">(filtered from {{ pagination.total }} total entries)</span>
+    </small>
+  </div>
   
   <!-- Table Wrapper for Horizontal Scrolling -->
   <div class="table-wrapper">
@@ -48,12 +65,34 @@
           <td>{{ product.ProductName }}</td>
           <td>{{ product.SupplierCode }}</td>
           <td>{{ product.SupplierItemNumber }}</td>
-          <td>₹{{ product.FinalPrice | number:'1.2-2' }}</td>
-          <td>
-            <img [src]="'http://localhost:5000' +product.Picture" alt="Product Image" class="img-thumbnail" width="100" height="100">
-          </td>
-          <td>
-            <button class="btn btn-sm btn-warning me-1" (click)="openEditModal(product)">Edit</button>
+          <td>C${{ product.FinalPrice | number:'1.2-2' }}</td>
+            <td>
+           <a [href]="product.Picture" target="_blank">
+  <img [src]="product.Picture" alt="Product Image" class="img-thumbnail" style="max-height: 100px;">
+</a> 
+<div class="input-group mt-2">
+    <input
+      type="file"
+      class="form-control d-none"
+      #productFileInput
+      (change)="onProductImageSelected($event, product.ProductID)"
+      accept="image/*"
+    />
+   <button
+  class="btn btn-sm btn-outline-primary p-1"
+  type="button"
+  (click)="productFileInput.click()"
+  title="Upload Image"
+  style="border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;"
+>
+  <i class="fas fa-upload"></i>
+</button>
+ 
+  </div>
+
+</td>
+<td>
+  <button class="btn btn-sm btn-warning me-1" (click)="openEditModal(product)">Edit</button>
             <button class="btn btn-sm btn-danger" (click)="deleteProduct(product.ProductID)">Delete</button>
           </td>
         </tr>
@@ -62,21 +101,43 @@
   </div>
   
   <!-- Pagination Controls -->
-  <nav *ngIf="totalPages > 1">
-    <ul class="pagination">
-      <li class="page-item" [class.disabled]="currentPage === 1">
-        <button class="page-link" (click)="prevPage()">Previous</button>
-      </li>
-      <li class="page-item" *ngFor="let page of totalPagesArray" [class.active]="currentPage === page">
-        <button class="page-link" (click)="goToPage(page)">{{ page }}</button>
-      </li>
-      <li class="page-item" [class.disabled]="currentPage === totalPages">
-        <button class="page-link" (click)="nextPage()">Next</button>
-      </li>
-    </ul>
-  </nav>
+       <!-- Entries Per Page Selector -->
+      <div class="col-md-3">
+        <div class="d-flex align-items-center">
+          <label class="form-label me-2 mb-0">Show:</label>
+          <select class="form-select" [(ngModel)]="entriesPerPage" (change)="onEntriesPerPageChange()">
+            <option *ngFor="let option of entriesPerPageOptions" [value]="option">{{ option }}</option>
+          </select>
+          <span class="ms-2">entries</span>
+        </div>
+      </div>
+  <div class="d-flex justify-content-between align-items-center mt-3" *ngIf="totalPages > 1">
+    <!-- Pagination Info -->
+    <div>
+      <small class="text-muted">
+        Page {{ currentPage }} of {{ totalPages }}
+      </small>
+    </div>
+    
+    <!-- Pagination Buttons -->
+    <nav>
+      <ul class="pagination mb-0">
+        <li class="page-item" [class.disabled]="currentPage === 1">
+          <button class="page-link" (click)="prevPage()">Previous</button>
+        </li>
+        
+        <!-- Page Numbers -->
+        <li class="page-item" *ngFor="let page of totalPagesArray" [class.active]="currentPage === page">
+          <button class="page-link" (click)="goToPage(page)">{{ page }}</button>
+        </li>
+        
+        <li class="page-item" [class.disabled]="currentPage === totalPages">
+          <button class="page-link" (click)="nextPage()">Next</button>
+        </li>
+      </ul>
+    </nav>
+  </div>
 </div>
-
 <!-- Add Product Modal -->
 <div #addProductModal class="modal fade" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
@@ -138,15 +199,17 @@
             <input type="number" class="form-control" [(ngModel)]="newProduct.FinalPrice" name="FinalPrice" required>
           </div>
           
+        
           <!-- Product Image field -->
           <div class="mb-3">
             <label class="form-label">Product Image</label>
-            <input type="file" class="form-control" (change)="onFileSelected($event)">
+            <input type="file" class="form-control" (change)="onFileSelected($event)" accept="image/*">
             <!-- Display image preview if available -->
-            <div *ngIf="newProduct.Picture" class="mt-2">
-              <img [src]="newProduct.Picture" alt="Product Image Preview" class="img-thumbnail" style="max-height: 100px;">
+            <div *ngIf="addImagePreview" class="mt-2">
+              <img [src]="addImagePreview" alt="Product Image Preview" class="img-thumbnail" style="max-height: 1000px;">
             </div>
-          </div>
+           
+        </div>
         </form>
       </div>
       <div class="modal-footer">
@@ -203,8 +266,11 @@
             <input type="file" class="form-control" (change)="onEditFileSelected($event)">
             <!-- Display image preview if available -->
             <div *ngIf="editedProduct.Picture" class="mt-2">
-              <img [src]="'http://localhost:5000' +editedProduct.Picture" alt="Product Image Preview" class="img-thumbnail" style="max-height: 100px;">
+<img [src]="editedProduct.Picture" alt="Product Image Preview" class="img-thumbnail" style="max-height: 400px; width: auto;">
             </div>
+           
+           
+           
           </div>
         </form>
       </div>

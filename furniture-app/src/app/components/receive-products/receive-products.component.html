@@ -1,43 +1,91 @@
 <div class="purchase-container">
-    <div class="header">
-        <h2>Home / Product Receive</h2>
-    </div>
+  <div class="header">
+    <h2>Home / Product Receive</h2>
+  </div>
 
-    <div class="table-container">
-        <table>
-            <thead>
-                <tr>
-                    <th>Supplier</th>
-                    <th>Pick up date</th>
-                    <th>PO Number</th>
-                    <th>Product Name</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-
-            <tbody>
-                <tr *ngFor="let received of receiveProducts">
-                    <td>{{ received?.SupplierCode }}</td>
-                    <td>{{ received?.Supplier_Date | date:'mediumDate' }}</td>
-                    <td>{{ received?.PONumber }}</td>
-                    <td>{{ received?.ProductName }}</td>
-                    <td class="status">
-                        <select [(ngModel)]="received.POStatus" (change)="updateStatus(received)">
-                            <!-- <option value="Confirmed">Confirmed</option> -->
-                            <option value="Received">Received</option>
-                        </select>
-                    </td>
-                    <td class="actions">
-                        <button class="print-btn" (click)="printDetails(received)">
-                            Print
-                        </button>
-                    </td>
-                </tr>
-                <tr *ngIf="receiveProducts.length === 0">
-                    <td colspan="6" class="no-data">No receiving products found</td>
-                </tr>
-            </tbody>
-        </table>
+  <!-- Entries per page -->
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <label>Show
+        <select class="form-select form-select-sm d-inline-block w-auto mx-2"
+                [(ngModel)]="itemsPerPage" (change)="changeItemsPerPage($event)">
+          <option *ngFor="let option of itemsPerPageOptions" [value]="option">{{ option }}</option>
+        </select>
+        entries
+      </label>
     </div>
+    <div>
+      <small class="text-muted">
+        Showing {{ ((currentPage - 1) * itemsPerPage) + 1 }} to 
+        {{ Math.min(currentPage * itemsPerPage, totalItems) }} of {{ totalItems }} entries
+      </small>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th>Supplier</th>
+          <th>Pick up date</th>
+          <th>PO Number</th>
+          <th>Product Name</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        <tr *ngFor="let received of receiveProducts">
+          <td>{{ received?.SupplierCode }}</td>
+          <td>{{ received?.Supplier_Date | date:'mediumDate' }}</td>
+          <td>{{ received?.PONumber }}</td>
+          <td>{{ received?.ProductName }}</td>
+          <td class="status">
+            <select [(ngModel)]="received.POStatus" (change)="updateStatus(received)">
+              <option value="Received">Received</option>
+            </select>
+          </td>
+          <td class="actions">
+            <button class="print-btn" (click)="printDetails(received)">Print</button>
+          </td>
+        </tr>
+        <tr *ngIf="receiveProducts.length === 0">
+          <td colspan="6" class="no-data">No receiving products found</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  <nav *ngIf="totalPages > 1" class="d-flex justify-content-center mt-3">
+    <ul class="pagination">
+      <li class="page-item" [class.disabled]="currentPage === 1">
+        <button class="page-link" (click)="prevPage()">Previous</button>
+      </li>
+
+      <li class="page-item" *ngIf="pages[0] > 1">
+        <button class="page-link" (click)="goToPage(1)">1</button>
+      </li>
+      <li class="page-item disabled" *ngIf="pages[0] > 2">
+        <span class="page-link">...</span>
+      </li>
+
+      <li class="page-item" *ngFor="let page of pages" [class.active]="currentPage === page">
+        <button class="page-link" (click)="goToPage(page)">{{ page }}</button>
+      </li>
+
+      <li class="page-item disabled" *ngIf="pages[pages.length - 1] < totalPages - 1">
+        <span class="page-link">...</span>
+      </li>
+      <li class="page-item" *ngIf="pages[pages.length - 1] < totalPages">
+        <button class="page-link" (click)="goToPage(totalPages)">{{ totalPages }}</button>
+      </li>
+
+      <li class="page-item" [class.disabled]="currentPage === totalPages">
+        <button class="page-link" (click)="nextPage()">Next</button>
+      </li>
+    </ul>
+  </nav>
 </div>

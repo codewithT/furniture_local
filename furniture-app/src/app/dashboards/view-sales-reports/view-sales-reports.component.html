@@ -1,5 +1,5 @@
 <div class="purchase-container">
-  <!-- Loading indicator -->
+   <!-- Loading indicator -->
   <div *ngIf="loading" class="loading-container">
     <div class="loading-spinner"></div>
     <p>Loading sales reports...</p>
@@ -10,209 +10,262 @@
     <p class="error-message">{{ error }}</p>
     <button (click)="loadSalesReports()" class="retry-btn">Retry</button>
   </div>
-<div class="header">
+
+  <div class="header">
     <h1>Sales Report</h1>
     <p>Unified view of sales transactions</p>
   </div>
+
   <div class="filter-toggle">
     <button (click)="toggleFilters()" class="toggle-filters-btn">
       {{ showFilters ? 'Hide Filters ▲' : 'Show Filters ▼' }}
     </button>
   </div>
 
-  <!-- Filters section -->
+  <!-- Optimized Filters section -->
   <div class="filters-section" *ngIf="showFilters">
-    <h3>Filters</h3>
-    
-    <!-- Basic Filters Row -->
+    <!-- First Row: Basic Fields -->
     <div class="filter-row">
-      <label for="soNumber">SO Number:</label>
-      <input 
-        type="text" 
-        [(ngModel)]="filters.SONumber" 
-        placeholder="SO Number"
-        class="filter-input"
-      >
+      <div class="filter-field">
+        <label for="soNumber">SO Number</label>
+        <input 
+          type="text" 
+          [(ngModel)]="filters.SONumber" 
+          placeholder="Enter SO Number"
+          class="filter-input"
+          id="soNumber"
+        >
+      </div>
 
-      <label for="customerName">Customer Name:</label>
-      <input 
-        type="text" 
-        [(ngModel)]="filters.Customer_name" 
-        placeholder="Customer Name"
-        class="filter-input"
-      >
+      <div class="filter-field">
+        <label for="customerName">Customer Name</label>
+        <input 
+          type="text" 
+          [(ngModel)]="filters.Customer_name" 
+          placeholder="Enter Customer Name"
+          class="filter-input"
+          id="customerName"
+        >
+      </div>
 
-      <label for="soldToParty">Sold To Party:</label>
-      <input 
-        type="text" 
-        [(ngModel)]="filters.SoldToParty" 
-        placeholder="Sold To Party"
-        class="filter-input"
-      >
-
-      <label for="customerContact">Customer Contact:</label>
-      <input 
-        type="text" 
-        [(ngModel)]="filters.Customer_Contact" 
-        placeholder="Customer Contact"
-        class="filter-input"
-      >
+      <div class="filter-field">
+        <label for="paymentStatus">Payment Status</label>
+        <select [(ngModel)]="filters.Payment_Status" class="filter-select" id="paymentStatus">
+          <option value="">All Status</option>
+          <option value="Full Paid">Full Paid</option>
+          <option value="Pending">Pending</option>
+          <option value="Partial">Partial</option>
+        </select>
+      </div>
     </div>
 
-    <!-- Price Range Filters -->
+    <!-- Second Row: Payment Mode, Price Range, Quantity Range -->
     <div class="filter-row">
-      <label for="priceMin">Price Range:</label>
-      <input 
-        type="number" 
-        [(ngModel)]="filters.PriceMin" 
-        placeholder="Min Price"
-        class="filter-input range-input"
-        step="0.01"
-      >
-      <span class="range-separator">to</span>
-      <input 
-        type="number" 
-        [(ngModel)]="filters.PriceMax" 
-        placeholder="Max Price"
-        class="filter-input range-input"
-        step="0.01"
-      >
+      <div class="filter-field">
+        <label for="paymentMode">Payment Mode</label>
+        <select [(ngModel)]="filters.Payment_Mode" class="filter-select" id="paymentMode">
+          <option value="">All Modes</option>
+          <option value="Debit">Debit</option>
+          <option value="Visas">Visa</option>
+          <option value="Cash">Cash</option>
+          <option value="Master">Master</option>
+          <option value="E-transfer">E-transfer</option>
+          <option value="Cheque">Cheque</option>
+          <option value="Finance">Finance</option>
+        </select>
+      </div>
 
-      <label for="qtyMin">Quantity Range:</label>
-      <input 
-        type="number" 
-        [(ngModel)]="filters.QtyMin" 
-        placeholder="Min Qty"
-        class="filter-input range-input"
-        min="0"
-      >
-      <span class="range-separator">to</span>
-      <input 
-        type="number" 
-        [(ngModel)]="filters.QtyMax" 
-        placeholder="Max Qty"
-        class="filter-input range-input"
-        min="0"
-      >
+      <div class="filter-field">
+        <label for="priceRange">Price Range</label>
+        <div class="range-container">
+          <input 
+            type="number" 
+            [(ngModel)]="filters.PriceMin" 
+            placeholder="Min"
+            class="filter-input range-input"
+            step="0.01"
+          >
+          <span class="range-separator">to</span>
+          <input 
+            type="number" 
+            [(ngModel)]="filters.PriceMax" 
+            placeholder="Max"
+            class="filter-input range-input"
+            step="0.01"
+          >
+        </div>
+      </div>
+
+      <div class="filter-field">
+        <label for="quantityRange">Quantity Range</label>
+        <div class="range-container">
+          <input 
+            type="number" 
+            [(ngModel)]="filters.QtyMin" 
+            placeholder="Min"
+            class="filter-input range-input"
+            min="0"
+          >
+          <span class="range-separator">to</span>
+          <input 
+            type="number" 
+            [(ngModel)]="filters.QtyMax" 
+            placeholder="Max"
+            class="filter-input range-input"
+            min="0"
+          >
+        </div>
+      </div>
     </div>
 
-    <!-- Total Price Range and GST Range -->
+    <!-- Third Row: Date Ranges -->
     <div class="filter-row">
-      <label for="totalPriceMin">Total Price Range:</label>
-      <input 
-        type="number" 
-        [(ngModel)]="filters.TotalPriceMin" 
-        placeholder="Min Total"
-        class="filter-input range-input"
-        step="0.01"
-      >
-      <span class="range-separator">to</span>
-      <input 
-        type="number" 
-        [(ngModel)]="filters.TotalPriceMax" 
-        placeholder="Max Total"
-        class="filter-input range-input"
-        step="0.01"
-      >
+      <div class="filter-field">
+        <label for="deliveryDateRange">Customer Delivery Date Range</label>
+        <div class="range-container">
+          <input 
+            type="date" 
+            [(ngModel)]="filters.DeliveryStartDate" 
+            placeholder="dd-mm-yyyy"
+            class="filter-input range-input"
+          />
+          <span class="range-separator">to</span>
+          <input 
+            type="date" 
+            [(ngModel)]="filters.DeliveryEndDate" 
+            placeholder="dd-mm-yyyy"
+            class="filter-input range-input"
+          />
+        </div>
+      </div>
 
-      <label for="gstMin">GST Range (%):</label>
-      <input 
-        type="number" 
-        [(ngModel)]="filters.GSTMin" 
-        placeholder="Min GST"
-        class="filter-input range-input"
-        step="0.01"
-        min="0"
-        max="100"
-      >
-      <span class="range-separator">to</span>
-      <input 
-        type="number" 
-        [(ngModel)]="filters.GSTMax" 
-        placeholder="Max GST"
-        class="filter-input range-input"
-        step="0.01"
-        min="0"
-        max="100"
-      >
+      <div class="filter-field">
+        <label for="soldToParty">Sold To Party</label>
+        <input 
+          type="text" 
+          [(ngModel)]="filters.SoldToParty" 
+          placeholder="Sold To Party"
+          class="filter-input"
+          id="soldToParty"
+        >
+      </div>
+
+      <div class="filter-field">
+        <label for="customerContact">Customer Contact</label>
+        <input 
+          type="text" 
+          [(ngModel)]="filters.Customer_Contact" 
+          placeholder="Customer Contact"
+          class="filter-input"
+          id="customerContact"
+        >
+      </div>
     </div>
 
-    <!-- Date Filters Row -->
+    <!-- Fourth Row: Additional Fields -->
     <div class="filter-row">
-      <label for="deliveryDateStart">Delivery Date Range:</label>
-      <input 
-        type="date" 
-        [(ngModel)]="filters.DeliveryStartDate" 
-        placeholder="Start Date"
-        class="filter-input range-input"
-      />
-      <span class="range-separator">to</span>
-      <input 
-        type="date" 
-        [(ngModel)]="filters.DeliveryEndDate" 
-        placeholder="End Date"
-        class="filter-input range-input"
-      />
+      <div class="filter-field">
+        <label for="totalPriceRange">Total Price Range</label>
+        <div class="range-container">
+          <input 
+            type="number" 
+            [(ngModel)]="filters.TotalPriceMin" 
+            placeholder="Min Total"
+            class="filter-input range-input"
+            step="0.01"
+          >
+          <span class="range-separator">to</span>
+          <input 
+            type="number" 
+            [(ngModel)]="filters.TotalPriceMax" 
+            placeholder="Max Total"
+            class="filter-input range-input"
+            step="0.01"
+          >
+        </div>
+      </div>
 
-      <label for="createdStart">Created Date Range:</label>
-      <input 
-        type="date" 
-        [(ngModel)]="filters.CreatedStartDate" 
-        placeholder="Start Date"
-        class="filter-input range-input"
-      />
-      <span class="range-separator">to</span>
-      <input 
-        type="date" 
-        [(ngModel)]="filters.CreatedEndDate" 
-        placeholder="End Date"
-        class="filter-input range-input"
-      />
+      <div class="filter-field">
+        <label for="gstRange">GST Range (%)</label>
+        <div class="range-container">
+          <input 
+            type="number" 
+            [(ngModel)]="filters.GSTMin" 
+            placeholder="Min GST"
+            class="filter-input range-input"
+            step="0.01"
+            min="0"
+            max="100"
+          >
+          <span class="range-separator">to</span>
+          <input 
+            type="number" 
+            [(ngModel)]="filters.GSTMax" 
+            placeholder="Max GST"
+            class="filter-input range-input"
+            step="0.01"
+            min="0"
+            max="100"
+          >
+        </div>
+      </div>
+
+      <div class="filter-field">
+        <label for="createdDateRange">Sale Created Date Range</label>
+        <div class="range-container">
+          <input 
+            type="date" 
+            [(ngModel)]="filters.CreatedStartDate" 
+            placeholder="Start Date"
+            class="filter-input range-input"
+          />
+          <span class="range-separator">to</span>
+          <input 
+            type="date" 
+            [(ngModel)]="filters.CreatedEndDate" 
+            placeholder="End Date"
+            class="filter-input range-input"
+          />
+        </div>
+      </div>
     </div>
 
-    <!-- User and Status Filters -->
+    <!-- Fifth Row: User Fields -->
     <div class="filter-row">
-      <label for="createdBy">Created By:</label>
-      <input 
-        type="text" 
-        [(ngModel)]="filters.Created_by" 
-        placeholder="Created By"
-        class="filter-input"
-      >
+      <div class="filter-field">
+        <label for="createdBy">Created By</label>
+        <input 
+          type="text" 
+          [(ngModel)]="filters.Created_by" 
+          placeholder="Created By"
+          class="filter-input"
+          id="createdBy"
+        >
+      </div>
 
-      <label for="changedBy">Changed By:</label>
-      <input 
-        type="text" 
-        [(ngModel)]="filters.Changed_by" 
-        placeholder="Changed By"
-        class="filter-input"
-      >
+      <div class="filter-field">
+        <label for="changedBy">Changed By</label>
+        <input 
+          type="text" 
+          [(ngModel)]="filters.Changed_by" 
+          placeholder="Changed By"
+          class="filter-input"
+          id="changedBy"
+        >
+      </div>
 
-      <label for="paymentStatus">Payment Status:</label>
-      <select [(ngModel)]="filters.Payment_Status" class="filter-select">
-        <option value="">All Status</option>
-        <option value="Full Paid">Full Paid</option>
-        <option value="Pending">Pending</option>
-        <option value="Partial">Partial</option>
-      </select>
-
-      <label for="paymentMode">Payment Mode:</label>
-      <select [(ngModel)]="filters.Payment_Mode" class="filter-select">
-        <option value="">All Modes</option>
-        <option value="Debit">Debit</option>
-        <option value="Visas">Visa</option>
-        <option value="Cash">Cash</option>
-        <option value="Master">Master</option>
-        <option value="E-transfer">E-transfer</option>
-        <option value="Cheque">Cheque</option>
-        <option value="Finance">Finance</option>
-      </select>
+      <div class="filter-field">
+        <!-- Empty field to maintain grid alignment -->
+      </div>
     </div>
-
     <!-- Action Buttons -->
     <div class="filter-actions">
       <button (click)="applyFilters()" class="apply-filters-btn">Apply Filters</button>
       <button (click)="clearFilters()" class="clear-filters-btn">Clear All</button>
+       <button (click)="exportToCsv()" class="apply-filters-btn" style="background: #17a2b8;">
+        <span class="btn-icon">↓</span>
+        Export Excel
+      </button>
     </div>
   </div>
 
@@ -255,9 +308,9 @@
           <td>{{ sale?.SoldToParty }}</td>
           <td>{{ sale?.ShipToParty }}</td>
           <td>{{ sale?.Qty }}</td>
-          <td>{{ sale?.Price | currency:'INR':'symbol':'1.2-2' }}</td>
+         <td>{{ sale?.Price | currency:'CAD':'symbol':'1.2-2' }}</td>
           <td>{{ sale?.GST }}%</td>
-          <td>{{ sale?.TotalPrice | currency:'INR':'symbol':'1.2-2' }}</td>
+          <td>{{ sale?.TotalPrice | currency:'CAD':'symbol':'1.2-2' }}</td>
           <td>
             <span
               class="po-status-box"

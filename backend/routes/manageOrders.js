@@ -6,18 +6,87 @@ const requireAuth = require('./authMiddleware');
 
 // GET Orders - Use Pool
 router.get('/manageOrders', requireAuth, (req, res) => {
-    const query = `
-        SELECT st.SalesID, st.SONumber, st.ProductID, pm.ProductName, st.SupplierID, 
-               st.Qty, st.Price, st.GST, st.TotalPrice, st.ShipToParty, 
-               st.CustomerEmail, st.Delivery_date, st.Payment_Status, st.Created_date , st.Customer_name,
-               purm.POStatus
+    const {
+        page = 1,
+        limit = 10,
+        search = '',
+        sortField = 'Created_date',
+        sortOrder = 'desc'
+    } = req.query;
+
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+    const limitNum = parseInt(limit);
+
+    // Validate sort order
+    const validSortOrder = sortOrder.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+    
+    // Valid sortable fields to prevent SQL injection
+    const validSortFields = [
+        'Created_date', 'SONumber', 'ProductName', 'CustomerEmail', 
+        'Customer_name', 'Qty', 'Delivery_date', 'POStatus', 
+        'Total_Paid_Amount', 'Payment_Status'
+    ];
+    
+    const validSortField = validSortFields.includes(sortField) ? sortField : 'Created_date';
+
+    // Build WHERE clause for search
+    let whereClause = '';
+    let searchParams = [];
+    
+    if (search && search.trim()) {
+        const searchTerm = `%${search.trim()}%`;
+        whereClause = `WHERE (
+            st.SONumber LIKE ? OR 
+            pm.ProductName LIKE ? OR 
+            st.CustomerEmail LIKE ? OR 
+            st.Customer_name LIKE ? OR
+            st.Payment_Status LIKE ?
+        ) AND st.isActive = 1`;
+        searchParams = [searchTerm, searchTerm, searchTerm, searchTerm, searchTerm];
+    }
+    else{
+        whereClause = 'WHERE st.isActive = 1'; // Default to active records
+    }
+
+    // Main query for data
+    const dataQuery = `
+        SELECT 
+            st.SalesID, 
+            st.SONumber, 
+            st.ProductID, 
+            pm.ProductName, 
+            st.SupplierID,
+            st.Qty, 
+            st.Price, 
+            st.GST, 
+            st.TotalPrice, 
+            st.ShipToParty,
+            st.CustomerEmail, 
+            st.Delivery_date, 
+            st.Payment_Status, 
+            st.Created_date,
+            st.Customer_name,
+            st.SOStatus, 
+            st.Total_Paid_Amount
+        FROM salestable st
+        JOIN productmaster pm ON st.ProductID = pm.ProductID
+        ${whereClause}
+        ORDER BY ${validSortField} ${validSortOrder}
+        LIMIT ? OFFSET ?
+    `;
+
+    // Count query for total records
+    const countQuery = `
+        SELECT COUNT(*) as total
         FROM salestable st
         JOIN productmaster pm ON st.ProductID = pm.ProductID
         JOIN purchasemaster purm ON st.SalesID = purm.SalesID
-        ORDER BY st.Created_date DESC
+        ${whereClause}
     `;
 
-    console.log(query);
+    console.log('Data Query:', dataQuery);
+    console.log('Count Query:', countQuery);
+    console.log('Search Params:', searchParams);
 
     pool.getConnection((err, connection) => {
         if (err) {
@@ -25,15 +94,39 @@ router.get('/manageOrders', requireAuth, (req, res) => {
             return res.status(500).json({ error: 'Database connection error' });
         }
 
-        connection.query(query, (err, results) => {
-            connection.release(); 
-
+        // Execute count query first
+        const countParams = [...searchParams];
+        connection.query(countQuery, countParams, (err, countResults) => {
             if (err) {
-                console.error('Error fetching data:', err);
+                connection.release();
+                console.error('Error fetching count:', err);
                 return res.status(500).json({ error: 'Database query error' });
             }
 
-            res.json(results);
+            const totalRecords = countResults[0].total;
+            const totalPages = Math.ceil(totalRecords / limitNum);
+
+            // Execute data query
+            const dataParams = [...searchParams, limitNum, offset];
+            connection.query(dataQuery, dataParams, (err, dataResults) => {
+                connection.release();
+
+                if (err) {
+                    console.error('Error fetching data:', err);
+                    return res.status(500).json({ error: 'Database query error' });
+                }
+
+                // Return paginated response
+                res.json({
+                    data: dataResults,
+                    totalRecords: totalRecords,
+                    currentPage: parseInt(page),
+                    totalPages: totalPages,
+                    hasNext: parseInt(page) < totalPages,
+                    hasPrev: parseInt(page) > 1,
+                    pageSize: limitNum
+                });
+            });
         });
     });
 });
@@ -85,7 +178,7 @@ router.put('/manageOrders/update-payment-status', requireAuth, (req, res) => {
 router.delete('/manageOrders/:salesID',requireAuth, (req, res) => {
     const { salesID } = req.params;
 
-    const query = `DELETE FROM salestable WHERE SalesID = ?`;
+    const query = `UPDATE salestable st SET st.isActive =0 WHERE st.SalesID = ?`;
 
     pool.getConnection((err, connection) => {
         if (err) {
@@ -104,7 +197,7 @@ router.delete('/manageOrders/:salesID',requireAuth, (req, res) => {
             if (result.affectedRows === 0) {
                 return res.status(404).json({ error: 'Sales Order not found' });
             }
-
+ 
             res.json({ message: `Sales Order with ID ${salesID} deleted successfully` });
         });
     });
@@ -118,7 +211,6 @@ const transporter = nodemailer.createTransport({
         pass: process.env.USER_PASSWORD,
     },
 });
-
 
 // POST Send Mails with Pool
 router.post('/manageOrders/send-mails', requireAuth, async (req, res) => {
@@ -189,6 +281,4 @@ router.post('/manageOrders/send-mails', requireAuth, async (req, res) => {
         }
     });
 });
-// search is still pending on manage orders screen
-
 module.exports = router;

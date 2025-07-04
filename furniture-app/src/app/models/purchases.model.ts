@@ -2,9 +2,9 @@ export interface Purchase {
     selected?: boolean;
     PurchaseID: number;
     ProductID : number;
+    FinalPrice: number;
     SupplierID : number;
     ProductCode: string;
-   
     SupplierCode: string;
     SONumber: string;
     Delivery_date: string;

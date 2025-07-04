@@ -21,7 +21,8 @@ router.get("/confirm/:email", async (req, res) => {
         JOIN productmaster prom ON pm.ProductID = prom.ProductID
         JOIN supplier sup ON pm.SupplierID = sup.SupplierID
         JOIN salestable st ON pm.SalesID = st.SalesID
-        WHERE sup.EmailAddress = ? AND pm.POStatus = 'Awaiting'`;
+        WHERE sup.EmailAddress = ? AND pm.POStatus = 'Awaiting' AND pm.isActive = 1
+        ORDER BY pm.PurchaseID DESC`;
         
         connection.query(query, [email], (error, results) => {
             connection.release();
@@ -64,13 +65,14 @@ router.post("/confirm/:email", async (req, res) => {
 
                     queryParams = [poStatus, delayedDate, purchaseID];
                     return connection.promise().query(
-                        "UPDATE purchasemaster SET POStatus = ?, Delayed_Date = ?, Supplier_Date = NULL WHERE PurchaseID = ?",
+                        `UPDATE purchasemaster SET POStatus = ?, Delayed_Date = ?, Supplier_Date = NULL 
+                        WHERE PurchaseID = ? AND isActive = 1`,
                         queryParams
                     );
                 }
 
                 return connection.promise().query(
-                    "UPDATE purchasemaster SET POStatus = ? WHERE PurchaseID = ?",
+                    `UPDATE purchasemaster SET POStatus = ? WHERE PurchaseID = ? AND isActive = 1`,
                     queryParams
                 );
             });

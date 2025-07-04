@@ -21,65 +21,78 @@
   </div>
 
   <!-- Filters section -->
-  <div class="filters-section" *ngIf="showFilters">
-    <h3>Product Filters</h3>
-    <div class="filter-column-layout">
-      <div class="filter-group">
-        <label>Product ID:</label>
-        <input type="text" [(ngModel)]="filters.ProductID" placeholder="Product ID" class="filter-input" />
-
-        <label>Product Code:</label>
-        <input type="text" [(ngModel)]="filters.ProductCode" placeholder="Product Code" class="filter-input" />
-
-        <label>Product Name:</label>
-        <input type="text" [(ngModel)]="filters.ProductName" placeholder="Product Name" class="filter-input" />
-
-        <label>Supplier ID:</label>
-        <input type="text" [(ngModel)]="filters.SupplierID" placeholder="Supplier ID" class="filter-input" />
-
-        <label>Supplier Item Number:</label>
-        <input type="text" [(ngModel)]="filters.SupplierItemNumber" placeholder="Supplier Item Number" class="filter-input" />
-
-        <label>Supplier Price Min:</label>
-        <input type="number" [(ngModel)]="filters.SupplierPriceMin" placeholder="Min Price" class="filter-input" step="0.01" />
-
-        <label>Supplier Price Max:</label>
-        <input type="number" [(ngModel)]="filters.SupplierPriceMax" placeholder="Max Price" class="filter-input" step="0.01" />
-      </div>
-
-      <div class="filter-group">
-        <label>Multiplication Factor Min:</label>
-        <input type="number" [(ngModel)]="filters.MultiplicationFactorMin" placeholder="Min Factor" class="filter-input" step="0.01" />
-
-        <label>Multiplication Factor Max:</label>
-        <input type="number" [(ngModel)]="filters.MultiplicationFactorMax" placeholder="Max Factor" class="filter-input" step="0.01" />
-
-        <label>Final Price Min:</label>
-        <input type="number" [(ngModel)]="filters.FinalPriceMin" placeholder="Min Final Price" class="filter-input" step="0.01" />
-
-        <label>Final Price Max:</label>
-        <input type="number" [(ngModel)]="filters.FinalPriceMax" placeholder="Max Final Price" class="filter-input" step="0.01" />
-
-        <label>Created Start Date:</label>
-        <input type="date" [(ngModel)]="filters.CreatedStartDate" class="filter-input" />
-
-        <label>Created End Date:</label>
-        <input type="date" [(ngModel)]="filters.CreatedEndDate" class="filter-input" />
-
-        <label>Changed Start Date:</label>
-        <input type="date" [(ngModel)]="filters.ChangedStartDate" class="filter-input" />
-
-        <label>Changed End Date:</label>
-        <input type="date" [(ngModel)]="filters.ChangedEndDate" class="filter-input" />
-      </div>
+<!-- Compact Filters section -->
+<div class="filters-section" *ngIf="showFilters">
+  <h3>Product Filters</h3>
+  <div class="filter-column-layout">
+    <!-- Product Code -->
+    <div class="filter-item">
+      <label>Product Code:</label>
+      <input type="text" [(ngModel)]="filters.ProductCode" placeholder="Enter code" class="filter-input" />
     </div>
 
-    <div class="filter-buttons">
-      <button (click)="applyFilters()" class="apply-filters-btn">Apply Filters</button>
-      <button (click)="clearFilters()" class="clear-filters-btn">Clear</button>
+    <!-- Product Name -->
+    <div class="filter-item">
+      <label>Product Name:</label>
+      <input type="text" [(ngModel)]="filters.ProductName" placeholder="Enter name" class="filter-input" />
+    </div>
+
+    <!-- Supplier Item Number -->
+    <div class="filter-item">
+      <label>Supplier Item No:</label>
+      <input type="text" [(ngModel)]="filters.SupplierItemNumber" placeholder="Enter number" class="filter-input" />
+    </div>
+
+    <!-- Supplier Price Min -->
+    <div class="filter-item">
+      <label>Price Min:</label>
+      <input type="number" [(ngModel)]="filters.SupplierPriceMin" placeholder="Min" class="filter-input" step="0.01" />
+    </div>
+
+    <!-- Supplier Price Max -->
+    <div class="filter-item">
+      <label>Price Max:</label>
+      <input type="number" [(ngModel)]="filters.SupplierPriceMax" placeholder="Max" class="filter-input" step="0.01" />
+    </div>
+    <div class="filter-item">
+      <label>Created By:</label>
+      <input type="text" [(ngModel)]="filters.Created_By" placeholder="Enter name" class="filter-input" />
+    </div>
+
+    <!-- Created Start Date -->
+    <div class="filter-item">
+      <label>Created From:</label>
+      <input type="date" [(ngModel)]="filters.CreatedStartDate" class="filter-input" />
+    </div>
+
+    <!-- Created End Date -->
+    <div class="filter-item">
+      <label>Created To:</label>
+      <input type="date" [(ngModel)]="filters.CreatedEndDate" class="filter-input" />
+    </div>
+
+    <!-- Changed Start Date -->
+    <div class="filter-item">
+      <label>Last Changed From:</label>
+      <input type="date" [(ngModel)]="filters.ChangedStartDate" class="filter-input" />
+    </div>
+
+    <!-- Changed End Date -->
+    <div class="filter-item">
+      <label>Last Changed To:</label>
+      <input type="date" [(ngModel)]="filters.ChangedEndDate" class="filter-input" />
     </div>
   </div>
 
+  <div class="filter-buttons">
+    <button (click)="applyFilters()" class="apply-filters-btn">Apply Filters</button>
+    <button (click)="clearFilters()" class="clear-filters-btn">Clear</button>
+    <button (click)="exportToCsv()" class="apply-filters-btn" style="background: #17a2b8;">
+      <span class="btn-icon">↓</span>
+      Export Excel
+    </button>
+  </div>
+</div>
   <!-- Results info -->
   <div class="results-info">
     <p>Showing {{ getDisplayRange() }} entries</p>

@@ -6,18 +6,27 @@
         <input
           type="text"
           [(ngModel)]="searchQuery"
-          placeholder="Search purchases..."
+          placeholder="Search purchase by date(YYYY-MM-DD), Product Code, Supplier Code, PO Number"
           (input)="searchPurchases()"
         />
       </div>
-      <button class="btn btn-primary mb-3" (click)="addPurchase()">Add Purchase</button>
-    
-      <button class="send-button" (click)="createPONumber()">
-        <i class="fas fa-envelope"></i> Save
-      </button>
-      <button class="send-button" (click)="sendEmails()">
-        <i class="fas fa-envelope"></i> Send
-      </button>
+      
+      <div class="button-group">
+        <button class="btn btn-primary" (click)="addPurchase()">
+          <i class="fas fa-plus"></i>
+          Add Purchase
+        </button>
+        
+        <button class="send-button" (click)="createPONumber()">
+          <i class="fas fa-save"></i>
+          Save
+        </button>
+        
+        <button class="send-button" (click)="sendEmails()">
+          <i class="fas fa-envelope"></i>
+          Send
+        </button>
+      </div>
     </div>
   </div>
 
@@ -25,13 +34,19 @@
     <table>
       <thead>
         <tr>
-          <th><input type="checkbox" (change)="selectAll($event)" /></th>
+          <th class="checkbox-column">
+            <input 
+              type="checkbox" 
+              class="large-checkbox" 
+              (change)="selectAll($event)" 
+            />
+          </th>
           <th (click)="sortTable('PurchaseID')">Purchase <br> Request <br> ID</th>
           <th (click)="sortTable('ProductCode')">Product Code</th>
           <th (click)="sortTable('SupplierCode')">Supplier Code</th>
           <th (click)="sortTable('Qty')"> Quantity</th>
           <th (click)="sortTable('SONumber')">SO Number</th>
-          <th (click)="sortTable('Delivery_date')">Cust Exp Del Date</th>
+          <th (click)="sortTable('Delivery_date')">Cust Exp Del Date</th>
           <th (click)="sortTable('POStatus')">PO Status</th>
           <th (click)="sortTable('Supplier_Date')">Pick Up Date</th>
           <th (click) = "sortTable('PONumber')">PO Number</th>
@@ -40,9 +55,20 @@
       </thead>
       
       <tbody>
-        <tr *ngFor="let purchase of purchases">
+        <tr 
+          *ngFor="let purchase of purchases" 
+          class="clickable-row"
+          [class.selected-row]="purchase.selected"
+          (click)="toggleRowSelection(purchase, $event)"
+        >
           
-          <td><input type="checkbox" [(ngModel)]="purchase.selected" /></td>
+          <td class="checkbox-column" (click)="$event.stopPropagation()">
+            <input 
+              type="checkbox" 
+              class="large-checkbox" 
+              [(ngModel)]="purchase.selected" 
+            />
+          </td>
           <td>{{ purchase?.PurchaseID }}</td>
           <td>{{ purchase?.ProductCode }}</td>
           <td>{{ purchase?.SupplierCode }}</td>
@@ -62,6 +88,8 @@
     'status-discontinued': purchase?.POStatus === 'Discontinued',
     'status-out-for-delivery': purchase?.POStatus === 'Out for Delivery',
     'status-delivered': purchase?.POStatus === 'Delivered',
+    'status-not-delivered': purchase?.POStatus === 'Not Delivered',
+    'status-scheduled-for-delivery': purchase?.POStatus === 'Scheduled for Delivery'
   }"
 >
   {{ purchase?.POStatus }}
@@ -73,7 +101,7 @@
           
           <td>{{ purchase?.Supplier_Date | date:'mediumDate' }}</td>
           <td>{{ purchase?.PONumber }}</td>
-          <td class="actions">
+          <td class="actions" (click)="$event.stopPropagation()">
             <button class="edit-btn" (click)="editPurchase(purchase)">
               <i class="fas fa-edit"></i>
             </button>
@@ -86,7 +114,7 @@
           </td>
         </tr>
         <tr *ngIf="purchases.length === 0">
-          <td colspan="10" class="no-data">No purchases found</td>
+          <td colspan="11" class="no-data">No purchases found</td>
         </tr>
       </tbody>
     </table>
@@ -159,15 +187,15 @@
           <label for="Qty">Quantity</label>
           <input type="number" id="Qty" [(ngModel)]="selectedPurchase.Qty" />
         </div>
-        <div class="form-group">
+        <div class="form-group" *ngIf="isEditing">
           <label for="Delivery_date">Expected Delivery Date</label>
           <input type="date" id="Delivery_date" [(ngModel)]="selectedPurchase.Delivery_date" />
         </div>
-        <div class="form-group">
+        <div class="form-group" *ngIf="isEditing">
           <label for="Delayed_Date">Delayed Date</label>
           <input type="date" id="Delayed_Date" [(ngModel)]="selectedPurchase.Delayed_Date" />
         </div>
-        <div class="form-group">
+        <div class="form-group" *ngIf="isEditing">
           <label for="Supplier_Date">Pick Up date</label>
           <input 
           type="date" 
@@ -176,6 +204,7 @@
           name="Supplier_Date" 
           required
           #pickupDate="ngModel"
+           
         />
         <div *ngIf="pickupDate.invalid && pickupDate.touched" class="error-text">
           Pick Up Date is required.

@@ -71,7 +71,7 @@ export class NavbarComponent implements OnInit {
       setTimeout(() => {
         this.isDropdownOpen = false;
         this.cdRef.detectChanges();
-      }, 2000);
+      }, 15000);
     }
   }
 

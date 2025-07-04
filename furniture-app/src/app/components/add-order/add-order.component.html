@@ -1,14 +1,14 @@
 <div class="order-container">
     <h2>Add Order</h2>
 
-    <form [formGroup]="orderForm" (ngSubmit)="submitOrder()">
+<form [formGroup]="orderForm" (ngSubmit)="submitOrder()" (keydown.enter)="preventEnterKey($event)">
         <!-- Order Details Section -->
         <div class="order-details">
             <div class="form-container">
 
                 <!-- Email Address -->
                 <div class="form-group">
-                    <label>Email Address</label>
+                    <label>Customer Email Address <span class="text-danger">*</span></label>
                     <input type="text" formControlName="clientEmail" placeholder="Enter Client Email"
                         [ngClass]="{ 'is-invalid': orderForm.get('clientEmail')?.invalid && orderForm.get('clientEmail')?.touched }"
                         required />
@@ -18,13 +18,13 @@
                     </div>
                     <div class="invalid-feedback"
                         *ngIf="orderForm.get('clientEmail')?.errors?.['minlength'] && orderForm.get('clientEmail')?.touched">
-                        Email must be at least 3 characters long.
+                     Email must be valid formats like &#64;gmail.com
                     </div>
                 </div>
 
                 <!-- Customer Name -->
                 <div class="form-group">
-                    <label>Customer Name</label>
+                    <label>Customer Name <span class="text-danger">*</span></label>
                     <input type="text" formControlName="customerName" placeholder="Enter Customer Name"
                         [ngClass]="{ 'is-invalid': orderForm.get('customerName')?.invalid && orderForm.get('customerName')?.touched }"
                         required />
@@ -34,9 +34,9 @@
                     </div>
                 </div>
 
-                <!-- Client Contact -->
+                <!-- Customer Contact -->
                 <div class="form-group">
-                    <label>Client Contact</label>
+                    <label>Customer Contact <span class="text-danger">*</span></label>
                     <input type="text" formControlName="clientContact" placeholder="Enter Contact Number"
                         [ngClass]="{ 'is-invalid': orderForm.get('clientContact')?.invalid && orderForm.get('clientContact')?.touched }"
                         required />
@@ -125,23 +125,58 @@
                     <label>Sub Amount</label>
                     <input type="text" formControlName="subAmount" [disabled]="true" />
                 </div>
-                <div class="form-group">
-                    <label>Discount</label>
-                    <input type="number" formControlName="discount" placeholder="Enter Discount" />
-                </div>
+              <!-- In the Order Summary Section, replace the existing discount field with this: -->
+<div class="form-group">
+    <label>Discount Type</label>
+    <div class="discount-type-container">
+        <label class="checkbox-container">
+            <input type="checkbox" formControlName="isPercentageDiscount" />
+            <span class="checkmark"></span>
+            Percentage Discount
+        </label>
+    </div>
+</div>
+
+<div class="form-group" *ngIf="!orderForm.get('isPercentageDiscount')?.value">
+    <label>Discount (Flat $)</label>
+    <input type="number" 
+           formControlName="discountFlat" 
+           placeholder="Enter Discount Amount ($)" 
+           min="0"
+           step="0.01" />
+</div>
+
+<div class="form-group" *ngIf="orderForm.get('isPercentageDiscount')?.value">
+    <label>Discount (%)</label>
+    <input type="number" 
+           formControlName="discountPercentage" 
+           placeholder="Enter Discount Percentage" 
+           min="0" 
+           max="100"
+           step="0.01" />
+</div>
+
+<div class="form-group">
+    <label>Calculated Discount Amount</label>
+    <input type="text" 
+           formControlName="calculatedDiscountAmount" 
+           [disabled]="true" 
+           readonly />
+</div>
                 <div class="form-group">
                     <label>GST %</label>
                     <input type="text" formControlName="gst" />
                 </div>
-                <div class="form-group">
-                    <label>Grand Total</label>
-                    <input type="text" formControlName="grandTotal" />
-                </div>
+               
             </div>
 
             <div class="summary-column">
+                 <div class="form-group">
+                    <label>Grand Total</label>
+                    <input type="text" formControlName="grandTotal" />
+                </div>
                 <div class="form-group">
-                    <label>Paid Amount</label>
+                    <label>Paid Amount <span class="text-danger">*</span></label>
                     <input type="number" formControlName="paidAmount" placeholder="Enter Paid Amount" />
                 </div>
                 <div class="form-group">
@@ -149,7 +184,7 @@
                     <input type="text" formControlName="dueAmount" [disabled]="true" />
                 </div>
                 <div class="form-group">
-                    <label>Payment Status</label>
+                    <label>Payment Status <span class="text-danger">*</span></label>
                     <select formControlName="paymentStatus"
                         [ngClass]="{ 'is-invalid': orderForm.get('paymentStatus')?.invalid && orderForm.get('paymentStatus')?.touched }">
                         <option value="">~~SELECT~~</option>
@@ -163,7 +198,7 @@
                     </div>
                 </div>
                 <div class="form-group">
-                    <label>Mode of Payment</label>
+                    <label>Mode of Payment <span class="text-danger">*</span></label>
                     <select formControlName="paymentMode"
                         [ngClass]="{ 'is-invalid': orderForm.get('paymentMode')?.invalid && orderForm.get('paymentMode')?.touched }">
                         <option value="">-- Select Payment Mode --</option>
@@ -193,8 +228,12 @@
                     <input type="date" formControlName="expectedDeliveryDate" />
                 </div>
                 <div class="form-group">
-                    <label>Ship To Party</label>
+                    <label>Ship To Party <span class="text-danger">*</span></label>
                     <input type="text" formControlName="shipToParty" />
+                </div>
+                <div class="form-group">
+                    <label>Sold To Party</label>
+                    <input type="text" formControlName="soldToParty" />
                 </div>
                 <div class="form-group">
                     <label>Internal Note</label>

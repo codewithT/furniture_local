@@ -62,16 +62,19 @@ export class OrderDetailsComponent implements OnInit {
       gst: [{ value: 0, disabled: true }],
       discount: [{ value: 0, disabled: true }],
       grandTotal: [{ value: 0, disabled: true }],
-      paymentStatus: [{ value: '', disabled: true }],
-      shipToParty: [{ value: '', disabled: true }],
-      internalNote: [{ value: '', disabled: true }],
-      expectedDeliveryDate: [{ value: '', disabled: true }],
+      paymentStatus: [{ value: '', disabled: false }],
+      shipToParty: [{ value: '', disabled: false }],
+      internalNote: [{ value: '', disabled: false }],
+      expectedDeliveryDate: [{ value: '', disabled: false }],
       poStatus: [{ value: '', disabled: true }],
       poNumber: [{ value: '', disabled: true }],
       createdBy: [{ value: '', disabled: true }],
       createdDate: [{ value: '', disabled: true }],
-      paymentMode: [{ value: '', disabled: true }],
+      paymentMode: [{ value: '', disabled: false }],
       clientContact: [{ value: '', disabled: true }],
+      paidAmount: [{ value: 0, disabled: false }],
+      dueAmount: [{ value: 0, disabled: true }],
+      soldToParty: [{ value: '', disabled: false }],
     });
   }
 
@@ -86,6 +89,7 @@ export class OrderDetailsComponent implements OnInit {
       (data) => {
         console.log(data);
         this.orderData = data;
+        console.log('Order Data:', this.orderData);
         this.populateForm(data);
         this.isLoading = false;
       },
@@ -118,7 +122,9 @@ export class OrderDetailsComponent implements OnInit {
       createdBy: data.Created_by || '',
       createdDate: this.formatDate(data.Created_at),
       paymentMode: data.Payment_Mode || '',
-      clientContact: data.Customer_Contact || ''
+      clientContact: data.Customer_Contact || '',
+      paidAmount: data.Total_Paid_Amount || 0,
+      soldToParty: data.SoldToParty || ''
     });
     
     // Add order items
@@ -145,27 +151,36 @@ export class OrderDetailsComponent implements OnInit {
     this.items.push(itemGroup);
   }
   
-  calculateSubTotal(): void {
-    let subTotal = 0;
-    
-    // Get values from form controls
-    for (let i = 0; i < this.items.length; i++) {
-      const item = this.items.at(i);
-      const price = item.get('price')?.value || 0;
-      const quantity = item.get('quantity')?.value || 0;
-      subTotal += price * quantity;
-    }
-    // Retrieve GST and Discount
+calculateSubTotal(): void {
+  let subTotal = 0;
+
+  for (let i = 0; i < this.items.length; i++) {
+    const item = this.items.at(i);
+    const price = item.get('price')?.value || 0;
+    const quantity = item.get('quantity')?.value || 0;
+    subTotal += price * quantity;
+  }
+
   const gst = this.orderForm.get('gst')?.value || 0;
   const discount = this.orderForm.get('discount')?.value || 0;
- 
+  const paidAmount = this.orderForm.get('paidAmount')?.value || 0;
+
   // Calculate grand total
-  const grandTotal = subTotal + ((gst *subTotal)/100 ) - (discount);
-    this.orderForm.patchValue({
-      subAmount: subTotal,
-      grandTotal: grandTotal
-    });
-  }
+  const grandTotal = subTotal + (gst * subTotal) / 100 - discount;
+
+  // Round to 2 decimal places
+  const roundedSubTotal = parseFloat(subTotal.toFixed(2));
+  const roundedGrandTotal = parseFloat(grandTotal.toFixed(2));
+  const dueAmount = parseFloat((roundedGrandTotal - paidAmount).toFixed(2));
+
+  this.orderForm.patchValue({
+    subAmount: roundedSubTotal,
+    grandTotal: roundedGrandTotal,
+    dueAmount: dueAmount
+  });
+}
+
+
   
   formatDate(dateString: string | null): string {
     if (!dateString) return '';
@@ -236,15 +251,26 @@ export class OrderDetailsComponent implements OnInit {
     });
   }
 
-  goBack(): void {
-    this.router.navigate([`/u/orders`]);
-  }
+  // goBack(): void {
+  //   this.router.navigate([`/u/manage-orders`], { });
+  // }
 
   submitOrder(): void {
     if (this.orderForm.valid) {
       console.log("Order submitted:", this.orderForm.value);
       // Add API call or further processing here
+      this.orderService.updateOrder(this.soNumber, this.orderForm.value).subscribe(
+        (response) => {
+          console.log('Order updated successfully:', response);
+          alert('Order updated successfully!');
+          // this.router.navigate(['/u/manage-orders']);
+        },
+        (error) => {
+          console.error('Error updating order:', error);
+          alert('Failed to update order. Please try again.');
+        }
+      );
     }
   }
-  
+
 }

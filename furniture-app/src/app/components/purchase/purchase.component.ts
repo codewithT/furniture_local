@@ -21,7 +21,7 @@ export class PurchaseComponent implements OnInit {
   pageSizeOptions: number[] = [10, 20, 30, 100, 200];
   searchQuery: string = '';
   showModal: boolean = false;
-  isEditing: boolean = false;
+  isEditing: boolean = true;
   selectedPurchase: Purchase | null = null;
   
   totalItems: number = 0;
@@ -76,13 +76,18 @@ export class PurchaseComponent implements OnInit {
         
         // If there's only one supplier, auto-select it
         if (suppliers.length === 1) {
+          console.log("Single supplier found, auto-selecting:", suppliers[0]);
           this.selectedPurchase!.SupplierCode = suppliers[0].SupplierCode;
           this.selectedPurchase!.SupplierID = suppliers[0].SupplierID;
+          // this.selectedPurchase!.ProductID = suppliers[0].ProductID;
           this.addOrderService.getProductID(this.selectedPurchase!.ProductCode, this.selectedPurchase!.SupplierID).subscribe({
             next: (data) => {
-              console.log("PRoDUct Data ",data);
+              console.log("Product Data ",data);
               if (data.length > 0 && this.selectedPurchase) {
+                console.log("Product ID called ", data);
+
                 this.selectedPurchase.ProductID = data[0].ProductID;
+                this.selectedPurchase.FinalPrice = data[0].FinalPrice;
               }
             },
             error: (err) => {
@@ -102,7 +107,138 @@ export class PurchaseComponent implements OnInit {
     });
   }
   
-  // generating po number 
+ 
+  
+searchPurchases() {
+    if (!this.searchQuery.trim()) {
+      this.currentPage = 1;
+      this.loadPurchases();
+      return;
+    }
+
+    this.purchaseService.searchPurchases(this.searchQuery, this.currentPage, this.pageSize).subscribe({
+      next: (data: any) => {
+        // Check if the response is an array or has a data property
+        if (Array.isArray(data)) {
+          this.purchases = data.map(p => ({ ...p, selected: false }));
+          this.totalItems = data.length;
+        } else if (data && data.data) {
+          this.purchases = data.data.map((p: any) => ({ ...p, selected: false }));
+          this.totalItems = data.pagination ? data.pagination.total : data.data.length;
+        }
+          this.cdr.detectChanges(); 
+      },
+      error: (error) => {
+        console.error('Search error:', error);
+      }
+    });
+  }
+
+  addPurchase() {
+    this.isEditing = false;
+    this.selectedPurchase = {
+      PurchaseID: 0,
+      ProductCode: '',
+      ProductID : 0,
+      FinalPrice: 0,
+      SupplierID : 0,
+      SupplierCode: '',
+      SONumber: '',
+      POStatus: '',
+      Delivery_date: '',
+      PONumber: '',
+      Qty: 0,
+      Supplier_Date: '',
+      Delayed_Date: '',
+    };
+    this.suppliers = []; // Clear suppliers
+    this.showModal = true;
+    console.log('Modal state:', this.showModal);
+  }
+
+  editPurchase(purchase: Purchase) {
+    this.isEditing = true;
+    console.log("Editing purchase", purchase);
+
+    this.selectedPurchase = { ...purchase };
+    
+    console.log("Selected Purchase", this.selectedPurchase);
+    this.showModal = true;
+    // Fetch suppliers for this product
+    this.fetchSuppliers();
+  }
+
+  savePurchase() {
+    if (!this.selectedPurchase) return;
+    
+    // Validate required fields
+   
+    
+    if (this.isEditing) {
+       if (!this.selectedPurchase.PurchaseID || 
+        !this.selectedPurchase.POStatus || 
+        !this.selectedPurchase.ProductCode ||
+        !this.selectedPurchase.SupplierCode) {
+      alert('Please fill all required fields including selecting a supplier.');
+      return;
+    }
+    // Convert dates to UTC format (ISO string or 'YYYY-MM-DD HH:mm:ss')
+const formatToUTC = (date: string | Date) =>
+  date ? new Date(date).toISOString() : null;
+
+this.selectedPurchase.Delivery_date = formatToUTC(this.selectedPurchase.Delivery_date) ?? '';
+this.selectedPurchase.Supplier_Date = formatToUTC(this.selectedPurchase.Supplier_Date) ?? '';
+this.selectedPurchase.Delayed_Date = formatToUTC(this.selectedPurchase.Delayed_Date) ?? '';
+
+      this.purchaseService.editPurchase(this.selectedPurchase).subscribe({
+        next: () => {
+          alert('Purchase updated successfully!');
+          this.loadPurchases();
+          this.closeModal();
+        },
+        error: (err) => console.error('Failed to update purchase:', err)
+      });
+    } else {
+      console.log("Adding purchase", this.selectedPurchase);
+      const formatToUTC = (date: string | Date) =>
+  date ? new Date(date).toISOString() : null;
+
+this.selectedPurchase.Delivery_date = formatToUTC(this.selectedPurchase.Delivery_date) ?? '';
+this.selectedPurchase.Supplier_Date = formatToUTC(this.selectedPurchase.Supplier_Date) ?? '';
+this.selectedPurchase.Delayed_Date = formatToUTC(this.selectedPurchase.Delayed_Date) ?? '';
+
+      this.purchaseService.addPurchase(this.selectedPurchase).subscribe({
+        next: () => {
+          alert('Purchase added successfully!');
+          this.loadPurchases();
+          this.closeModal();
+        },
+        error: (err) => console.error('Failed to add purchase:', err)
+      });
+    }
+  }
+
+  deletePurchase(id: number) {
+    if (confirm('Are you sure you want to delete this purchase?')) {
+      this.purchaseService.deletePurchase(id).subscribe({
+        next: () => {
+          console.log("purchase delete successfully");
+          this.loadPurchases();
+        },
+        error: (err) => console.error('Failed to delete purchase:', err)
+      });
+    }
+  }
+
+  closeModal() {
+    this.showModal = false;
+    this.selectedPurchase = null;
+  }
+
+  preventModalClose(event: Event) {
+    event.stopPropagation();
+  }
+     // generating po number 
   createPONumber() {
     const selectedPurchases = this.getSelectedPurchases();
     if (selectedPurchases.length === 0) {
@@ -229,131 +365,6 @@ loadCurrentData() {
              valueA > valueB ? (this.sortDirection === 'asc' ? 1 : -1) : 0;
     });
   }
-  
-searchPurchases() {
-    if (!this.searchQuery.trim()) {
-      this.currentPage = 1;
-      this.loadPurchases();
-      return;
-    }
-
-    this.purchaseService.searchPurchases(this.searchQuery, this.currentPage, this.pageSize).subscribe({
-      next: (data: any) => {
-        // Check if the response is an array or has a data property
-        if (Array.isArray(data)) {
-          this.purchases = data.map(p => ({ ...p, selected: false }));
-          this.totalItems = data.length;
-        } else if (data && data.data) {
-          this.purchases = data.data.map((p: any) => ({ ...p, selected: false }));
-          this.totalItems = data.pagination ? data.pagination.total : data.data.length;
-        }
-          this.cdr.detectChanges(); 
-      },
-      error: (error) => {
-        console.error('Search error:', error);
-      }
-    });
-  }
-
-  addPurchase() {
-    this.isEditing = false;
-    this.selectedPurchase = {
-      PurchaseID: 0,
-      ProductCode: '',
-      ProductID : 0,
-      SupplierID : 0,
-      SupplierCode: '',
-      SONumber: '',
-      POStatus: '',
-      Delivery_date: '',
-      PONumber: '',
-      Qty: 0,
-      Supplier_Date: '',
-      Delayed_Date: '',
-    };
-    this.suppliers = []; // Clear suppliers
-    this.showModal = true;
-    console.log('Modal state:', this.showModal);
-  }
-
-  editPurchase(purchase: Purchase) {
-    this.isEditing = true;
-    console.log("Editing purchase", purchase);
-    this.selectedPurchase = { ...purchase };
-    //  // Format the dates properly for date inputs
-    //  if (this.selectedPurchase.Delivery_date) {
-    //   const date = new Date(this.selectedPurchase.Delivery_date);
-    //   const yyyy = date.getFullYear();
-    //   const mm = String(date.getMonth() + 1).padStart(2, '0'); // Month is 0-based
-    //   const dd = String(date.getDate()).padStart(2, '0');
-    //   this.selectedPurchase.Delivery_date = `${yyyy}-${mm}-${dd}`;
-    // }
-    
-  
-  // if (this.selectedPurchase.Supplier_Date) {
-  //   this.selectedPurchase.Supplier_Date = new Date(this.selectedPurchase.Supplier_Date)
-  //     .toISOString().split('T')[0];
-  // }
-    console.log("Selected Purchase", this.selectedPurchase);
-    this.showModal = true;
-    // Fetch suppliers for this product
-    this.fetchSuppliers();
-  }
-
-  savePurchase() {
-    if (!this.selectedPurchase) return;
-    
-    // Validate required fields
-    if (!this.selectedPurchase.PurchaseID || 
-        !this.selectedPurchase.POStatus || 
-        !this.selectedPurchase.ProductCode ||
-        !this.selectedPurchase.SupplierCode) {
-      alert('Please fill all required fields including selecting a supplier.');
-      return;
-    }
-    
-    if (this.isEditing) {
-      this.purchaseService.editPurchase(this.selectedPurchase).subscribe({
-        next: () => {
-          this.loadPurchases();
-          this.closeModal();
-        },
-        error: (err) => console.error('Failed to update purchase:', err)
-      });
-    } else {
-      this.selectedPurchase.PurchaseID = Math.max(0, ...this.purchases.map(p => p.PurchaseID)) + 1;
-      console.log("saving purchase", this.selectedPurchase);
-      this.purchaseService.addPurchase(this.selectedPurchase).subscribe({
-        next: () => {
-          this.loadPurchases();
-          this.closeModal();
-        },
-        error: (err) => console.error('Failed to add purchase:', err)
-      });
-    }
-  }
-
-  deletePurchase(id: number) {
-    if (confirm('Are you sure you want to delete this purchase?')) {
-      this.purchaseService.deletePurchase(id).subscribe({
-        next: () => {
-          console.log("purchase delete successfully");
-          this.loadPurchases();
-        },
-        error: (err) => console.error('Failed to delete purchase:', err)
-      });
-    }
-  }
-
-  closeModal() {
-    this.showModal = false;
-    this.selectedPurchase = null;
-  }
-
-  preventModalClose(event: Event) {
-    event.stopPropagation();
-  }
-
   // Adding the missing methods
   selectAll(event: Event) {
     const isChecked = (event.target as HTMLInputElement).checked;
@@ -361,4 +372,18 @@ searchPurchases() {
       purchase.selected = isChecked;
     });
   }
+  // Add this method to your PurchaseComponent class
+toggleRowSelection(purchase: Purchase, event: Event) {
+  // Prevent selection when clicking on action buttons
+  const target = event.target as HTMLElement;
+  if (
+    target.closest('.actions') ||
+    target.closest('button') ||
+    ((target as HTMLInputElement).type === 'checkbox')
+  ) {
+    return;
+  }
+  
+  purchase.selected = !purchase.selected;
+}
 }

@@ -118,8 +118,6 @@ async function updateJobStatus(jobId, status, percentage, message, stats = null,
 }
 
 // Background product file processing function
-// Background product file processing function
-// Background product file processing function
 async function processProductExcelFile(filePath, jobId, userId) {
   let connection = null;
   
@@ -153,8 +151,8 @@ async function processProductExcelFile(filePath, jobId, userId) {
     const insertQuery = `
       INSERT INTO productmaster
       (ProductCode, ProductName, SupplierID, SupplierItemNumber, 
-       SupplierPrice, MultiplicationFactor, FinalPrice, Created_by, created_date, created_time)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURDATE(), CURTIME())
+       SupplierPrice, MultiplicationFactor, FinalPrice, Created_by, isActive, created_date, created_time)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, CURDATE(), CURTIME())
     `;
     
     const failures = [];
@@ -359,6 +357,7 @@ router.post('/products/cancel-job', requireAuth, async (req, res) => {
 
 // GET all products
 
+// GET products - Already looks good, keeping for reference
 router.get('/products', requireAuth, async (req, res) => {
   try {
     const page = parseInt(req.query.page, 10) || 1;
@@ -370,34 +369,33 @@ router.get('/products', requireAuth, async (req, res) => {
 
     const offset = (page - 1) * limit;
 
-    // Query for paginated products
     const [products] = await pool.promise().query(
       `SELECT 
-         prom.ProductID, prom.ProductCode, prom.ProductName,
-         sup.SupplierID, sup.SupplierCode, prom.SupplierItemNumber,
-         prom.FinalPrice, prom.Picture
-       FROM productmaster prom
-       JOIN supplier sup ON prom.SupplierID = sup.SupplierID
-       ORDER BY prom.created_date DESC
+         pm.ProductID, pm.ProductCode, pm.ProductName,
+         sup.SupplierID, sup.SupplierCode, pm.SupplierItemNumber,
+         pm.FinalPrice, pm.Picture
+       FROM productmaster pm
+       JOIN supplier sup ON pm.SupplierID = sup.SupplierID
+        WHERE pm.isActive = 1
+       ORDER BY pm.created_date DESC
        LIMIT ? OFFSET ?`,
       [limit, offset]
     );
 
-    // Query for total product count
-    const [countResult] = await pool.promise().query(
-      `SELECT COUNT(*) AS total FROM productmaster`
-    );
+    const [countResult] = await pool.promise().query(`SELECT COUNT(*) AS total FROM productmaster WHERE isActive = 1`);
 
     const totalItems = countResult[0].total;
     const totalPages = Math.ceil(totalItems / limit);
 
-    // Base URL for image files
     const baseImageUrl = `${req.protocol}://${req.get('host')}/images/`;
 
-    // Add full image URL
     const formattedProducts = products.map(product => ({
       ...product,
-      Picture: product.Picture ? baseImageUrl + product.Picture : null
+      Picture: product.Picture
+        ? (product.Picture.startsWith('http')
+            ? product.Picture
+            : baseImageUrl + product.Picture.replace(/^\/+/, ''))
+        : null
     }));
 
     return res.json({
@@ -419,7 +417,6 @@ router.get('/products', requireAuth, async (req, res) => {
   }
 });
 
-
 // ADD a product (with transaction)
 router.post('/products/add-product', requireAuth, (req, res) => {
   const product = req.body;
@@ -427,7 +424,7 @@ router.post('/products/add-product', requireAuth, (req, res) => {
   const sql = `
   INSERT INTO productmaster (
     ProductCode, ProductName, SupplierID, SupplierItemNumber, SupplierPrice,
-    MultiplicationFactor, FinalPrice, Created_by, created_date, created_time
+    MultiplicationFactor, FinalPrice, Created_by, isActive, created_date, created_time
   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURDATE(), CURTIME())`;
 
   const values = [
@@ -439,6 +436,7 @@ router.post('/products/add-product', requireAuth, (req, res) => {
     product.MultiplicationFactor,
     product.FinalPrice,
     product.Created_by.email,
+    1 
   ];
 
   pool.getConnection((err, connection) => {
@@ -500,7 +498,7 @@ const imageUpload = multer({
   },
   fileFilter: (req, file, cb) => {
     // Accept only image files
-    const filetypes = /jpeg|jpg|png|gif/;
+const filetypes = /jpeg|jpg|png|gif|webp|heic|heif/;
     const mimetype = filetypes.test(file.mimetype);
     const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
     
@@ -517,60 +515,39 @@ router.put('/products/update-product', requireAuth, imageUpload.single('image'),
     if (!req.body.product) {
       return res.status(400).json({ error: 'Product data is required' });
     }
-    
+
     const product = JSON.parse(req.body.product);
-    
-    // Determine image path - use new uploaded image or keep existing one
-    let imagePath = product.Picture; // Keep existing image path by default
-    
+
+    // Use relative path only (avoid /images duplication)
+    let imagePath = product.Picture;
     if (req.file) {
-      // If new file uploaded, use its path as a URL
-      imagePath = `/images/products/${req.file.filename}`;
+      imagePath = `products/${req.file.filename}`;
     }
-    
-    // Handle case where image is base64 string
-    if (imagePath && imagePath.startsWith('data:image/')) {
-      // Extract the base64 data without the prefix
-      const matches = imagePath.match(/^data:image\/([A-Za-z-+\/]+);base64,(.+)$/);
-      
-      if (matches && matches.length === 3) {
-        const extension = matches[1].replace('+', '');
-        const imageData = matches[2];
-        const fileName = `product_${Date.now()}.${extension}`;
-        const filePath = path.join('./public/images/products', fileName);
-        
-        // Create directory if it doesn't exist
-        if (!fs.existsSync('./public/images/products')) {
-          fs.mkdirSync('./public/images/products', { recursive: true });
-        }
-        
-        // Write the image file
-        fs.writeFileSync(filePath, Buffer.from(imageData, 'base64'));
-        
-        // Update image path to the new file URL
-        imagePath = `/images/products/${fileName}`;
-      }
-    }
-    const changedBy= req.session.user.email || 'system'; //
-    // Update product in database
+
+    const changedBy = req.session.user.email || 'system';
+
     const sql = `
       UPDATE productmaster 
       SET ProductCode = ?, 
           ProductName = ?, 
           SupplierItemNumber = ?, 
           Picture = ?, 
-          FinalPrice = ?, 
+          FinalPrice = ?,
+          SupplierPrice = ?,
+          MultiplicationFactor = ?,
           Changed_by = ?,
           Changed_date = CURDATE(), 
           Changed_time = CURTIME()
       WHERE ProductID = ?`;
-    
+
     const values = [
       product.ProductCode,
       product.ProductName,
       product.SupplierItemNumber,
-      imagePath, // Use the image path/URL instead of base64 data
+      imagePath,
       product.FinalPrice,
+      product.SupplierPrice || 0,
+      product.MultiplicationFactor || 0,
       changedBy,
       product.ProductID
     ];
@@ -580,32 +557,29 @@ router.put('/products/update-product', requireAuth, imageUpload.single('image'),
         console.error('Database connection error:', err);
         return res.status(500).json({ error: 'Database connection error' });
       }
-      
+
       connection.beginTransaction(err => {
         if (err) {
           connection.release();
-          console.error('Transaction error:', err);
           return res.status(500).json({ error: 'Transaction error' });
         }
-        
+
         connection.query(sql, values, (err, result) => {
           if (err) {
             return connection.rollback(() => {
               connection.release();
-              console.error('Update query error:', err);
               res.status(500).json({ error: 'Error updating product' });
             });
           }
-          
+
           connection.commit(err => {
             if (err) {
               return connection.rollback(() => {
                 connection.release();
-                console.error('Commit error:', err);
                 res.status(500).json({ error: 'Error committing transaction' });
               });
             }
-            
+
             connection.release();
             res.json({ 
               message: 'Product updated successfully',
@@ -624,10 +598,42 @@ router.put('/products/update-product', requireAuth, imageUpload.single('image'),
   }
 });
 
+// Product Image Upload API (Single Image Upload)
+router.post('/products/:productId/image', requireAuth, imageUpload.single('image'), async (req, res) => {
+  const productId = req.params.productId;
+
+  if (!req.file) {
+    return res.status(400).json({ error: 'No image file uploaded' });
+  }
+
+  try {
+    const imagePath = `products/${req.file.filename}`;
+    const changedBy = req.session.user?.email || 'system';
+
+    const updateQuery = `
+      UPDATE productmaster 
+      SET Picture = ?, 
+          Changed_by = ?, 
+          Changed_date = CURDATE(), 
+          Changed_time = CURTIME()
+      WHERE ProductID = ?`;
+
+    await pool.promise().query(updateQuery, [imagePath, changedBy, productId]);
+
+    res.json({ 
+      message: 'Product image uploaded successfully', 
+      imagePath: `${req.protocol}://${req.get('host')}/images/${imagePath}` 
+    });
+  } catch (error) {
+    console.error('Error uploading product image:', error);
+    res.status(500).json({ error: 'Failed to upload product image' });
+  }
+});
+
 // DELETE a product (with transaction)
 router.delete('/products/:id', requireAuth, (req, res) => {
   const productId = req.params.id;
-  const sql = `DELETE FROM productmaster WHERE ProductID = ?`;
+  const sql = `UPDATE productmaster SET isActive = 0 WHERE ProductID = ?`;
 
   pool.getConnection((err, connection) => {
     if (err) return res.status(500).json({ error: err.message });
@@ -663,58 +669,85 @@ router.delete('/products/:id', requireAuth, (req, res) => {
 });
 
 // SEARCH products
-router.get('/products/search', requireAuth, (req, res) => {
-  let { query } = req.query;
-  query = query ? query.trim() : '';
+// SEARCH products - Fixed version
+router.get('/products/search', requireAuth, async (req, res) => {
+  try {
+    let { query } = req.query;
+    query = query ? query.trim() : '';
 
-  const page = parseInt(req.query.page) || 1;
-  const limit = parseInt(req.query.limit) || 10;
-  const offset = (page - 1) * limit;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
 
-  const searchTerm = `%${query}%`;
- 
-  const countSql = `
-    SELECT COUNT(*) AS total FROM productmaster pm
-    JOIN supplier sup ON pm.SupplierID = sup.SupplierID
-    WHERE pm.ProductName LIKE ? OR pm.ProductCode LIKE ? 
-    OR pm.SupplierItemNumber LIKE ? OR sup.SupplierCode LIKE ?`;
+    if (page < 1 || limit < 1 || limit > 100) {
+      return res.status(400).json({ error: 'Invalid pagination parameters' });
+    }
 
-  const dataSql = `
-    SELECT pm.ProductCode, pm.ProductName, pm.SupplierItemNumber, pm.FinalPrice, sup.SupplierCode
-    FROM productmaster pm
-    JOIN supplier sup ON pm.SupplierID = sup.SupplierID
-    WHERE pm.ProductName LIKE ? OR pm.ProductCode LIKE ? 
-    OR pm.SupplierItemNumber LIKE ? OR sup.SupplierCode LIKE ?
-    OR pm.FinalPrice LIKE ?
-    LIMIT ? OFFSET ?`;
+    const offset = (page - 1) * limit;
+    const searchTerm = `%${query}%`;
 
-  const searchParams = [searchTerm, searchTerm, searchTerm, searchTerm
-    , searchTerm, limit, offset
-  ];
+    // Count query
+    const countSql = `
+      SELECT COUNT(*) AS total 
+      FROM productmaster pm
+      JOIN supplier sup ON pm.SupplierID = sup.SupplierID
+      WHERE (pm.ProductName LIKE ? 
+         OR pm.ProductCode LIKE ? 
+         OR pm.SupplierItemNumber LIKE ? 
+         OR sup.SupplierCode LIKE ?
+         OR pm.FinalPrice LIKE ?) AND pm.isActive = 1`;
 
-  pool.query(countSql, searchParams, (err, countResults) => {
-    if (err) return res.status(500).json({ error: err.message });
+    // Data query - Fixed to match the main products route structure
+    const dataSql = `
+      SELECT 
+        pm.ProductID, pm.ProductCode, pm.ProductName,
+        sup.SupplierID, sup.SupplierCode, pm.SupplierItemNumber,
+        pm.FinalPrice, pm.Picture
+      FROM productmaster pm
+      JOIN supplier sup ON pm.SupplierID = sup.SupplierID
+      WHERE pm.ProductName LIKE ? 
+         OR pm.ProductCode LIKE ? 
+         OR pm.SupplierItemNumber LIKE ? 
+         OR sup.SupplierCode LIKE ?
+         OR pm.FinalPrice LIKE ? AND pm.isActive = 1
+      ORDER BY pm.created_date DESC
+      LIMIT ? OFFSET ?`;
 
+    const searchParams = [searchTerm, searchTerm, searchTerm, searchTerm, searchTerm];
+
+    // Get total count
+    const [countResults] = await pool.promise().query(countSql, searchParams);
     const total = countResults[0].total;
     const totalPages = Math.ceil(total / limit);
 
-    pool.query(dataSql, [...searchParams, limit, offset], (err, dataResults) => {
-      if (err) return res.status(500).json({ error: err.message });
+    // Get paginated data
+    const [dataResults] = await pool.promise().query(dataSql, [...searchParams, limit, offset]);
 
-      res.json({
-        data: dataResults,
-        pagination: {
-          total,
-          per_page: limit,
-          current_page: page,
-          last_page: totalPages,
-          from: offset + 1,
-          to: Math.min(offset + limit, total),
-          has_more_pages: page < totalPages
-        }
-      });
+    // Base URL for image files - consistent with main products route
+    const baseImageUrl = `${req.protocol}://${req.get('host')}/images/`;
+
+    // Format products with proper image URLs
+    const formattedProducts = dataResults.map(product => ({
+      ...product,
+      Picture: product.Picture ? baseImageUrl + product.Picture : null
+    }));
+
+    res.json({
+      data: formattedProducts,
+      pagination: {
+        total,
+        per_page: limit,
+        current_page: page,
+        last_page: totalPages,
+        from: offset + 1,
+        to: Math.min(offset + limit, total),
+        has_more_pages: page < totalPages
+      }
     });
-  });
+
+  } catch (err) {
+    console.error('Error searching products:', err);
+    return res.status(500).json({ error: 'Unable to search products' });
+  }
 });
 
 
@@ -726,7 +759,7 @@ router.get('/products/supplier/validate-code/:code', (req, res) => {
     return res.status(400).json({ error: 'Supplier code is required' });
   }
 
-  pool.query('SELECT SupplierID FROM supplier WHERE SupplierCode = ?', [code], (err, results) => {
+  pool.query('SELECT SupplierID FROM supplier WHERE SupplierCode = ? AND isActive = 1', [code], (err, results) => {
     if (err) return res.status(500).json({ error: 'Database query error' });
 
     if (results.length > 0) res.json(true);
@@ -742,7 +775,7 @@ router.get('/products/supplier/id-by-code/:code', (req, res) => {
     return res.status(400).json({ error: 'Supplier code is required' });
   }
 
-  pool.query('SELECT SupplierID FROM supplier WHERE SupplierCode = ?', [code], (err, results) => {
+  pool.query('SELECT SupplierID FROM supplier WHERE SupplierCode = ? AND isActive = 1', [code], (err, results) => {
     if (err) return res.status(500).json({ error: 'Database query error' });
 
     if (results.length > 0) res.json(results[0].SupplierID);

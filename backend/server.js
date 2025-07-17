@@ -31,11 +31,17 @@ app.use(bodyParser.json());
 app.use(cookieParser());
  
 const sessionStore = new MySQLStore({}, db.promise());
+<<<<<<< HEAD
  
 const allowedOrigins = [
    'https://d10z8gloj3uanj.cloudfront.net', //  CloudFront frontend
     'http://localhost:4200', // Local development
    'https://erpcalfurnitureemp.ca',
+=======
+
+const allowedOrigins = [
+  'http://localhost:4200', 
+>>>>>>> 8fe9fe2be6cd4ea1826304ffa4f8c0f9c7ddfd62
 ];
 app.set('trust proxy', 1); // trust first proxy
 // cors
@@ -68,10 +74,9 @@ app.use(session({
 }));
 
 
-const BASE_URL1 = process.env.BASE_URL1 || ''; // Set default if not found
-console.log(`Using BASE_URL1: ${BASE_URL1}`); // Debugging log
+const BASE_URL1 = process.env.BASE_URL1 || ''; 
+console.log(`Using BASE_URL1: ${BASE_URL1}`); 
 
-// Serve static files
 app.use('/images', express.static(path.join(__dirname, 'public', 'images')));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
@@ -86,9 +91,15 @@ app.use(`${BASE_URL1}/u`, orderDetails);
 app.use(`${BASE_URL1}/u`, receivedProducts);
 app.use(`${BASE_URL1}/`, supplierConfirm); 
 app.use(`${BASE_URL1}/u`, scheduleDelivery);
+<<<<<<< HEAD
 app.use(`${BASE_URL1}/admin`, adminPanel); // Admin routes
 app.use(`${BASE_URL1}/auth`, authForgotPassword);
 app.use(`${BASE_URL1}/u`, authChangePassword);
 //  Start Server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(` Server running on port ${PORT}`));
+=======
+
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+>>>>>>> 8fe9fe2be6cd4ea1826304ffa4f8c0f9c7ddfd62

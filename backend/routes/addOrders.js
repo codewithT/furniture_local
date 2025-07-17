@@ -1,10 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/db'); // Ensure db.js exports a MySQL pool instance
-const requireAuth = require('./authMiddleware');
+const requireAuth = require('./middlewares/authMiddleware');
+const requireRole = require('./middlewares/requireRole');
 
 // Search supplier codes based on product codes
-router.get('/supplier/:productCode', requireAuth, async (req, res) => {
+router.get('/supplier/:productCode', requireAuth, requireRole('admin', 'sales'), async (req, res) => {
     const productCode = req.params.productCode;
     const query = `
       SELECT sm.SupplierID, sm.SupplierCode 
@@ -32,7 +33,7 @@ router.get('/supplier/:productCode', requireAuth, async (req, res) => {
 });
 
 // Fetch ProductID based on ProductCode and SupplierID
-router.post('/supplier/getProductID', requireAuth, (req, res) => {
+router.post('/supplier/getProductID', requireAuth, requireRole('admin', 'sales'), (req, res) => {
     let { ProductCode, SupplierID } = req.body;
     
     // Trim ProductCode
@@ -71,7 +72,7 @@ router.post('/supplier/getProductID', requireAuth, (req, res) => {
     });
 });
 
-router.post('/addOrders/submit-purchase', requireAuth, (req, res) => {
+router.post('/addOrders/submit-purchase', requireAuth, requireRole('admin', 'sales'), (req, res) => {
     console.log('Received request to submit purchase order:', req.body);
 
     const {
@@ -234,9 +235,8 @@ const formattedTimestamp = now.toISOString().slice(0, 19).replace('T', ' '); // 
     });
 });
 
-
 // Search products by code
-router.get('/product-search/:searchTerm', requireAuth, (req, res) => {
+router.get('/product-search/:searchTerm', requireAuth, requireRole('admin', 'sales'), (req, res) => {
     const searchTerm = req.params.searchTerm;
     
     if (!searchTerm || searchTerm.length < 2) {

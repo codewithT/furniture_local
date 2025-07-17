@@ -1,42 +1,55 @@
 import { Injectable } from '@angular/core';
-import { CanActivate, Router } from '@angular/router';
+import {
+  CanActivate,
+  ActivatedRouteSnapshot,
+  RouterStateSnapshot,
+  Router
+} from '@angular/router';
 import { Observable, of } from 'rxjs';
-import { AuthService } from './services/auth.service';
-import { take, map, catchError, tap } from 'rxjs/operators';
+import { catchError, map, tap } from 'rxjs/operators';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../environments/environment';
+import { AuthService } from './services/auth.service';
+
 @Injectable({
   providedIn: 'root'
 })
 export class AuthGuard implements CanActivate {
-  constructor(private authService: AuthService, private router: Router, 
+  private apiUrl = `${environment.apiBaseUrl}/auth`;
+
+  constructor(
+    private authService: AuthService,
+    private router: Router,
     private http: HttpClient
   ) {}
-  private apiUrl = `${environment.apiBaseUrl}/auth`; 
-  canActivate(): Observable<boolean> {
-    console.log("AuthGuard - Checking authentication status...");
 
-    // If already authenticated via service state, allow access
+  canActivate(
+    route: ActivatedRouteSnapshot,
+    state: RouterStateSnapshot
+  ): Observable<boolean> {
+    // ✅ First, check local session
     if (this.authService.isLoggedIn()) {
-      console.log("AuthGuard - Already authenticated in service");
       return of(true);
     }
 
-    // Force a server check to verify authentication
-    return this.checkServerAuthentication();
-  }
-  private checkServerAuthentication(): Observable<boolean> {
-    // Force a new check with the server
-    return this.http.get<{isAuthenticated: boolean}>(`${this.apiUrl}/is-authenticated`, 
-      { withCredentials: true }).pipe(
-      take(1),
-      map(response => {
-        if (response.isAuthenticated) {
-          return true;
-        } else {
+    // 🔁 If not logged in, do server-side session check
+    return this.http.get<{ isAuthenticated: boolean; user?: any }>(
+      `${this.apiUrl}/is-authenticated`,
+      { withCredentials: true }
+    ).pipe(
+      tap(res => {
+        if (res.isAuthenticated && res.user) {
+          // Store user in session and service
+          sessionStorage.setItem('user_data', JSON.stringify(res.user));
+          this.authService.setUser(res.user);
+        }
+      }),
+      map(res => {
+        if (!res.isAuthenticated) {
           this.router.navigate(['/auth/login']);
           return false;
         }
+        return true;
       }),
       catchError(() => {
         this.router.navigate(['/auth/login']);
@@ -44,6 +57,4 @@ export class AuthGuard implements CanActivate {
       })
     );
   }
-
-   
 }

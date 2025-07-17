@@ -11,6 +11,7 @@ import { Subject, Subscription } from 'rxjs';
 import { interval } from 'rxjs';
 import { debounceTime, distinctUntilChanged, takeWhile } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-products',
@@ -49,6 +50,8 @@ export class ProductsComponent implements OnInit {
   progressSubscription: Subscription | null = null;
   uploadStats: any = null;
   uploadFailures: any[] = [];
+sortColumn: string = 'created_date'; // Default sort column
+sortDirection: string = 'desc'; // Default sort direction
 
   // Pagination properties
   entriesPerPage: number = 5;
@@ -98,7 +101,9 @@ export class ProductsComponent implements OnInit {
 
   private debounceTimer: any;
 
-  constructor(private productService: ProductService) { }
+  constructor(private productService: ProductService,
+    public authService: AuthService,
+  ) { }
   
   ngOnInit(): void {
     this.loadProducts();
@@ -112,20 +117,22 @@ export class ProductsComponent implements OnInit {
     });
   }
 
-  loadProducts() {
-    const params = { 
-      page: this.currentPage, 
-      limit: this.entriesPerPage 
-    };
-    
-    this.productService.getProducts(params).subscribe((response: any) => {
-      this.products = response.data;
-      this.pagination = response.pagination;
-      this.totalPages = this.pagination.last_page;
-      this.totalItems = this.pagination.total;
-      this.currentPage = this.pagination.current_page;
-    });
-  }
+ loadProducts() {
+  const params = { 
+    page: this.currentPage, 
+    limit: this.entriesPerPage,
+    sortColumn: this.sortColumn,
+    sortDirection: this.sortDirection
+  };
+  
+  this.productService.getProducts(params).subscribe((response: any) => {
+    this.products = response.data;
+    this.pagination = response.pagination;
+    this.totalPages = this.pagination.last_page;
+    this.totalItems = this.pagination.total;
+    this.currentPage = this.pagination.current_page;
+  });
+}
 
   onSearchChange() {
     this.searchSubject.next(this.searchTerm);
@@ -140,19 +147,27 @@ export class ProductsComponent implements OnInit {
   }
 
   searchProducts(searchTerm: string) {
-    const params = { 
-      page: this.currentPage, 
-      limit: this.entriesPerPage 
-    };
-    
-    this.productService.searchProducts(searchTerm, params).subscribe((response: any) => {
-      this.products = response.data;
-      this.pagination = response.pagination;
-      this.totalPages = this.pagination.last_page;
-      this.totalItems = this.pagination.total;
-      this.currentPage = this.pagination.current_page;
-    });
+  const params = { 
+    page: this.currentPage, 
+    limit: this.entriesPerPage,
+    sortColumn: this.sortColumn,
+    sortDirection: this.sortDirection
+  };
+  
+  this.productService.searchProducts(searchTerm, params).subscribe((response: any) => {
+    this.products = response.data;
+    this.pagination = response.pagination;
+    this.totalPages = this.pagination.last_page;
+    this.totalItems = this.pagination.total;
+    this.currentPage = this.pagination.current_page;
+  });
+}
+getSortIndicator(column: string): string {
+  if (this.sortColumn === column) {
+    return this.sortDirection === 'asc' ? '▲' : '▼';
   }
+  return '';
+}
 
   onEntriesPerPageChange() {
     this.currentPage = 1;
@@ -571,30 +586,19 @@ calculateEditFinalPrice() {
   }
   
   // Sort Table
-  sortColumn: string | null = null;
+   
   sortAscending: boolean = true; 
-  sortTable(column: string) {
-    if (this.sortColumn === column) {
-      this.sortAscending = !this.sortAscending;
-    } else {
-      this.sortColumn = column;
-      this.sortAscending = true;
-    }
-  
-    this.products.sort((a: any, b: any) => {
-      let valueA = a[column];
-      let valueB = b[column];
-  
-      if (typeof valueA === 'string') {
-        valueA = valueA.toLowerCase();
-        valueB = valueB.toLowerCase();
-      }
-  
-      if (valueA > valueB) return this.sortAscending ? 1 : -1;
-      if (valueA < valueB) return this.sortAscending ? -1 : 1;
-      return 0;
-    });
+ sortTable(column: string) {
+  if (this.sortColumn === column) {
+    this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+  } else {
+    this.sortColumn = column;
+    this.sortDirection = 'asc';
   }
+  
+  this.currentPage = 1; // Reset to first page when sorting
+  this.performSearch();
+}
   
   // Pagination Methods
   get paginatedProducts() {

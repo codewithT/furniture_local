@@ -21,7 +21,7 @@ router.get("/confirm/:email", async (req, res) => {
         JOIN productmaster prom ON pm.ProductID = prom.ProductID
         JOIN supplier sup ON pm.SupplierID = sup.SupplierID
         JOIN salestable st ON pm.SalesID = st.SalesID
-        WHERE sup.EmailAddress = ? AND pm.POStatus = 'Awaiting' AND pm.isActive = 1
+        WHERE sup.EmailAddress = ? AND (pm.POStatus = 'Awaiting' || pm.POStatus ='Arriving Late') AND pm.isActive = 1
         ORDER BY pm.PurchaseID DESC`;
         
         connection.query(query, [email], (error, results) => {

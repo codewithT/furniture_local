@@ -1,15 +1,16 @@
 const express = require('express');
 const router = express.Router();
-const requireAuth = require('./authMiddleware'); 
+const requireAuth = require('./middlewares/authMiddleware'); 
 const pool = require('../config/db');
+const requireRole = require('./middlewares/requireRole');
 
 // GET: Dashboard welcome route
-router.get('/dashboard', requireAuth, (req, res) => {
+router.get('/dashboard', requireAuth, requireRole('admin'), (req, res) => {
   res.json({ msg: 'Welcome to your dashboard!', user: req.session.user });
 });
 
 // POST: Fetch Purchase Orders with filters, date range, pagination
-router.post('/dashboard/fetch-purchase-orders', requireAuth, (req, res) => {
+router.post('/dashboard/fetch-purchase-orders', requireAuth, requireRole('admin'), (req, res) => {
   const filters = req.body.filters || {};
   const page = parseInt(req.body.page, 10) || 1;
   const pageSize = parseInt(req.body.pageSize, 10) || 10;
@@ -120,7 +121,7 @@ router.post('/dashboard/fetch-purchase-orders', requireAuth, (req, res) => {
 });
 
 // POST: Fetch Product Reports with filters, date range, pagination
-router.post('/dashboard/fetch-product-reports', requireAuth, (req, res) => {
+router.post('/dashboard/fetch-product-reports', requireAuth, requireRole('admin'), (req, res) => {
   const filters = req.body.filters || {};
   const page = parseInt(req.body.page, 10) || 1;
   const pageSize = parseInt(req.body.pageSize, 10) || 10;
@@ -306,7 +307,7 @@ router.post('/dashboard/fetch-product-reports', requireAuth, (req, res) => {
 
 // POST: Fetch Sales Reports with filters, date range, pagination
 // POST: Fetch Sales Reports with enhanced filters, date ranges, and pagination
-router.post('/dashboard/fetch-sales-reports', requireAuth, (req, res) => {
+router.post('/dashboard/fetch-sales-reports', requireAuth, requireRole('admin'), (req, res) => {
   const filters = req.body.filters || {};
   const page = parseInt(req.body.page, 10) || 1;
   const pageSize = parseInt(req.body.pageSize, 10) || 10;
@@ -555,7 +556,7 @@ router.post('/dashboard/fetch-sales-reports', requireAuth, (req, res) => {
 });
 
 
-router.post('/dashboard/fetch-sales-products-reports', requireAuth, (req, res) => {
+router.post('/dashboard/fetch-sales-products-reports', requireAuth, requireRole('admin'), (req, res) => {
   const filters = req.body.filters || {};
   const page = parseInt(req.body.page, 10) || 1;
   const pageSize = parseInt(req.body.pageSize, 10) || 10;

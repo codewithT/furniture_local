@@ -1,21 +1,19 @@
 /* Container Styling */
+
 .container {
   max-width: 1500px;
   margin: 20px auto;
+  margin-top: 0%;
   padding: 20px;
+
   background-color: #fff;
   border-radius: 8px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  font-size: medium;
+  font-family: 'Arial', sans-serif;
 }
 
-/* Flexbox to align heading & button */
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-  width: 100%;
-}
+
 
 /* Ensuring Button Stays to the Right */
 .header .btn-primary {
@@ -38,11 +36,11 @@
 }
 
 /* Header Styling */
-h2 {
-  text-align: left;
-  color: #333;
-  margin-bottom: 20px;
-  font-family: Arial, sans-serif;
+.h2 {
+    color: #2c3e50;
+    margin-bottom: 5px;
+    font-size: 30px;
+    font-weight: 900;
 }
 
 /* Breadcrumb */
@@ -56,22 +54,26 @@ h2 {
 
 /* Header: Manage Product + Add Product */
 .header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
+  /* display: flex;
+  justify-content: space-between; */
+  position: sticky;
+  /* top: var(--main-navbar-height); /* Sticks right below your main navbar, or at 0 if no navbar */
+    /* z-index: 100; Ensure header is above table headers */
+  align-items : center;
+  /* margin-bottom: px; */
+  background-color: white;
 }
 
 /* Reduce search bar width */
 .search-container {
   display: flex;
   justify-content: left;
-  margin-bottom: 10px;
+  
 }
 
 .search-bar {
-  width: 800px;
-  padding: 15px 12px;
+  width: 900px;
+ padding: 10px 15px;
   border: 1px solid #ccc;
   border-radius: 10px;
 }
@@ -91,7 +93,7 @@ h2 {
 
 /* Search Box */
 .search input {
-  padding: 5px 10px;
+  padding: 5px 5px;
   border: 1px solid #ccc;
   border-radius: 5px;
 }
@@ -101,6 +103,9 @@ h2 {
   width: 100%;
   overflow-x: auto;
   margin-bottom: 20px;
+  max-height: 700px;
+  overflow-y: auto;
+  position: relative;
 }
 
 /* Ensure table takes full width of the container */
@@ -177,12 +182,12 @@ button {
 }
 
 .btn-danger {
-  background-color: #dc3545;
+  background-color: #fe485a;
   color: white;
 }
 
 .btn-danger:hover {
-  background-color: #c82333;
+  background-color: #925b61;
 }
 
 /* Table Styling */
@@ -201,6 +206,10 @@ th, td {
 th {
   background-color: #f8f9fa;
   color: #333;
+   position: sticky;
+   top : 0;
+   z-index: 10;
+   padding : 12px;
 }
 
 tr:nth-child(even) {
@@ -278,4 +287,94 @@ button.upload-btn:hover {
   font-size: 16px;
   color: #333;
   font-weight: bold;
+}
+
+/* Supplier Actions Container */
+/* Horizontal bar for larger screens, stacks on small */
+/* Responsive Supplier Top Bar Layout */
+.supplier-action-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: flex-start;
+  margin-bottom: 20px;
+}
+
+/* Input Styling */
+.search-bar {
+  flex: 1;
+  min-width: 250px;
+  max-width: 400px;
+  padding: 10px 14px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+/* Common Button Styles */
+.btn-primary,
+.file-upload-label,
+.upload-btn {
+  background-color: #3498db;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: background-color 0.3s ease;
+  white-space: nowrap;
+  max-width: 180px;
+}
+
+/* Specific Colors */
+.btn-primary {
+  background-color: #2ecc71;
+}
+
+.btn-primary:hover {
+  background-color: #27ae60;
+}
+
+.file-upload-label:hover,
+.upload-btn:hover {
+  background-color: #2d80b3;
+}
+
+.upload-btn[disabled] {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* File name display */
+.file-name {
+  font-size: 14px;
+  color: #333;
+  font-weight: 500;
+}
+
+/* Mobile Fix */
+@media (max-width: 768px) {
+  .supplier-action-bar {
+    flex-direction: column;
+    align-items: center; /* Center on small screens */
+  }
+
+  .search-bar {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .btn-primary,
+  .file-upload-label,
+  .upload-btn {
+    width: 100%;
+    max-width: 250px;
+    justify-content: center;
+  }
 }

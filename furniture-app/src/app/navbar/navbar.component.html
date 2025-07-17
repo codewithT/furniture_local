@@ -1,58 +1,84 @@
 <nav>
-  <div class="nav-container">
+  <div class="nav-container" #navContainer>
     <div class="logo">
       <img src="assets/logo.png" alt="Company Logo">
     </div>
 
     <!-- Mobile toggle button -->
-    <button class="mobile-nav-toggle" (click)="toggleMobileMenu()" *ngIf="mobileView">
+    <button class="mobile-toggle" 
+            (click)="toggleMobileMenu()" 
+            *ngIf="isMobileMode"
+            [attr.aria-label]="isMobileMenuOpen ? 'Close menu' : 'Open menu'"
+            [attr.aria-expanded]="isMobileMenuOpen">
       <i class="fas" [ngClass]="{'fa-bars': !isMobileMenuOpen, 'fa-times': isMobileMenuOpen}"></i>
     </button>
 
-    <div class="nav-links" [ngClass]="{'active': isMobileMenuOpen}">
-      <a [routerLink]="['/u/dashboard']" routerLinkActive="active">
+    <!-- Navigation Links -->
+    <div class="nav-links" #navLinks [ngClass]="{'active': isMobileMenuOpen && isMobileMode}">
+      <!-- Standard Links -->
+      <a *ngIf="authService.hasAnyRole(['admin'])" [routerLink]="['/u/dashboard']" routerLinkActive="active" (click)="closeMobile()">
         <i class="fas fa-home"></i> Dashboard
       </a>
-      <a [routerLink]="['/u/supplier']" routerLinkActive="active">
+
+      <a *ngIf="authService.hasAnyRole(['purchase', 'admin'])" [routerLink]="['/u/supplier']" routerLinkActive="active" (click)="closeMobile()">
         <i class="fas fa-truck"></i> Supplier
       </a>
-      <a [routerLink]="['/u/purchase']" routerLinkActive="active">
+
+      <a *ngIf="authService.hasAnyRole(['purchase', 'admin'])" [routerLink]="['/u/purchase']" routerLinkActive="active" (click)="closeMobile()">
         <i class="fas fa-shopping-cart"></i> Purchase
       </a>
-      <a [routerLink]="['/u/products']" routerLinkActive="active">
+
+      <a *ngIf="authService.hasAnyRole(['admin', 'sales', 'warehouse', 'purchase'])" [routerLink]="['/u/products']" routerLinkActive="active" (click)="closeMobile()">
         <i class="fas fa-box"></i> Products
       </a>
-      <a [routerLink]="['/u/receive']" routerLinkActive="active">
-        <i class="fas fa-truck"></i> Receive
+
+      <a *ngIf="authService.hasAnyRole(['admin', 'warehouse'])" [routerLink]="['/u/receive']" routerLinkActive="active" (click)="closeMobile()">
+        <i class="fas fa-dolly"></i> Receive
       </a>
-      <a [routerLink]="['/u/delivery']" routerLinkActive="active">
-        <i class="fas fa-truck"></i> Delivery
+
+      <a *ngIf="authService.hasAnyRole(['admin', 'warehouse'])" [routerLink]="['/u/delivery']" routerLinkActive="active" (click)="closeMobile()">
+        <i class="fas fa-shipping-fast"></i> Delivery
       </a>
 
       <!-- Orders Dropdown -->
-      <div class="dropdown" (click)="toggleDropdown()">
-        <a class="dropdown-toggle">
+      <div class="dropdown orders-dropdown" *ngIf="authService.hasAnyRole(['admin', 'sales'])">
+        <a class="dropdown-toggle" (click)="toggleDropdown()" [class.active]="isDropdownOpen">
           <i class="fas fa-receipt"></i> Orders
+          <i class="fas dropdown-arrow" [ngClass]="{'fa-chevron-up': isDropdownOpen, 'fa-chevron-down': !isDropdownOpen}"></i>
         </a>
-        <div class="dropdown-menu" *ngIf="isDropdownOpen || (!mobileView && isDropdownOpen)">
-          <a [routerLink]="['/u/addOrders']" routerLinkActive="active">
+        <div class="dropdown-menu" [class.show]="isDropdownOpen">
+          <a [routerLink]="['/u/addOrders']" routerLinkActive="active" (click)="closeMobile()">
             <i class="fas fa-plus-circle"></i> Add Orders
           </a>
-          <a [routerLink]="['/u/manageOrders']" routerLinkActive="active">
-            <i class="fas fa-list-check"></i> Manage Orders
+          <a [routerLink]="['/u/manageOrders']" routerLinkActive="active" (click)="closeMobile()">
+            <i class="fas fa-tasks"></i> Manage Orders
           </a>
         </div>
       </div>
 
       <!-- User Dropdown -->
-      <div class="user-dropdown">
-        <a class="dropdown-toggle" (click)="toggleUserDropdown()">
-          <i class="fas fa-user-circle"></i>  
+      <div class="dropdown user-dropdown">
+        <a class="dropdown-toggle" (click)="toggleUserDropdown()" [class.active]="isUserDropdownOpen">
+          <i class="fas fa-user-circle"></i>
+         
         </a>
-        <div class="dropdown-menu" *ngIf="isUserDropdownOpen">
+        <div class="dropdown-menu" [class.show]="isUserDropdownOpen">
+          <div class="user-name" *ngIf="!isMobileMode && currentUser">
+            <i class="fas fa-user-tag"></i> {{ currentUser }}
+          </div>
+
+          <a *ngIf="isLoggedIn && authService.hasRole('admin')" (click)="goToAdminPanel()">
+            <i class="fas fa-tools"></i> Admin Panel
+          </a>
+
           <a *ngIf="!isLoggedIn" (click)="login()">
             <i class="fas fa-sign-in-alt"></i> Login
           </a>
+
+          <a *ngIf="isLoggedIn" (click)="goToChangePassword()">
+            <i class="fas fa-key"></i> Change Password
+          </a>
+
           <a *ngIf="isLoggedIn" (click)="logout()">
             <i class="fas fa-sign-out-alt"></i> Logout
           </a>

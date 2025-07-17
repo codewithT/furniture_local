@@ -1,12 +1,10 @@
 <div class="order-container">
     <h2>Add Order</h2>
 
-<form [formGroup]="orderForm" (ngSubmit)="submitOrder()" (keydown.enter)="preventEnterKey($event)">
-        <!-- Order Details Section -->
+    <form [formGroup]="orderForm" (ngSubmit)="submitOrder()" (keydown.enter)="preventEnterKey($event)">
         <div class="order-details">
             <div class="form-container">
 
-                <!-- Email Address -->
                 <div class="form-group">
                     <label>Customer Email Address <span class="text-danger">*</span></label>
                     <input type="text" formControlName="clientEmail" placeholder="Enter Client Email"
@@ -18,11 +16,10 @@
                     </div>
                     <div class="invalid-feedback"
                         *ngIf="orderForm.get('clientEmail')?.errors?.['minlength'] && orderForm.get('clientEmail')?.touched">
-                     Email must be valid formats like &#64;gmail.com
+                        Email must be valid formats like gmail.com
                     </div>
                 </div>
 
-                <!-- Customer Name -->
                 <div class="form-group">
                     <label>Customer Name <span class="text-danger">*</span></label>
                     <input type="text" formControlName="customerName" placeholder="Enter Customer Name"
@@ -34,7 +31,6 @@
                     </div>
                 </div>
 
-                <!-- Customer Contact -->
                 <div class="form-group">
                     <label>Customer Contact <span class="text-danger">*</span></label>
                     <input type="text" formControlName="clientContact" placeholder="Enter Contact Number"
@@ -53,7 +49,6 @@
             </div>
         </div>
 
-        <!-- Product Section -->
         <h3>Products</h3>
         <table class="product-table">
             <thead>
@@ -70,11 +65,11 @@
             </thead>
             <tbody formArrayName="items">
                 <tr *ngFor="let item of items.controls; let i = index" [formGroupName]="i">
-                    <td>
+                    <td data-label="In Stock ✔">
                         <input type="checkbox" formControlName="selected" (change)="onCheckboxChange(i, $event)"
                             [checked]="storeProductSupplierIdCodes[i]?.Check" />
                     </td>
-                    <td>
+                    <td data-label="Supplier Code">
                         <select formControlName="SupplierCode" (change)="handleSupplierSelect($event, i)">
                             <option value="">-- Select Supplier --</option>
                             <option *ngFor="let supplier of supplierCodes[i]" [value]="supplier.SupplierCode">
@@ -85,30 +80,28 @@
                             Selected: {{ items.at(i).get('SupplierCode')?.value }}
                         </p>
                     </td>
-                    <td class="product-code-cell">
-                        <!-- Product Code Input with Autocomplete -->
+                    <td class="product-code-cell" data-label="Search by CFE Product Code and name">
                         <div class="product-search-container">
                             <input type="text" formControlName="ProductCode" placeholder="Search by Code and name" required 
                                 (input)="productSearchTerms[i].next(items.at(i).get('ProductCode')?.value)"
                                 (blur)="hideProductSuggestions(i)" />
                             
-                            <!-- Product suggestions dropdown -->
                             <div class="product-suggestions" *ngIf="showProductSuggestions[i]">
                                 <div class="product-suggestion-item" 
-                                     *ngFor="let product of productSuggestions[i]"
-                                     (mousedown)="onProductSuggestionMouseDown()"
-                                     (click)="selectProductSuggestion(product, i)">
+                                        *ngFor="let product of productSuggestions[i]"
+                                        (mousedown)="onProductSuggestionMouseDown()"
+                                        (click)="selectProductSuggestion(product, i)">
                                     {{ product.ProductCode }} - {{ product.ProductName }}
                                 </div>
                             </div>
                         </div>
                     </td>
-                    <td><input type="text" formControlName="ProductName" placeholder="Product Name" required /></td>
-                    <td><input type="number" formControlName="rate" placeholder="Rate" required /></td>
-                    <td><input type="number" formControlName="quantity" placeholder="Quantity" required /></td>
-                    <td><input type="text" formControlName="total" placeholder="Total" [disabled]="true"
+                    <td data-label="Product Name"><input type="text" formControlName="ProductName" placeholder="Product Name" required /></td>
+                    <td data-label="Price"><input type="number" formControlName="rate" placeholder="Rate" required /></td>
+                    <td data-label="Quantity"><input type="number" formControlName="quantity" placeholder="Quantity" required /></td>
+                    <td data-label="Total"><input type="text" formControlName="total" placeholder="Total" [disabled]="true"
                             class="total-field" /></td>
-                    <td>
+                    <td data-label="Action">
                         <button type="button" (click)="removeItem(i)" class="delete-btn">🗑</button>
                     </td>
                 </tr>
@@ -117,7 +110,6 @@
 
         <button type="button" (click)="addItem()" class="add-btn">+ Add Item</button>
 
-        <!-- Order Summary Section -->
         <h3>Order Summary</h3>
         <div class="order-summary">
             <div class="summary-column">
@@ -125,8 +117,7 @@
                     <label>Sub Amount</label>
                     <input type="text" formControlName="subAmount" [disabled]="true" />
                 </div>
-              <!-- In the Order Summary Section, replace the existing discount field with this: -->
-<div class="form-group">
+            <div class="form-group">
     <label>Discount Type</label>
     <div class="discount-type-container">
         <label class="checkbox-container">
@@ -171,10 +162,10 @@
             </div>
 
             <div class="summary-column">
-                 <div class="form-group">
-                    <label>Grand Total</label>
-                    <input type="text" formControlName="grandTotal" />
-                </div>
+                    <div class="form-group">
+                        <label>Grand Total</label>
+                        <input type="text" formControlName="grandTotal" />
+                    </div>
                 <div class="form-group">
                     <label>Paid Amount <span class="text-danger">*</span></label>
                     <input type="number" formControlName="paidAmount" placeholder="Enter Paid Amount" />
@@ -242,7 +233,6 @@
             </div>
         </div>
 
-        <!-- Buttons -->
         <div class="button-group">
             <button type="submit" class="submit-btn">Place Order</button>
             <button type="button" (click)="printInvoice()" class="print-btn">Print Invoice</button>

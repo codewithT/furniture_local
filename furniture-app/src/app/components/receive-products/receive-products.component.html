@@ -1,8 +1,19 @@
 <div class="purchase-container">
   <div class="header">
-    <h2>Home / Product Receive</h2>
+    <h2>Product Receive</h2>
+    
+    <!-- Option 1: Search in a dedicated container (Recommended) -->
+    <div class="search-container">
+      <input type="text" 
+             [(ngModel)]="searchQuery" 
+             (keyup.enter)="loadReceivedProducts()" 
+             placeholder="Search by Supplier Code, PO Number, or Product Name" 
+             class="form-control">
+      <button class="btn btn-primary" (click)="loadReceivedProducts()">Search</button>
+    </div>
+     
   </div>
-
+ 
   <!-- Entries per page -->
   <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
@@ -27,11 +38,31 @@
     <table>
       <thead>
         <tr>
-          <th>Supplier</th>
-          <th>Pick up date</th>
-          <th>PO Number</th>
-          <th>Product Name</th>
-          <th>Status</th>
+          <th class="sortable" (click)="sortTable('SupplierCode')" 
+              [class.active]="sortField === 'SupplierCode'">
+            Supplier 
+            <i class="fas fa-{{getSortIcon('SupplierCode')}}"></i>
+          </th>
+          <th class="sortable" (click)="sortTable('Supplier_Date')" 
+              [class.active]="sortField === 'Supplier_Date'">
+            Pick up date 
+            <i class="fas fa-{{getSortIcon('Supplier_Date')}}"></i>
+          </th>
+          <th class="sortable" (click)="sortTable('PONumber')" 
+              [class.active]="sortField === 'PONumber'">
+            PO Number 
+            <i class="fas fa-{{getSortIcon('PONumber')}}"></i>
+          </th>
+          <th class="sortable" (click)="sortTable('ProductName')" 
+              [class.active]="sortField === 'ProductName'">
+            Product Name 
+            <i class="fas fa-{{getSortIcon('ProductName')}}"></i>
+          </th>
+          <th class="sortable" (click)="sortTable('POStatus')" 
+              [class.active]="sortField === 'POStatus'">
+            Status 
+            <i class="fas fa-{{getSortIcon('POStatus')}}"></i>
+          </th>
           <th>Actions</th>
         </tr>
       </thead>

@@ -40,7 +40,6 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
     MatSelectModule,
     MatProgressSpinnerModule,
   ],
-
   templateUrl: './manage-order.component.html',
   styleUrls: ['./manage-order.component.css'],
 })
@@ -76,13 +75,21 @@ export class ManageOrderComponent implements AfterViewInit, OnInit {
   }
 
   ngAfterViewInit() {
-    // Set up sort change listener
-    this.sort.sortChange.subscribe(() => {
-      this.pageIndex = 0; // Reset to first page when sorting
-      this.sortField = this.sort.active;
-      this.sortOrder = this.sort.direction || 'asc';
-      this.fetchOrders();
-    });
+    // IMPORTANT: Disable client-side sorting since we're doing server-side sorting
+    this.dataSource.sort = null;
+    
+    // Set up sort change listener for server-side sorting
+    if (this.sort) {
+      this.sort.sortChange.subscribe(() => {
+        this.pageIndex = 0; // Reset to first page when sorting
+        this.sortField = this.sort.active;
+        this.sortOrder = this.sort.direction || 'desc';
+        
+        console.log('Sort changed:', this.sortField, this.sortOrder); // Debug log
+        
+        this.fetchOrders();
+      });
+    }
   }
 
   fetchOrders() {
@@ -96,8 +103,12 @@ export class ManageOrderComponent implements AfterViewInit, OnInit {
       sortOrder: this.sortOrder
     };
 
+    console.log('Fetching orders with params:', params); // Debug log
+
     this.manageOrderService.getOrders(params).subscribe({
       next: (response) => {
+        console.log('Orders received:', response); // Debug log
+        
         this.dataSource.data = response.data.map((order: Order) => ({
           ...order,
           Created_date: this.formatDate(order.Created_date),
@@ -116,6 +127,7 @@ export class ManageOrderComponent implements AfterViewInit, OnInit {
   }
 
   formatDate(dateString: string): string {
+    if (!dateString) return '';
     const date = new Date(dateString);
     return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
   }

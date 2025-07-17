@@ -1,0 +1,149 @@
+<div class="admin-container">
+  <div class="header">
+    <h1>Admin Panel</h1>
+    <p>Manage users, roles</p>
+  </div>
+
+  <mat-tab-group class="admin-tabs">
+    <!-- Users Tab -->
+    <mat-tab label="Users">
+      <div class="tab-content">
+        <div class="action-bar">
+          <button mat-raised-button color="primary" (click)="openCreateUserDialog()">
+            <mat-icon>add</mat-icon>
+            Add User
+          </button>
+        </div>
+
+        <div class="table-container">
+          <table mat-table [dataSource]="users" class="users-table">
+
+            <ng-container matColumnDef="email">
+              <th mat-header-cell *matHeaderCellDef>Email</th>
+              <td mat-cell *matCellDef="let user">{{user.email}}</td>
+            </ng-container>
+
+            <ng-container matColumnDef="roles">
+              <th mat-header-cell *matHeaderCellDef>Roles</th>
+              <td mat-cell *matCellDef="let user">
+                <div class="roles-chips">
+                  <span *ngFor="let role of getRolesArray(user.roles)" class="role-chip">
+                    {{role}}
+                  </span>
+                </div>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="status">
+              <th mat-header-cell *matHeaderCellDef>Status</th>
+              <td mat-cell *matCellDef="let user">
+                <span class="status-badge" [class.active]="user.isActive">
+                  {{user.isActive ? 'Active' : 'Inactive'}}
+                </span>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="actions">
+              <th mat-header-cell *matHeaderCellDef>Actions</th>
+              <td mat-cell *matCellDef="let user">
+                <button mat-icon-button (click)="editUserRoles(user)" title="Edit Roles">
+                  <mat-icon>edit</mat-icon>
+                </button>
+                <button mat-icon-button color="warn" (click)="deleteUser(user.id)" title="Delete">
+                  <mat-icon>delete</mat-icon>
+                </button>
+              </td>
+            </ng-container>
+
+            <tr mat-header-row *matHeaderRowDef="userColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: userColumns;"></tr>
+          </table>
+        </div>
+
+        <!-- ✅ Edit User Roles Dialog -->
+        <div *ngIf="showEditRolesDialog" class="dialog-backdrop" (click)="closeEditRolesDialog()">
+          <div class="dialog-content" (click)="$event.stopPropagation()">
+            <h2>Edit User Roles</h2>
+            <p>User: {{selectedUser?.email}}</p>
+            <form [formGroup]="editRolesForm" (ngSubmit)="updateUserRoles()">
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Roles</mat-label>
+                <mat-select formControlName="roleIds" multiple>
+                  <mat-option *ngFor="let role of roles" [value]="role.id">{{role.name}}</mat-option>
+                </mat-select>
+              </mat-form-field>
+              <div class="dialog-actions">
+                <button type="button" mat-button (click)="closeEditRolesDialog()">Cancel</button>
+                <button type="submit" mat-raised-button color="primary">Update Roles</button>
+              </div>
+            </form>
+          </div>
+        </div>
+        <!-- ✅ END Edit Dialog -->
+
+      </div>
+    </mat-tab>
+
+    <!-- Roles Tab -->
+    <mat-tab label="Roles">
+      <div class="tab-content">
+        <div class="action-bar">
+          <!-- <mat-form-field appearance="outline" class="role-input">
+            <mat-label>Role Name</mat-label>
+            <input matInput [(ngModel)]="newRoleName" placeholder="Enter role name">
+          </mat-form-field> -->
+          <!-- <button mat-raised-button color="primary" (click)="createRole()" [disabled]="!newRoleName">
+            <mat-icon>add</mat-icon>
+            Create Role
+          </button> -->
+        </div>
+
+        <div class="roles-grid">
+          <div *ngFor="let role of roles" class="role-card">
+            <mat-card>
+              <mat-card-content>
+                <h3>{{role.name}}</h3>
+                <p>ID: {{role.id}}</p>
+              </mat-card-content>
+            </mat-card>
+          </div>
+        </div>
+      </div>
+    </mat-tab>
+  </mat-tab-group>
+
+  <!-- ✅ Create User Dialog -->
+  <div *ngIf="showCreateUserDialog" class="dialog-backdrop" (click)="closeCreateUserDialog()">
+    <div class="dialog-content" (click)="$event.stopPropagation()">
+      <h2>Create New User</h2>
+      <form [formGroup]="createUserForm" (ngSubmit)="createUser()">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Email</mat-label>
+          <input matInput formControlName="email" type="email">
+          <mat-error *ngIf="createUserForm.get('email')?.hasError('required')">
+            Email is required
+          </mat-error>
+          <mat-error *ngIf="createUserForm.get('email')?.hasError('email')">
+            Please enter a valid email
+          </mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Roles</mat-label>
+          <mat-select formControlName="roleIds" multiple>
+            <mat-option *ngFor="let role of roles" [value]="role.id">
+              {{role.name}}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <div class="dialog-actions">
+          <button type="button" mat-button (click)="closeCreateUserDialog()">Cancel</button>
+          <button type="submit" mat-raised-button color="primary" [disabled]="!createUserForm.valid">
+            Create User
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

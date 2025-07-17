@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/db'); // Ensure db.js exports a MySQL pool instance
-const requireAuth = require('./authMiddleware');
+const requireAuth = require('./middlewares/authMiddleware');
+const requireRole = require('./middlewares/requireRole');
 
-router.get('/order-details/:soNumber', requireAuth,(req, res) => {
+router.get('/order-details/:soNumber', requireAuth, requireRole('admin', 'sales'), (req, res) => {
     const soNumber = req.params.soNumber;
 
     const sqlQuery = `
@@ -90,7 +91,7 @@ router.get('/order-details/:soNumber', requireAuth,(req, res) => {
 // Add this route to your existing router file
 
 // Update order by SONumber
-router.put('/order-details/:soNumber', requireAuth, (req, res) => {
+router.put('/order-details/:soNumber', requireAuth, requireRole('admin', 'sales'), (req, res) => {
     const soNumber = req.params.soNumber;
     const { 
         paymentStatus, 

@@ -5,7 +5,8 @@ const cors = require('cors');
 const bodyParser = require("body-parser");
 require('dotenv').config(); // Load environment variables
 
-const authRoutes = require('./routes/auth'); 
+const authRoutes = require('./routes/auth/auth'); 
+const authForgotPassword = require('./routes/auth/forgotPassword');
 const MySQLStore = require('express-mysql-session')(session);
 const dashboardRoutes = require('./routes/dashboardRoutes'); 
 const supplier = require('./routes/supplier');
@@ -17,6 +18,8 @@ const supplierConfirm = require('./routes/supplierConfirm');
 const purchase = require('./routes/purchases');
 const receivedProducts = require('./routes/receivedProducts');
 const scheduleDelivery= require('./routes/scheduleDelivery')
+const adminPanel = require('./routes/admin/adminPanel'); 
+const authChangePassword = require('./routes/auth/changePassword');
 const cookieParser = require('cookie-parser');
 const app = express();
 const db = require('./config/db');
@@ -83,6 +86,9 @@ app.use(`${BASE_URL1}/u`, orderDetails);
 app.use(`${BASE_URL1}/u`, receivedProducts);
 app.use(`${BASE_URL1}/`, supplierConfirm); 
 app.use(`${BASE_URL1}/u`, scheduleDelivery);
-// ✅ Start Server
+app.use(`${BASE_URL1}/admin`, adminPanel); // Admin routes
+app.use(`${BASE_URL1}/auth`, authForgotPassword);
+app.use(`${BASE_URL1}/u`, authChangePassword);
+//  Start Server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(` Server running on port ${PORT}`));

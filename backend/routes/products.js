@@ -1,13 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
-const requireAuth = require('./authMiddleware');
+const requireAuth = require('./middlewares/authMiddleware');
 // file upload
 const multer = require('multer');
 const xlsx = require('xlsx');
 const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
+const requireRole = require('./middlewares/requireRole');
 
 // Configure file upload with security settings
 const storage = multer.diskStorage({
@@ -50,7 +51,7 @@ const upload = multer({
 });
 
 // Excel upload endpoint with job tracking for products
-router.post('/products/upload-excel', upload.single('file'), requireAuth, async (req, res) => {
+router.post('/products/upload-excel', upload.single('file'), requireAuth, requireRole('admin'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ message: 'No file uploaded' });
   }
@@ -358,16 +359,19 @@ router.post('/products/cancel-job', requireAuth, async (req, res) => {
 // GET all products
 
 // GET products - Already looks good, keeping for reference
-router.get('/products', requireAuth, async (req, res) => {
+router.get('/products', requireAuth, requireRole('admin', 'sales', 'warehouse', 'purchase'), async (req, res) => {
   try {
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 10;
+    const sortColumn = req.query.sortColumn || 'created_date';
+    const sortDirection = req.query.sortDirection === 'asc' ? 'ASC' : 'DESC';
 
     if (page < 1 || limit < 1 || limit > 100) {
       return res.status(400).json({ error: 'Invalid pagination parameters' });
     }
 
     const offset = (page - 1) * limit;
+    const validSortColumn = validateSortColumn(sortColumn);
 
     const [products] = await pool.promise().query(
       `SELECT 
@@ -376,8 +380,8 @@ router.get('/products', requireAuth, async (req, res) => {
          pm.FinalPrice, pm.Picture
        FROM productmaster pm
        JOIN supplier sup ON pm.SupplierID = sup.SupplierID
-        WHERE pm.isActive = 1
-       ORDER BY pm.created_date DESC
+       WHERE pm.isActive = 1
+       ORDER BY ${validSortColumn} ${sortDirection}
        LIMIT ? OFFSET ?`,
       [limit, offset]
     );
@@ -417,8 +421,9 @@ router.get('/products', requireAuth, async (req, res) => {
   }
 });
 
+
 // ADD a product (with transaction)
-router.post('/products/add-product', requireAuth, (req, res) => {
+router.post('/products/add-product', requireAuth, requireRole('admin'), (req, res) => {
   const product = req.body;
   console.log(product);
   const sql = `
@@ -510,7 +515,7 @@ const filetypes = /jpeg|jpg|png|gif|webp|heic|heif/;
 });
 
 // UPDATE a product
-router.put('/products/update-product', requireAuth, imageUpload.single('image'), (req, res) => {
+router.put('/products/update-product', requireAuth, requireRole('admin'), imageUpload.single('image'), (req, res) => {
   try {
     if (!req.body.product) {
       return res.status(400).json({ error: 'Product data is required' });
@@ -599,7 +604,7 @@ router.put('/products/update-product', requireAuth, imageUpload.single('image'),
 });
 
 // Product Image Upload API (Single Image Upload)
-router.post('/products/:productId/image', requireAuth, imageUpload.single('image'), async (req, res) => {
+router.post('/products/:productId/image', requireAuth, requireRole('admin'), imageUpload.single('image'), async (req, res) => {
   const productId = req.params.productId;
 
   if (!req.file) {
@@ -631,7 +636,7 @@ router.post('/products/:productId/image', requireAuth, imageUpload.single('image
 });
 
 // DELETE a product (with transaction)
-router.delete('/products/:id', requireAuth, (req, res) => {
+router.delete('/products/:id', requireAuth, requireRole('admin'), (req, res) => {
   const productId = req.params.id;
   const sql = `UPDATE productmaster SET isActive = 0 WHERE ProductID = ?`;
 
@@ -670,13 +675,15 @@ router.delete('/products/:id', requireAuth, (req, res) => {
 
 // SEARCH products
 // SEARCH products - Fixed version
-router.get('/products/search', requireAuth, async (req, res) => {
+router.get('/products/search', requireAuth, requireRole('admin', 'sales', 'warehouse', 'purchase'), async (req, res) => {
   try {
     let { query } = req.query;
     query = query ? query.trim() : '';
 
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
+    const sortColumn = req.query.sortColumn || 'created_date';
+    const sortDirection = req.query.sortDirection === 'asc' ? 'ASC' : 'DESC';
 
     if (page < 1 || limit < 1 || limit > 100) {
       return res.status(400).json({ error: 'Invalid pagination parameters' });
@@ -684,6 +691,7 @@ router.get('/products/search', requireAuth, async (req, res) => {
 
     const offset = (page - 1) * limit;
     const searchTerm = `%${query}%`;
+    const validSortColumn = validateSortColumn(sortColumn);
 
     // Count query
     const countSql = `
@@ -696,7 +704,7 @@ router.get('/products/search', requireAuth, async (req, res) => {
          OR sup.SupplierCode LIKE ?
          OR pm.FinalPrice LIKE ?) AND pm.isActive = 1`;
 
-    // Data query - Fixed to match the main products route structure
+    // Data query with sorting
     const dataSql = `
       SELECT 
         pm.ProductID, pm.ProductCode, pm.ProductName,
@@ -704,12 +712,12 @@ router.get('/products/search', requireAuth, async (req, res) => {
         pm.FinalPrice, pm.Picture
       FROM productmaster pm
       JOIN supplier sup ON pm.SupplierID = sup.SupplierID
-      WHERE pm.ProductName LIKE ? 
+      WHERE (pm.ProductName LIKE ? 
          OR pm.ProductCode LIKE ? 
          OR pm.SupplierItemNumber LIKE ? 
          OR sup.SupplierCode LIKE ?
-         OR pm.FinalPrice LIKE ? AND pm.isActive = 1
-      ORDER BY pm.created_date DESC
+         OR pm.FinalPrice LIKE ?) AND pm.isActive = 1
+      ORDER BY ${validSortColumn} ${sortDirection}
       LIMIT ? OFFSET ?`;
 
     const searchParams = [searchTerm, searchTerm, searchTerm, searchTerm, searchTerm];
@@ -722,7 +730,7 @@ router.get('/products/search', requireAuth, async (req, res) => {
     // Get paginated data
     const [dataResults] = await pool.promise().query(dataSql, [...searchParams, limit, offset]);
 
-    // Base URL for image files - consistent with main products route
+    // Base URL for image files
     const baseImageUrl = `${req.protocol}://${req.get('host')}/images/`;
 
     // Format products with proper image URLs
@@ -749,11 +757,22 @@ router.get('/products/search', requireAuth, async (req, res) => {
     return res.status(500).json({ error: 'Unable to search products' });
   }
 });
-
+function validateSortColumn(sortColumn) {
+  const validColumns = {
+    'ProductCode': 'pm.ProductCode',
+    'ProductName': 'pm.ProductName',
+    'SupplierCode': 'sup.SupplierCode',
+    'SupplierItemNumber': 'pm.SupplierItemNumber',
+    'FinalPrice': 'pm.FinalPrice',
+    'created_date': 'pm.created_date'
+  };
+  
+  return validColumns[sortColumn] || 'pm.created_date';
+}
 
 
 // VALIDATE supplier code
-router.get('/products/supplier/validate-code/:code', (req, res) => {
+router.get('/products/supplier/validate-code/:code', requireAuth, requireRole('admin'), (req, res) => {
   const code = req.params.code;
   if (!code || code.trim() === "") {
     return res.status(400).json({ error: 'Supplier code is required' });
@@ -769,7 +788,7 @@ router.get('/products/supplier/validate-code/:code', (req, res) => {
 
 
 // GET SupplierID by code
-router.get('/products/supplier/id-by-code/:code', (req, res) => {
+router.get('/products/supplier/id-by-code/:code', requireAuth, requireRole('admin'), (req, res) => {
   const code = req.params.code;
   if (!code || code.trim() === "") {
     return res.status(400).json({ error: 'Supplier code is required' });

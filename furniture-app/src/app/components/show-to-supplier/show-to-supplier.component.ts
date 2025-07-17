@@ -85,4 +85,11 @@ export class ShowToSupplierComponent implements OnInit {
       }
     );
   }
+  isSubmitDisabled(): boolean {
+  return Object.keys(this.confirmations).some(
+    id => !this.confirmations[id].status ||
+         (this.confirmations[id].status === 'DELAYED' && !this.confirmations[id].delayedDate)
+  );
+}
+
 }

@@ -6,6 +6,7 @@ import { Purchase } from '../models/purchases.model';
 import { of } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { PaginationResponse } from '../models/supplier.model';
+import { HttpParams } from '@angular/common/http';
 @Injectable({
   providedIn: 'root'
 })
@@ -22,24 +23,30 @@ export class PurchaseService {
     withCredentials: true // Ensures cookies/session persistence
   };
   
-  getPurchases(page: number, limit: number): Observable<PaginationResponse<Purchase>> {
-  return this.http.get<PaginationResponse<Purchase>>(
-    `${this.apiUrl}?page=${page}&limit=${limit}`, 
-    this.httpOptions
-  ).pipe(
-    catchError(this.handleError<PaginationResponse<Purchase>>('getPurchases', {
-      data: [],
-      pagination: {
-        total: 0,
-        per_page: limit,
-        current_page: page,
-        last_page: 0,
-        from: 0,
-        to: 0,
-        has_more_pages: false
-      }
-    }))
-  );
+  getPurchases(page: number, limit: number,sortBy: string = 'PurchaseID', sortOrder: string = 'desc'): Observable<PaginationResponse<Purchase>> {
+    const params = new HttpParams()
+      .set('page', page.toString())
+      .set('limit', limit.toString())
+      .set('sortBy', sortBy)
+      .set('sortOrder', sortOrder);
+
+    return this.http.get<PaginationResponse<Purchase>>(
+      this.apiUrl,
+      { ...this.httpOptions, params }
+    ).pipe(
+      catchError(this.handleError<PaginationResponse<Purchase>>('getPurchases', {
+        data: [],
+        pagination: {
+          total: 0,
+          per_page: limit,
+          current_page: page,
+          last_page: 0,
+          from: 0,
+          to: 0,
+          has_more_pages: false
+        }
+      }))
+    );
 }
 
   // mails senders
@@ -66,13 +73,19 @@ addPurchase(purchase : Purchase) : Observable<any>{
     pipe(catchError(this.handleError<any>('Error on delete purchase', [])));
   }
 
-  searchPurchases(query : string, page: number, limit: number) : Observable<Purchase[]> {
-    if (!query.trim()) {
-      return of([]); // Prevent unnecessary requests
-    }
-      return this.http.get<Purchase[]>( `${this.apiUrl}/search?query=${encodeURIComponent(query)}&page=${page}&limit=${limit}`,
-      this.httpOptions
-    ).pipe(catchError(this.handleError<any>('Error on searching purchases', [])));
+  searchPurchases(query: string, page: number, limit: number, sortBy: string, sortOrder: string) : Observable<Purchase[]> {
+    const params = new HttpParams()
+      .set('query', query)
+      .set('page', page.toString())
+      .set('limit', limit.toString());
+
+    return this.http.get<Purchase[]>(
+      `${this.apiUrl}/search`,
+      { ...this.httpOptions, params }
+    ).pipe(
+      catchError(this.handleError<any>('Error on searching purchases', []))
+    );
+     
   }
 
 

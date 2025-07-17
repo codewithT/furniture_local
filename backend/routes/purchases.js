@@ -1,32 +1,59 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/db'); // Assuming db is a connection pool
-const requireAuth = require('./authMiddleware');
+const requireAuth = require('./middlewares/authMiddleware');
 const nodemailer = require("nodemailer");
 const moment = require("moment");
+const requireRole = require('./middlewares/requireRole');
 
-const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-        user: process.env.USER_GMAIL,
-        pass: process.env.USER_PASSWORD,
-    },
-});
+const transporter = require('../utils/transpoter_email'); 
+
  // Inserting date/time with UTC conversion:
 const currentDateUTC = moment.utc().format("YYYY-MM-DD");
 const currentTimeUTC = moment.utc().format("HH:mm:ss");
 const timestampUTC = moment.utc().format("YYYY-MM-DD HH:mm:ss");
 
 // Get all purchases with pagination
-router.get('/purchase', requireAuth, (req, res) => {
+router.get('/purchase', requireAuth, requireRole('admin', 'purchase'), (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
+  const sortBy = req.query.sortBy || 'PurchaseID';
+  const sortOrder = req.query.sortOrder || 'desc';
 
   // Validate pagination parameters
   if (page < 1 || limit < 1 || limit > 200) {
     return res.status(400).json({ error: 'Invalid pagination parameters' });
   }
 
+  // Validate sortBy to prevent SQL injection
+  const validSortColumns = [
+    'PurchaseID', 'ProductCode', 'SupplierCode', 'Qty', 'SONumber', 
+    'Delivery_date', 'POStatus', 'Supplier_Date', 'PONumber'
+  ];
+  
+  if (!validSortColumns.includes(sortBy)) {
+    sortBy = 'PurchaseID';
+  }
+
+  // Validate sortOrder
+  if (!['asc', 'desc'].includes(sortOrder.toLowerCase())) {
+    sortOrder = 'desc';
+  }
+
+  // Map frontend column names to actual database columns
+  const columnMapping = {
+    'PurchaseID': 'pm.PurchaseID',
+    'ProductCode': 'prom.ProductCode',
+    'SupplierCode': 'sup.SupplierCode',
+    'Qty': 'sales.Qty',
+    'SONumber': 'sales.SONumber',
+    'Delivery_date': 'sales.Delivery_date',
+    'POStatus': 'pm.POStatus',
+    'Supplier_Date': 'pm.Supplier_Date',
+    'PONumber': 'pm.PONumber'
+  };
+
+  const dbColumn = columnMapping[sortBy] || 'pm.PurchaseID';
   const offset = (page - 1) * limit;
 
   const dataQuery = `
@@ -45,8 +72,8 @@ router.get('/purchase', requireAuth, (req, res) => {
     JOIN supplier sup ON pm.SupplierID = sup.SupplierID
     JOIN productmaster prom ON pm.ProductID = prom.ProductID
     JOIN salestable sales ON pm.SalesID = sales.SalesID
-    Where pm.isActive = 1
-    ORDER BY pm.PurchaseID DESC
+    WHERE pm.isActive = 1
+    ORDER BY ${dbColumn} ${sortOrder.toUpperCase()}
     LIMIT ? OFFSET ?;
   `;
 
@@ -102,9 +129,10 @@ router.get('/purchase', requireAuth, (req, res) => {
 });
 
 
+
 // add purchase request
 // Backend API Route - Add this to your routes file
-router.post('/purchase/addPurchase', requireAuth, (req, res) => {
+router.post('/purchase/addPurchase', requireAuth, requireRole('admin', 'purchase'), (req, res) => {
     console.log('Received request to add purchase order:', req.body);
     
     const { 
@@ -263,7 +291,7 @@ router.post('/purchase/addPurchase', requireAuth, (req, res) => {
 
 
 // Update purchase route (use UTC)
-router.put('/purchase/:id', requireAuth, (req, res) => {
+router.put('/purchase/:id', requireAuth, requireRole('admin', 'purchase'), (req, res) => {
     const purchaseId = req.params.id;
     const { SONumber, Delivery_date, POStatus, SupplierCode, Supplier_Date, Qty, Delayed_Date } = req.body;
     const changedBy = req.session.user?.email;
@@ -309,20 +337,52 @@ router.put('/purchase/:id', requireAuth, (req, res) => {
         });
     });
 });
-
-router.get('/purchase/search', requireAuth, async (req, res) => {
+// Search route with sorting
+router.get('/purchase/search', requireAuth, requireRole('admin', 'purchase'), async (req, res) => {
   try {
-    let { query, page, limit } = req.query;
+    let { query, page, limit, sortBy, sortOrder } = req.query;
 
     page = parseInt(page) || 1;
     limit = parseInt(limit) || 10;
+    sortBy = sortBy || 'PurchaseID';
+    sortOrder = sortOrder || 'desc';
 
     if (page < 1 || limit < 1 || limit > 200) {
       return res.status(400).json({ error: 'Invalid pagination parameters' });
     }
 
+    // Validate sortBy to prevent SQL injection
+    const validSortColumns = [
+      'PurchaseID', 'ProductCode', 'SupplierCode', 'Qty', 'SONumber', 
+      'Delivery_date', 'POStatus', 'Supplier_Date', 'PONumber'
+    ];
+    
+    if (!validSortColumns.includes(sortBy)) {
+      sortBy = 'PurchaseID';
+    }
+
+    // Validate sortOrder
+    if (!['asc', 'desc'].includes(sortOrder.toLowerCase())) {
+      sortOrder = 'desc';
+    }
+
     const offset = (page - 1) * limit;
     query = query ? query.trim() : '';
+
+    // Map frontend column names to actual database columns
+    const columnMapping = {
+      'PurchaseID': 'pm.PurchaseID',
+      'ProductCode': 'prom.ProductCode',
+      'SupplierCode': 'sup.SupplierCode',
+      'Qty': 'st.Qty',
+      'SONumber': 'st.SONumber',
+      'Delivery_date': 'pm.Delivery_date',
+      'POStatus': 'pm.POStatus',
+      'Supplier_Date': 'pm.Supplier_Date',
+      'PONumber': 'pm.PONumber'
+    };
+
+    const dbColumn = columnMapping[sortBy] || 'pm.PurchaseID';
 
     const searchSql = `
       SELECT * FROM purchasemaster pm
@@ -338,6 +398,7 @@ router.get('/purchase/search', requireAuth, async (req, res) => {
       OR st.SONumber LIKE ?
       OR pm.Supplier_Date LIKE ?
       OR pm.POStatus LIKE ?) AND pm.isActive = 1
+      ORDER BY ${dbColumn} ${sortOrder.toUpperCase()}
       LIMIT ? OFFSET ?
     `;
 
@@ -389,7 +450,7 @@ router.get('/purchase/search', requireAuth, async (req, res) => {
 });
 
 // Send purchase order emails
-router.post("/purchase/send-mails", requireAuth, async (req, res) => {
+router.post("/purchase/send-mails", requireAuth, requireRole('admin', 'purchase'), async (req, res) => {
     const selectedPurchases = req.body;
     console.log(selectedPurchases);
     if (!selectedPurchases || selectedPurchases.length === 0) {
@@ -547,7 +608,7 @@ router.post("/purchase/send-mails", requireAuth, async (req, res) => {
 });
 
 // save to create po number
-router.post("/purchase/save-ToSendMail", requireAuth, async(req, res)=>{
+router.post("/purchase/save-ToSendMail", requireAuth, requireRole('admin', 'purchase'), async (req, res) => {
     const selectedPurchases = req.body;
 
     if (!selectedPurchases || selectedPurchases.length === 0) {
@@ -644,7 +705,7 @@ router.post("/purchase/save-ToSendMail", requireAuth, async(req, res)=>{
 });
 
 // Delete purchase
-router.delete("/purchase/:id", requireAuth, async (req, res) => {
+router.delete("/purchase/:id", requireAuth, requireRole('admin', 'purchase'), async (req, res) => {
     const { id } = req.params;
 
     pool.getConnection((err, connection) => {

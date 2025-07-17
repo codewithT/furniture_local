@@ -1,7 +1,7 @@
 <!-- components/products/products.component.html -->
 <div class="container mt-4">
 
-  <h2>Home / product</h2>
+  <h2>CFE-Products</h2>
  
   <!-- Search Bar and Controls -->
   <div class="search-container">
@@ -15,10 +15,12 @@
   
       
       <!-- Action Buttons -->
-      <div class="col-md-3">
+      <div *ngIf="authService.hasAnyRole(['admin'])"
+      class="col-md-3">
         <div class="d-flex justify-content-end">
           <button class="btn btn-primary me-2" (click)="openAddModal()">Add Product</button>
-          <button class="btn btn-success" (click)="openUploadExcelModal()">Upload Excel</button>
+          <button 
+          class="btn btn-success" (click)="openUploadExcelModal()">Upload Excel</button>
         </div>
       </div>
     </div>
@@ -37,27 +39,26 @@
     <!-- Product Table -->
     <table class="table table-bordered table-striped">
       <thead>
-        <tr>
-          <th (click)="sortTable('ProductCode')">
-            CFE Product Code <span *ngIf="sortColumn === 'ProductCode'">{{ sortAscending ? '▲' : '▼' }}</span>
-          </th>
-          <th (click)="sortTable('ProductName')">
-            Product Name <span *ngIf="sortColumn === 'ProductName'">{{ sortAscending ? '▲' : '▼' }}</span>
-          </th>
-          <th (click)="sortTable('SupplierCode')">
-            Supplier Code <span *ngIf="sortColumn === 'SupplierCode'">{{ sortAscending ? '▲' : '▼' }}</span>
-          </th>
-          <th (click)="sortTable('SupplierItemNumber')">
-            Supplier Item Number <span *ngIf="sortColumn === 'SupplierItemNumber'">{{ sortAscending ? '▲' : '▼' }}</span>
-          </th>
-          <th (click)="sortTable('FinalPrice')">
-            Final Price <span *ngIf="sortColumn === 'FinalPrice'">{{ sortAscending ? '▲' : '▼' }}</span>
-          </th>
-          
-          <th>Picture</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
+  <tr>
+    <th (click)="sortTable('ProductCode')" style="cursor: pointer;">
+      CFE Product Code <span>{{ getSortIndicator('ProductCode') }}</span>
+    </th>
+    <th (click)="sortTable('ProductName')" style="cursor: pointer;">
+      Product Name <span>{{ getSortIndicator('ProductName') }}</span>
+    </th>
+    <th (click)="sortTable('SupplierCode')" style="cursor: pointer;">
+      Supplier Code <span>{{ getSortIndicator('SupplierCode') }}</span>
+    </th>
+    <th (click)="sortTable('SupplierItemNumber')" style="cursor: pointer;">
+      Supplier Item Number <span>{{ getSortIndicator('SupplierItemNumber') }}</span>
+    </th>
+    <th (click)="sortTable('FinalPrice')" style="cursor: pointer;">
+      Final Price <span>{{ getSortIndicator('FinalPrice') }}</span>
+    </th>
+    <th>Picture</th>
+    <th *ngIf="authService.hasAnyRole(['admin'])">Actions</th>
+  </tr>
+</thead>
       
       <tbody>
         <tr *ngFor="let product of paginatedProducts">
@@ -78,7 +79,7 @@
       (change)="onProductImageSelected($event, product.ProductID)"
       accept="image/*"
     />
-   <button
+   <button *ngIf="authService.hasAnyRole(['admin'])"
   class="btn btn-sm btn-outline-primary p-1"
   type="button"
   (click)="productFileInput.click()"
@@ -91,9 +92,10 @@
   </div>
 
 </td>
-<td>
+<td *ngIf="authService.hasAnyRole(['admin'])">
   <button class="btn btn-sm btn-warning me-1" (click)="openEditModal(product)">Edit</button>
-            <button class="btn btn-sm btn-danger" (click)="deleteProduct(product.ProductID)">Delete</button>
+            <button *ngIf="authService.hasAnyRole(['admin'])"
+            class="btn btn-sm btn-danger" (click)="deleteProduct(product.ProductID)">Delete</button>
           </td>
         </tr>
       </tbody>
@@ -269,8 +271,6 @@
 <img [src]="editedProduct.Picture" alt="Product Image Preview" class="img-thumbnail" style="max-height: 400px; width: auto;">
             </div>
            
-           
-           
           </div>
         </form>
       </div>
@@ -283,7 +283,7 @@
 </div>
 
 <!-- Excel Upload Modal -->
-<div #uploadExcelModal class="modal fade" tabindex="-1" aria-hidden="true">
+<div *ngIf="authService.hasAnyRole(['admin'])" #uploadExcelModal class="modal fade" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">

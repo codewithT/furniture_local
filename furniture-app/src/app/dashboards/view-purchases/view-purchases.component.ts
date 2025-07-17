@@ -122,6 +122,7 @@ filters = {
     this.downloadCsv(csvContent, 'purchase-reports.csv');
   }
   generateCsvContent() {
+    console.log("log purchases" , this.purchases[0]);
     const headers = Object.keys(this.purchases[0]);
     const csvRows = [
       headers.join(','),

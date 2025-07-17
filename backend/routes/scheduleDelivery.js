@@ -2,15 +2,16 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
-const requireAuth = require('./authMiddleware');
+const requireAuth = require('./middlewares/authMiddleware');
 const moment = require('moment');
 const multer = require('multer');
 const storage = multer.memoryStorage();
 const path = require('path');
 const fs = require('fs');
+const requireRole = require('./middlewares/requireRole');
 
 // Main delivery route with pagination
-router.get('/delivery', requireAuth, (req, res) => {
+router.get('/delivery', requireAuth, requireRole('admin', 'warehouse'), (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
   const offset = (page - 1) * limit;
@@ -97,7 +98,7 @@ router.get('/delivery', requireAuth, (req, res) => {
 });
 
 // Search with pagination
-router.get('/delivery/search/:query', requireAuth, (req, res) => {
+router.get('/delivery/search/:query', requireAuth, requireRole('admin', 'warehouse'), (req, res) => {
   const searchQuery = req.params.query;
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
@@ -153,12 +154,14 @@ router.get('/delivery/search/:query', requireAuth, (req, res) => {
       OR st.Qty LIKE ?
       OR st.Delivery_date LIKE ?
       OR st.Payment_Status LIKE ?
-      OR st.Customer_name LIKE ?)
+      OR st.Customer_name LIKE ?
+      OR purm.POStatus LIKE ?
+      OR st.SOStatus LIKE ?)
     ORDER BY ${validSortBy} ${validSortOrder}
     LIMIT ? OFFSET ?`;
     
   const searchParam = `%${searchQuery}%`;
-  const searchParams = [searchParam, searchParam, searchParam, searchParam, searchParam, searchParam, searchParam];
+  const searchParams = [searchParam, searchParam, searchParam, searchParam, searchParam, searchParam, searchParam, searchParam, searchParam];
 
   // Execute count query first
   db.query(countSql, searchParams, (err, countResult) => {
@@ -204,7 +207,7 @@ router.get('/delivery/search/:query', requireAuth, (req, res) => {
 });
 
 
-router.put('/delivery/updateTransferDate', requireAuth, (req, res) => {
+router.put('/delivery/updateTransferDate', requireAuth, requireRole('admin', 'warehouse'), (req, res) => {
   const updates = req.body;
   console.log('Received updates:', updates);
   if (!Array.isArray(updates) || updates.length === 0) {
@@ -235,7 +238,7 @@ router.put('/delivery/updateTransferDate', requireAuth, (req, res) => {
 
 const upload = multer({ storage: storage });
 
-router.put('/delivery/uploadSignature', upload.single('signature'), requireAuth, (req, res) => {
+router.put('/delivery/uploadSignature', upload.single('signature'), requireAuth, requireRole('admin', 'warehouse'), (req, res) => {
   const soNumber = req.body.soNumber;
   const signatureBuffer = req.file?.buffer;
   console.log('sonumber :', req.body.soNumber);
@@ -258,7 +261,7 @@ router.put('/delivery/uploadSignature', upload.single('signature'), requireAuth,
 });
 
 // Get signature image by SalesID
-router.get('/delivery/:salesID', requireAuth, (req, res) => {
+router.get('/delivery/:salesID', requireAuth, requireRole('admin', 'warehouse'), (req, res) => {
   console.log('Fetching signature for SalesID:', req.params.salesID);
   const salesID = req.params.salesID;
 
@@ -281,7 +284,7 @@ router.get('/delivery/:salesID', requireAuth, (req, res) => {
 });
 
 // Update delivery status
-router.put('/delivery/updateSOStatus', requireAuth, (req, res) => {
+router.put('/delivery/updateSOStatus', requireAuth, requireRole('admin', 'warehouse'), (req, res) => {
   const { salesID, newStatus } = req.body;
 
   if (!salesID || !newStatus) {
@@ -333,7 +336,7 @@ const uploadDeliveryPicture = multer({
   }
 });
 
-router.put('/delivery/uploadDeliveryPicture', uploadDeliveryPicture.single('deliveryPicture'), requireAuth, (req, res) => {
+router.put('/delivery/uploadDeliveryPicture', uploadDeliveryPicture.single('deliveryPicture'), requireAuth, requireRole('admin', 'warehouse'), (req, res) => {
   const salesID = req.body.salesID;
   const deliveryPictureFile = req.file;
 

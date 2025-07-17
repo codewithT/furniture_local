@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { catchError, Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 export interface ReceivedProduct {
@@ -29,29 +29,32 @@ private apiUrl = `${environment.apiBaseUrl}/u/receive`;
     withCredentials: true  
   };
 
-  getReceivedProducts(page = 1, limit = 10): Observable<{
-  data: ReceivedProduct[];
-  totalItems: number;
-  totalPages: number;
-  currentPage: number;
-  itemsPerPage: number;
-}> {
-  return this.http.get<{
-    data: ReceivedProduct[];
-    totalItems: number;
-    totalPages: number;
-    currentPage: number;
-    itemsPerPage: number;
-  }>(`${this.apiUrl}?page=${page}&limit=${limit}`, this.httpOptions)
-  .pipe(catchError(this.handleError<any>('Get about to receive products', {
-    data: [],
-    totalItems: 0,
-    totalPages: 0,
-    currentPage: page,
-    itemsPerPage: limit
-  })));
-}
+  getReceivedProducts(
+    page: number = 1, 
+    limit: number = 10, 
+    search: string = '', 
+    sortField: string = '', 
+    sortDirection: 'asc' | 'desc' = 'asc'
+  ): Observable<any> {
+    let params = new HttpParams()
+      .set('page', page.toString())
+      .set('limit', limit.toString());
+    
+    if (search.trim()) {
+      params = params.set('search', search.trim());
+    }
+    
+    if (sortField) {
+      params = params.set('sortField', sortField);
+      params = params.set('sortDirection', sortDirection);
+    }
 
+    return this.http.get<any>(
+      `${this.apiUrl}/received-products`,
+      { ...this.httpOptions, params }
+    )
+      .pipe(catchError(this.handleError<any>('getReceivedProducts', { data: [], totalItems: 0, totalPages: 0, currentPage: 1 })));   
+  }
     updateStatus(product: ReceivedProduct): Observable<any> {
         return this.http.put(`${this.apiUrl}/${product.PurchaseID}`, product, this.httpOptions)
           .pipe(catchError(this.handleError<any>('Update product Status', [])));

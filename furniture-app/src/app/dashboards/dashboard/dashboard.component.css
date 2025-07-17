@@ -9,7 +9,7 @@
 .mat-toolbar.mat-primary {
   position: sticky;
   top: 0;
-  z-index: 500;
+  z-index: 10;
 }
 
 /* Sidenav layout container below toolbar */
@@ -34,6 +34,4 @@
 }
 
 /* Ensure Angular Material overlays like mat-menu stay on top */
-.cdk-overlay-container, .cdk-overlay-pane {
-  z-index: 2000 !important;
-}
+

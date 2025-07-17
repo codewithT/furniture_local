@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { Product } from '../models/product.model';
@@ -40,10 +40,16 @@ export class ProductService {
   }
 
   // Fetch all products
-  getProducts(paginationParams: { page: number; limit: number }): Observable<Product[]> {
-    const { page, limit } = paginationParams;
-    return this.http.get<Product[]>(`${this.apiUrl}?page=${page}&limit=${limit}`, this.httpOptions)
-      .pipe(catchError(this.handleError<Product[]>('getProductDetails', [])));
+  getProducts(paginationParams: any): Observable<Product[]> {
+    
+    const httpParams = new HttpParams()
+      .set('page', paginationParams.page.toString())
+      .set('limit', paginationParams.limit.toString())
+      .set('sortColumn', paginationParams.sortColumn || 'created_date')
+      .set('sortDirection', paginationParams.sortDirection || 'desc');
+
+    return this.http.get<any>(`${this.apiUrl}`, { params: httpParams, ...this.httpOptions })
+      .pipe(catchError(this.handleError<any>('getProducts', { data: [], pagination: {} })));
   }
 
   // Add product
@@ -78,12 +84,25 @@ uploadProductImage(productId: number, formData: FormData) {
   }
 
   // Search products with Pagination
-  searchProducts(query: string, paginationParams: { page: number; limit: number }): Observable<Product[]> {
-    const { page, limit } = paginationParams;
-    return this.http.get<Product[]>(`${this.apiUrl}/search?query=${encodeURIComponent(query)}&page=${page}&limit=${limit}`,
-      this.httpOptions
-    ).pipe(catchError(this.handleError<Product[]>('searchProducts', [])));
+  // Search products with Pagination and Sorting
+  searchProducts(
+    searchTerm: string,
+    paginationParams: { page: number; limit: number; sortColumn?: string; sortDirection?: string }
+  ): Observable<any> {
+    const { page, limit, sortColumn = 'created_date', sortDirection = 'desc' } = paginationParams;
+    const httpParams = new HttpParams()
+      .set('query', searchTerm)
+      .set('page', page.toString())
+      .set('limit', limit.toString())
+      .set('sortColumn', sortColumn)
+      .set('sortDirection', sortDirection);
+
+    return this.http.get<any>(`${this.apiUrl}/search`, {
+      params: httpParams,
+      ...this.httpOptions
+    }).pipe(catchError(this.handleError<any>('searchProducts', { data: [], pagination: {} })));
   }
+  
   
   // Check if supplier code is valid
   checkSupplierCode(code: string): Observable<boolean> {

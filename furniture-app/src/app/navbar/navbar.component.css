@@ -1,266 +1,283 @@
-/* Base styles for navigation */
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: #f5f7fa;
+  padding: 20px;
+}
+ 
+
 nav {
-  background: linear-gradient(to right, #8EC5FC, #E0C3FC);
-  padding: 15px 25px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-  border-radius: 10px;
-  width: 100%;
+  background: linear-gradient(to right, #8ea9fc, #E0C3FC);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
   position: relative;
-  z-index: 1000;
+  top : 0;
+   
+  overflow:visible; /* Changed from hidden to visible */
+  z-index: 100;
 }
 
 .nav-container {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 5px 20px;
-  max-width: 1200px;
-  margin: auto;
+  padding: 1rem 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+  position: relative;
+  
 }
 
-/* Logo Styling */
 .logo img {
-  width: 120px;
-  height: auto;
-  transition: transform 0.3s;
+  height: 40px;
+  width: auto;
+  transition: transform 0.3s ease;
 }
 
 .logo img:hover {
-  transform: scale(1.1);
+  transform: scale(1.05);
 }
 
-/* Navigation Links Styling */
 .nav-links {
   display: flex;
-  list-style: none;
-  gap: 25px;
   align-items: center;
-  padding: 0;
+  gap: 1rem;
+  list-style: none;
   margin: 0;
+  padding: 0;
 }
 
 .nav-links a {
-  text-decoration: none;
   color: #333;
-  font-size: 16px;
-  padding: 10px 15px;
-  border-radius: 5px;
-  transition: background 0.3s, color 0.3s;
-  font-weight: 600;
+  text-decoration: none;
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  font-weight: 500;
+  font-size: 0.9rem;
+  white-space: nowrap;
   display: flex;
   align-items: center;
-  gap: 5px;
-  cursor: pointer;
+  gap: 0.5rem;
 }
 
+.nav-links a:hover,
 .nav-links a.active {
-  font-weight: bold;
-  color: #5D3587;
-  background: rgba(255, 255, 255, 0.2);
+  background: #e0e7ff;
+  font-weight: 600;
 }
 
-.nav-links a:hover {
-  background: rgba(255, 255, 255, 0.3);
-  color: #222;
-}
-
-.nav-links i {
-  margin-right: 5px;
-}
-
-/* Dropdown Styling */
 .dropdown {
   position: relative;
-  display: inline-block;
 }
 
 .dropdown-toggle {
-  color: #333;
-  text-decoration: none;
-  
-  padding: 10px 15px;
-  font-size: 16px;
-  font-weight: 600;
-  border-radius: 5px;
-  
+  cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 0.5rem;
+  color: #333;
+  background: none;
+  border: none;
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  font-weight: 500;
+  font-size: 0.9rem;
+  white-space: nowrap;
 }
 
-.dropdown-toggle:hover {
-  background: rgba(255, 255, 255, 0.3);
+.dropdown-toggle:hover,
+.dropdown-toggle.active {
+  background: #e0e7ff;
+  font-weight: 600;
+}
+
+.dropdown-arrow {
+  font-size: 0.8rem;
+  transition: transform 0.3s ease;
 }
 
 .dropdown-menu {
-  display: flex;
-  flex-direction: column;
   position: absolute;
-  background: white;
-  min-width: 180px;
-  top: 45px;
+  top: 100%;
   left: 0;
+  background: #fff;
   border-radius: 8px;
-  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.1);
-  z-index: 1001;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  min-width: 200px;
+  z-index: 1000;
+  padding: 0.5rem 0;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-10px);
+  transition: all 0.3s ease;
+  border: 1px solid #e9ecef;
+}
+
+.dropdown-menu.show {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
 }
 
 .dropdown-menu a {
-  padding: 12px;
-  color: #5D3587;
+  color: #333;
+  padding: 0.75rem 1.25rem;
+  display: block;
   text-decoration: none;
-  display: flex;
-  align-items: center;
-   
+  font-size: 0.9rem;
+  transition: background 0.2s ease;
+  border-radius: 0;
 }
 
 .dropdown-menu a:hover {
-  background: rgba(231, 216, 231, 0.5);
-  border-radius: 5px;
-}
-
-/* User Dropdown Styling */
-.user-dropdown {
-  position: relative;
-  cursor: pointer;
-}
-
-.user-dropdown .dropdown-toggle {
-  padding: 10px;
-}
-
-.user-dropdown .dropdown-toggle i {
-  font-size: 20px;
+  background: #f0f4ff;
 }
 
 .user-dropdown .dropdown-menu {
   right: 0;
   left: auto;
-  min-width: 150px;
 }
 
-/* Mobile nav toggle button - hidden by default */
-.mobile-nav-toggle {
+.user-name {
+  padding: 0.75rem 1.25rem;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+  font-weight: 600;
+  color: #495057;
+  font-size: 0.85rem;
+}
+
+.user-email {
+  font-size: 0.8rem;
+  color: #666;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mobile-toggle {
   display: none;
-  background: transparent;
+  background: none;
   border: none;
-  font-size: 24px;
   color: #333;
+  font-size: 1.5rem;
   cursor: pointer;
-  padding: 5px;
+  padding: 0.5rem;
+  border-radius: 4px;
+  transition: background 0.3s ease;
 }
 
-/* Media queries for responsive design */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.mobile-toggle:hover {
+  background: rgba(0, 0, 0, 0.05);
 }
 
-@media (max-width: 992px) {
-  .nav-links {
-    gap: 15px;
-  }
-  
-  .nav-links a, .dropdown-toggle {
-    font-size: 14px;
-    padding: 8px 12px;
-  }
-  
-  .logo img {
-    width: 100px;
-  }
-}
-
-@media (max-width: 768px) {
-  .nav-container {
-    position: relative;
-  }
-  
-  .mobile-nav-toggle {
+/* Tablet and Mobile Styles */
+@media (max-width: 1030px) {
+  .mobile-toggle {
     display: block;
-    position: absolute;
-    right: 20px;
-    top: 50%;
-    transform: translateY(-50%);
   }
-  
+
   .nav-links {
     position: absolute;
-    flex-direction: column;
-    background: linear-gradient(to bottom, #8EC5FC, #E0C3FC);
-    width: 100%;
     top: 100%;
     left: 0;
-    padding: 0;
-    margin-top: 15px;
+    right: 0;
+    background: #ffffff;
+    flex-direction: column;
     gap: 0;
-    border-radius: 0 0 10px 10px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-    max-height: 0;
-    overflow: hidden;
-    transition: max-height 0.3s ease-in-out;
-    z-index: 1002;
+    padding: 1rem 0;
+    border-radius: 0 0 12px 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    transform: translateY(-20px);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    border-top: 1px solid #e9ecef;
+    z-index: 999;
   }
-  
+
   .nav-links.active {
-    max-height: 500px;
-    padding: 15px 0;
+    transform: translateY(0);
+    opacity: 1;
+    visibility: visible;
   }
-  
-  .nav-links a, .dropdown-toggle {
+
+  .nav-links a {
     width: 100%;
-    padding: 12px 20px;
+    padding: 1rem 2rem;
+    justify-content: flex-start;
     border-radius: 0;
   }
-  
+
   .dropdown {
     width: 100%;
   }
-  
+
+  .dropdown-toggle {
+    width: 100%;
+    padding: 1rem 2rem;
+    justify-content: space-between;
+    border-radius: 0;
+  }
+
   .dropdown-menu {
     position: static;
-    width: 100%;
     box-shadow: none;
-    padding-left: 15px;
+    background: #f9f9f9;
+    border: none;
     border-radius: 0;
-    background: rgba(255, 255, 255, 0.2);
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    transition: none;
   }
-  
+
+  .dropdown-menu.show {
+    display: block;
+  }
+
+  .dropdown-menu:not(.show) {
+    display: none;
+  }
+
   .dropdown-menu a {
-    padding: 10px 20px;
+    padding: 0.75rem 3rem;
+    background: #f9f9f9;
   }
-  
-  .user-dropdown {
-    margin-top: 10px;
-    width: 100%;
+
+  .dropdown-menu a:hover {
+    background: #f0f4ff;
   }
-  
-  .user-dropdown .dropdown-menu {
-    width: 100%;
-    right: auto;
+
+  .user-name {
+    background: #f0f0f0;
+    color: #333;
+  }
+
+  .user-email {
+    display: none;
   }
 }
 
-@media (max-width: 480px) {
-  nav {
-    padding: 10px 15px;
-  }
-  
+/* Prevent body scroll when mobile menu is open */
+body.mobile-menu-open {
+  overflow: hidden;
+}
+
+/* Additional iPad specific adjustments */
+@media (max-width: 1024px) and (min-width: 769px) {
   .nav-container {
-    padding: 5px 10px;
+    padding: 1rem 1.5rem;
   }
   
-  .logo img {
-    width: 80px;
+  .nav-links a {
+    padding: 0.8rem 1.5rem;
+    font-size: 0.95rem;
   }
   
-  .nav-links a, .dropdown-toggle {
-    font-size: 14px;
+  .dropdown-toggle {
+    padding: 0.8rem 1.5rem;
+    font-size: 0.95rem;
   }
 }

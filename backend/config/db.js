@@ -7,7 +7,7 @@ const db = mysql.createPool({
   password: process.env.DB_PASS || '',
   database: process.env.DB_NAME,
   connectionLimit: 15, 
-  // port: process.env.DB_PORT || 3306,
+   
 });
  
 db.getConnection((err, connection) => {

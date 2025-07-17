@@ -2,10 +2,14 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/db'); // Use pool instead of db
 const nodemailer = require("nodemailer");
-const requireAuth = require('./authMiddleware');
+const requireAuth = require('./middlewares/authMiddleware');
+const requireRole = require('./middlewares/requireRole');
+//import transporter from uitls
+ 
+const transporter = require('../utils/transpoter_email');  
 
 // GET Orders - Use Pool
-router.get('/manageOrders', requireAuth, (req, res) => {
+router.get('/manageOrders', requireAuth, requireRole('admin', 'sales'), (req, res) => {
     const {
         page = 1,
         limit = 10,
@@ -23,7 +27,7 @@ router.get('/manageOrders', requireAuth, (req, res) => {
     // Valid sortable fields to prevent SQL injection
     const validSortFields = [
         'Created_date', 'SONumber', 'ProductName', 'CustomerEmail', 
-        'Customer_name', 'Qty', 'Delivery_date', 'POStatus', 
+        'Customer_name', 'Qty', 'Delivery_date', 'SOStatus', 
         'Total_Paid_Amount', 'Payment_Status'
     ];
     
@@ -43,8 +47,7 @@ router.get('/manageOrders', requireAuth, (req, res) => {
             st.Payment_Status LIKE ?
         ) AND st.isActive = 1`;
         searchParams = [searchTerm, searchTerm, searchTerm, searchTerm, searchTerm];
-    }
-    else{
+    } else {
         whereClause = 'WHERE st.isActive = 1'; // Default to active records
     }
 
@@ -75,12 +78,11 @@ router.get('/manageOrders', requireAuth, (req, res) => {
         LIMIT ? OFFSET ?
     `;
 
-    // Count query for total records
+    // FIXED: Count query should match the same JOINs as data query
     const countQuery = `
         SELECT COUNT(*) as total
         FROM salestable st
         JOIN productmaster pm ON st.ProductID = pm.ProductID
-        JOIN purchasemaster purm ON st.SalesID = purm.SalesID
         ${whereClause}
     `;
 
@@ -132,7 +134,7 @@ router.get('/manageOrders', requireAuth, (req, res) => {
 });
 
 // update payment status
-router.put('/manageOrders/update-payment-status', requireAuth, (req, res) => {
+router.put('/manageOrders/update-payment-status', requireAuth, requireRole('admin', 'sales'), (req, res) => {
     const { SalesID, Payment_Status } = req.body;
 
     if (!SalesID || !Payment_Status) {
@@ -175,7 +177,7 @@ router.put('/manageOrders/update-payment-status', requireAuth, (req, res) => {
     });
 });
 // Delete a Sales Order by SalesID
-router.delete('/manageOrders/:salesID',requireAuth, (req, res) => {
+router.delete('/manageOrders/:salesID', requireAuth, requireRole('admin', 'sales'), (req, res) => {
     const { salesID } = req.params;
 
     const query = `UPDATE salestable st SET st.isActive =0 WHERE st.SalesID = ?`;
@@ -203,17 +205,10 @@ router.delete('/manageOrders/:salesID',requireAuth, (req, res) => {
     });
 });
 
-// Nodemailer Transporter
-const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-        user: process.env.USER_GMAIL,
-        pass: process.env.USER_PASSWORD,
-    },
-});
+ 
 
 // POST Send Mails with Pool
-router.post('/manageOrders/send-mails', requireAuth, async (req, res) => {
+router.post('/manageOrders/send-mails', requireAuth, requireRole('admin', 'sales'), async (req, res) => {
     const selectedOrders = req.body.orders;
     console.log(selectedOrders);
 
@@ -281,4 +276,5 @@ router.post('/manageOrders/send-mails', requireAuth, async (req, res) => {
         }
     });
 });
+
 module.exports = router;

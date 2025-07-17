@@ -1,67 +1,84 @@
 <div class="container">
   <h2>Supplier Purchase Orders</h2>
-  
+
   <div *ngIf="loading">Loading...</div>
-  
+
   <div *ngIf="successMessage" class="success-message">
     {{ successMessage }}
   </div>
-  
+
   <div *ngIf="!loading && (!purchases || purchases.length === 0)">
     No purchase orders found for this supplier.
   </div>
-  
+
   <table mat-table [dataSource]="purchases" class="mat-elevation-z8" *ngIf="!loading && purchases && purchases.length > 0">
+    
+    <!-- PO Number -->
     <ng-container matColumnDef="PONumber">
       <th mat-header-cell *matHeaderCellDef>PO Number</th>
       <td mat-cell *matCellDef="let purchase">{{ purchase.PONumber }}</td>
     </ng-container>
 
+    <!-- Supplier Item Number -->
     <ng-container matColumnDef="ProductCode">
       <th mat-header-cell *matHeaderCellDef>Supplier Item Number</th>
       <td mat-cell *matCellDef="let purchase">{{ purchase.SupplierItemNumber }}</td>
     </ng-container>
 
+    <!-- Ordered Qty -->
     <ng-container matColumnDef="Qty">
       <th mat-header-cell *matHeaderCellDef>Ordered Qty</th>
       <td mat-cell *matCellDef="let purchase">{{ purchase.Qty }}</td>
     </ng-container>
+
+    <!-- Product Name -->
     <ng-container matColumnDef="ProductName">
       <th mat-header-cell *matHeaderCellDef>Product Name</th>
       <td mat-cell *matCellDef="let purchase">{{ purchase.ProductName }}</td>
     </ng-container>
 
+    <!-- Supplier Date -->
     <ng-container matColumnDef="Supplier_Date">
       <th mat-header-cell *matHeaderCellDef>Pick Up Date</th>
       <td mat-cell *matCellDef="let purchase">{{ purchase.Supplier_Date | date }}</td>
     </ng-container>
 
+    <!-- Confirm Dropdown -->
     <ng-container matColumnDef="Confirm">
       <th mat-header-cell *matHeaderCellDef>Confirm</th>
       <td mat-cell *matCellDef="let purchase">
-        <select [(ngModel)]="confirmations[purchase.PurchaseID].status" (change)="checkDelayed(purchase.PurchaseID)">
+        <select [(ngModel)]="confirmations[purchase.PurchaseID].status" 
+                (change)="checkDelayed(purchase.PurchaseID)">
           <option value="">Select</option>
           <option value="YES">YES</option>
           <option value="NO">Discontinued</option>
           <option value="DELAYED">Delayed</option>
         </select>
-        
-        <!-- Show date input if "Delayed" is selected -->
-        <input 
-          *ngIf="confirmations[purchase.PurchaseID]?.status === 'DELAYED'"
-          type="date"
-          [(ngModel)]="confirmations[purchase.PurchaseID].delayedDate"
-        />
+
+        <!-- Date input only if status is DELAYED -->
+        <div *ngIf="confirmations[purchase.PurchaseID]?.status === 'DELAYED'" style="margin-top: 4px;">
+          <input 
+            type="date" 
+            [(ngModel)]="confirmations[purchase.PurchaseID].delayedDate" />
+          
+          <!-- Validation: Show warning if date is missing -->
+          <div *ngIf="!confirmations[purchase.PurchaseID].delayedDate" style="color: red; font-size: 12px;">
+            Please select a delayed date.
+          </div>
+        </div>
       </td>
     </ng-container>
-    
 
+    <!-- Table Rows -->
     <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
     <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
   </table>
 
+  <!-- Submit Button -->
   <div class="button-container" *ngIf="!loading && purchases && purchases.length > 0">
-    <button mat-raised-button color="primary" (click)="submitConfirmations()" [disabled]="loading">
+    <button mat-raised-button color="primary" 
+            (click)="submitConfirmations()" 
+            [disabled]="loading || isSubmitDisabled()">
       {{ loading ? 'Submitting...' : 'Confirm Orders' }}
     </button>
   </div>

@@ -1,46 +1,72 @@
-<div class="container mt-4">
-    <h2>Home / Supplier</h2>
+
+<div class = "header">
+    <h2>CFE-Suppliers</h2>
 
     <!-- Search Bar -->
     <div class="search-container">
-        <input type="text" class="form-control search-bar mb-3" placeholder="Search by Supplier ID, Name, Address" 
-        [(ngModel)]="searchTerm" (ngModelChange)="onSearchChange()"
+       
+       <div class="supplier-action-bar">
+  <input
+    type="text"
+    class="form-control search-bar"
+    placeholder="Search by Supplier ID, Name, Address"
+    [(ngModel)]="searchTerm"
+    (ngModelChange)="onSearchChange()"
+  />
+
+  <button class="btn btn-primary" (click)="openModal()">
+    <i class="fas fa-plus"></i> Add Supplier
+  </button>
+
+  <ng-container *ngIf="authService.hasAnyRole(['admin'])">
+    <label for="file-upload" class="file-upload-label">
+      <i class="fas fa-file-upload"></i> Choose File
+    </label>
+    <input id="file-upload" type="file" (change)="onFileChange($event)" accept=".xls,.xlsx" hidden />
+
+            <!-- Upload Button - visible only if file is selected -->
+        <button
+        class="btn upload-btn"
+        *ngIf="file"
+        (click)="uploadExcel()"
+        [disabled]="isUploading"
         >
-        <div class="header">
-            <button class="btn btn-primary mb-3" (click)="openModal()">Add Supplier</button>
+        Upload
+        </button>
+        </ng-container>
         </div>
-        
-        <div class="file-upload-container">
-            <label for="file-upload" class="file-upload-label">Choose File</label>
-            <input id="file-upload" type="file" (change)="onFileChange($event)" accept=".xls,.xlsx" hidden />
-        
-            <!-- Display the selected file name below -->
-            <div class="file-name" *ngIf="fileName">{{ fileName }}</div>
-        </div>
-        <button class="upload-btn" type="button" (click)="uploadExcel()" [disabled]="isUploading || !file">Upload</button>
-    </div>
 
-    <!-- Upload Progress Display -->
-    <div class="upload-progress-container" *ngIf="showProgress">
-        <div class="progress mb-2">
-            <div class="progress-bar" 
-                 [class.bg-success]="uploadStatus === 'success'"
-                 [class.bg-danger]="uploadStatus === 'error'"
-                 [class.bg-info]="uploadStatus === 'processing'"
-                 [style.width.%]="uploadProgress">
-                {{ uploadProgress }}%
+        <!-- Display selected file name -->
+        <div class="file-name mt-2" *ngIf="fileName">{{ fileName }}</div>
+
+
             </div>
-        </div>
-        <div class="upload-status mb-3">
-            <span [class.text-success]="uploadStatus === 'success'"
-                  [class.text-danger]="uploadStatus === 'error'"
-                  [class.text-info]="uploadStatus === 'processing'">
-                {{ uploadMessage }}
-            </span>
-            <button *ngIf="isUploading" class="btn btn-sm btn-danger ms-2" (click)="cancelUpload()">Cancel</button>
-        </div>
-    </div>
 
+            <!-- Upload Progress Display -->
+            <div *ngIf="authService.hasAnyRole([ 'admin'])">
+            <div *ngIf="showProgress"
+            class="upload-progress-container">
+                <div class="progress mb-2">
+                    <div class="progress-bar" 
+                        [class.bg-success]="uploadStatus === 'success'"
+                        [class.bg-danger]="uploadStatus === 'error'"
+                        [class.bg-info]="uploadStatus === 'processing'"
+                        [style.width.%]="uploadProgress">
+                        {{ uploadProgress }}%
+                    </div>
+                </div>
+                <div class="upload-status mb-3">
+                    <span [class.text-success]="uploadStatus === 'success'"
+                        [class.text-danger]="uploadStatus === 'error'"
+                        [class.text-info]="uploadStatus === 'processing'">
+                        {{ uploadMessage }}
+                    </span>
+                    <button *ngIf="isUploading" class="btn btn-sm btn-danger ms-2" (click)="cancelUpload()">Cancel</button>
+                </div>
+            </div>
+            </div>
+    </div>
+    <div class="container mt-4">
     <!-- Entries per page dropdown -->
     <div class="row mb-3">
         <div class="col-md-6">
@@ -96,6 +122,7 @@
                     <td>
                         <button class="btn btn-sm btn-warning me-2" (click)="editSupplier(supplier)">Edit</button>
                         <button class="btn btn-sm btn-danger" (click)="deleteSupplier(supplier.SupplierID)">Delete</button>
+                        
                     </td>
                 </tr>
             </tbody>

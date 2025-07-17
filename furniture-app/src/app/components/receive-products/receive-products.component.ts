@@ -20,15 +20,23 @@ export class ReceiveProductsComponent implements OnInit {
   totalItems = 0;
   totalPages = 0;
   pages: number[] = [];
-
+  sortField: string = '';
+  sortDirection: 'asc' | 'desc' = 'asc';
+    searchQuery: string = '';
   constructor(private receiveProductsService: ReceiveProductsService) {}
 
   ngOnInit(): void {
     this.loadReceivedProducts();
   }
 
-  loadReceivedProducts(): void {
-    this.receiveProductsService.getReceivedProducts(this.currentPage, this.itemsPerPage).subscribe({
+   loadReceivedProducts(): void {
+    this.receiveProductsService.getReceivedProducts(
+      this.currentPage, 
+      this.itemsPerPage,
+      this.searchQuery,
+      this.sortField,
+      this.sortDirection
+    ).subscribe({
       next: (res) => {
         this.receiveProducts = res.data;
         this.totalItems = res.totalItems;
@@ -39,11 +47,50 @@ export class ReceiveProductsComponent implements OnInit {
       error: (error) => console.error('Error fetching received products', error)
     });
   }
+  sortTable(field: string): void {
+    if (this.sortField === field) {
+      // If same field, toggle direction
+      this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+      // If different field, set new field and default to ascending
+      this.sortField = field;
+      this.sortDirection = 'asc';
+    }
+    this.currentPage = 1; // Reset to first page when sorting
+    this.loadReceivedProducts();
+  }
+  getSortIcon(field: string): string {
+    if (this.sortField !== field) {
+      return 'sort'; // Default sort icon
+    }
+    return this.sortDirection === 'asc' ? 'sort-up' : 'sort-down';
+  }
+    
+  // searchProducts(): void {
+  //   if (this.searchQuery.trim()) {
+  //     this.receiveProductsService.getReceivedProducts(this.currentPage, this.itemsPerPage).subscribe({
+  //       next: (res) => {
+  //         this.receiveProducts = res.data.filter(product =>
+  //           product.SupplierCode.includes(this.searchQuery) ||
+  //           product.PONumber.includes(this.searchQuery) ||
+  //           product.ProductName.includes(this.searchQuery)
+  //         );
+  //         this.totalItems = this.receiveProducts.length;
+  //         this.totalPages = Math.ceil(this.totalItems / this.itemsPerPage);
+  //         this.currentPage = 1;
+  //         this.updatePages();
+  //       },
+  //       error: (error) => console.error('Error searching products', error)
+  //     });
+  //   } else {
+  //     this.loadReceivedProducts();
+  //   }
+  // }
 
-  changeItemsPerPage(event: any) {
+   changeItemsPerPage(event: any) {
     this.itemsPerPage = +event.target.value;
     this.currentPage = 1;
-    this.loadReceivedProducts();
+    this.loadReceivedProducts(); // This will now include search and sort parameters
   }
 
   prevPage() {

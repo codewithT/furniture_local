@@ -8,7 +8,8 @@ import { RouterModule } from '@angular/router';
 import { ChangeDetectorRef } from '@angular/core';
 import { Supplier, PaginationResponse } from '../../models/supplier.model';
 import { debounceTime, distinctUntilChanged, Subject, Subscription } from 'rxjs';
-
+import { AuthService } from '../../services/auth.service';
+import { MatSnackBar } from '@angular/material/snack-bar';
 @Component({
   selector: 'app-supplier',
   imports: [CommonModule, FormsModule, RouterModule],
@@ -19,7 +20,7 @@ import { debounceTime, distinctUntilChanged, Subject, Subscription } from 'rxjs'
 export class SupplierComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('supplierModal') modalElement!: ElementRef;
   private modal!: Modal;
-
+private progressErrorCount: number = 0;
   // Data and pagination
   suppliers: Supplier[] = [];
   totalItems: number = 0;
@@ -56,7 +57,9 @@ export class SupplierComponent implements OnInit, AfterViewInit, OnDestroy {
   private uploadSubscription: Subscription | null = null;
   private progressSubscription: Subscription | null = null;
   
-  constructor(private supplierService: SupplierService, private cdr: ChangeDetectorRef) {}
+  constructor(private supplierService: SupplierService, private cdr: ChangeDetectorRef,
+    public authService: AuthService, private snackBar : MatSnackBar,
+  ) {}
 
   ngOnInit(): void {
     this.loadSuppliers();
@@ -151,195 +154,354 @@ export class SupplierComponent implements OnInit, AfterViewInit, OnDestroy {
   /**
    * Handle file selection for Excel import
    */
-  onFileChange(event: Event) {
-    const input = event.target as HTMLInputElement;
-    if (input.files && input.files.length > 0) {
-      const file = input.files[0];
-      // Validate file size (limit to 10MB)
-      if (file.size > 10 * 1024 * 1024) {
-        alert('File is too large. Maximum size is 10MB.');
-        input.value = '';
-        this.file = null;
-        this.fileName = '';
-        return;
-      }
-      
-      // Validate file type
-      const validExtensions = ['.xlsx', '.xls'];
-      const fileExt = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
-      if (!validExtensions.includes(fileExt)) {
-        alert('Only Excel files (.xlsx, .xls) are allowed');
-        input.value = '';
-        this.file = null;
-        this.fileName = '';
-        return;
-      }
-      
-      this.file = file;
-      this.fileName = file.name;
-      this.uploadStatus = 'idle';
-      this.uploadProgress = 0;
+ onFileChange(event: Event) {
+  const input = event.target as HTMLInputElement;
+  if (input.files && input.files.length > 0) {
+    const file = input.files[0];
+    
+    // Reset previous state
+    this.uploadStatus = 'idle';
+    this.uploadProgress = 0;
+    this.showProgress = false;
+    this.uploadMessage = '';
+    
+    // Validate file size (limit to 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      this.snackBar.open('File is too large. Maximum size is 10MB.', 'Close', {
+        duration: 3000,
+        verticalPosition: 'top',
+        horizontalPosition: 'center'
+      });
+      input.value = '';
+      this.file = null;
+      this.fileName = '';
+      return;
     }
+    
+    // Validate file type
+    const validExtensions = ['.xlsx', '.xls'];
+    const fileExt = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+    
+    if (!validExtensions.includes(fileExt)) {
+      this.snackBar.open('Only Excel files (.xlsx, .xls) are allowed', 'Close', {
+        duration: 3000,
+        verticalPosition: 'top',
+        horizontalPosition: 'center'
+      });
+      input.value = '';
+      this.file = null;
+      this.fileName = '';
+      return;
+    }
+    
+    // File is valid
+    this.file = file;
+    this.fileName = file.name;
+    
+    console.log('File selected:', file.name, 'Size:', file.size, 'Type:', file.type);
   }
+}
   
   /**
    * Upload Excel file for bulk import
    */
-  uploadExcel() {
-    if (!this.file || this.isUploading) {
-      return;
-    }
-
-    this.isUploading = true;
-    this.showProgress = true;
-    this.uploadStatus = 'processing';
-    this.uploadProgress = 0;
-    this.uploadMessage = 'Preparing file for upload...';
-
-    const formData = new FormData();
-    formData.append('file', this.file);
-
-    if (this.uploadSubscription) {
-      this.uploadSubscription.unsubscribe();
-    }
-    
-    this.uploadSubscription = this.supplierService.uploadExcelFile(formData).subscribe({
-      next: (response) => {
-        if (response.jobId) {
-          // Start polling for progress if this is a background job
-          this.uploadJobId = response.jobId;
-          this.uploadMessage = 'Processing file in background...';
-          this.startProgressPolling();
-        } else {
-          // Direct response (small files)
-          this.handleUploadSuccess(response);
-        }
-      },
-      error: (error) => {
-        this.handleUploadError(error);
-      }
-    });
+ uploadExcel() {
+  if (!this.file || this.isUploading) {
+    return;
   }
+
+  // Reset upload state
+  this.isUploading = true;
+  this.showProgress = true;
+  this.uploadStatus = 'processing';
+  this.uploadProgress = 0;
+  this.uploadMessage = 'Preparing file for upload...';
+  this.uploadJobId = '';
+
+  const formData = new FormData();
+  formData.append('file', this.file);
+
+  // Clear any existing subscription
+  if (this.uploadSubscription) {
+    this.uploadSubscription.unsubscribe();
+  }
+  
+  // Clear any existing polling interval
+  if (this.pollInterval) {
+    clearInterval(this.pollInterval);
+  }
+  
+  this.uploadSubscription = this.supplierService.uploadExcelFile(formData).subscribe({
+    next: (response) => {
+      console.log('Upload response:', response);
+      
+      if (response.jobId) {
+        // Background job started
+        this.uploadJobId = response.jobId;
+        this.uploadMessage = 'File uploaded. Processing in background...';
+        this.uploadProgress = 10;
+        this.startProgressPolling();
+      } else {
+        // Direct response (should not happen with current backend)
+        this.handleUploadSuccess(response);
+      }
+    },
+    error: (error) => {
+      console.error('Upload error:', error);
+      this.handleUploadError(error);
+    }
+  });
+}
   
   /**
    * Start polling for upload progress
    */
-  startProgressPolling() {
-    // Clear any existing interval
-    if (this.pollInterval) {
-      clearInterval(this.pollInterval);
-    }
-    
-    // Poll every 2 seconds
-    this.pollInterval = setInterval(() => {
-      this.checkUploadProgress();
-    }, 2000);
+startProgressPolling() {
+  // Clear any existing interval
+  if (this.pollInterval) {
+    clearInterval(this.pollInterval);
   }
+  
+  // Initial progress check
+  this.checkUploadProgress();
+  
+  // Poll every 2 seconds
+  this.pollInterval = setInterval(() => {
+    this.checkUploadProgress();
+  }, 2000);
+}
   
   /**
    * Check upload job progress
    */
-  checkUploadProgress() {
-    if (!this.uploadJobId) return;
-    
-    this.supplierService.checkJobProgress(this.uploadJobId).subscribe({
-      next: (progressData: any) => {
-        this.uploadProgress = progressData.percentage || 0;
-        this.uploadMessage = progressData.message || 'Processing...';
-        
-        // Job completed
-        if (progressData.status === 'completed') {
-          this.handleUploadSuccess(progressData);
-          clearInterval(this.pollInterval);
-        } 
-        // Job failed
-        else if (progressData.status === 'failed') {
-          this.handleUploadError(new Error(progressData.message || 'Upload failed'));
-          clearInterval(this.pollInterval);
-        }
-        
-        this.cdr.detectChanges();
-      },
-      error: (error) => {
-        console.error('Error checking progress:', error);
-        // Don't stop polling on temporary errors
-      }
-    });
+checkUploadProgress() {
+  if (!this.uploadJobId) {
+    console.error('No job ID available for progress check');
+    return;
   }
+
+  this.supplierService.checkJobProgress(this.uploadJobId).subscribe({
+    next: (progressData: any) => {
+      console.log('Progress data:', progressData);
+      
+      // Update progress information
+      this.uploadProgress = Math.max(0, Math.min(100, progressData.percentage || 0));
+      this.uploadMessage = progressData.message || 'Processing...';
+      
+      // Handle different job statuses
+      switch (progressData.status) {
+        case 'completed':
+          this.handleUploadSuccess(progressData);
+          this.stopProgressPolling();
+          break;
+          
+        case 'failed':
+          this.handleUploadError(new Error(progressData.message || 'Upload failed'));
+          this.stopProgressPolling();
+          break;
+          
+        case 'cancelled':
+          this.handleUploadCancelled();
+          this.stopProgressPolling();
+          break;
+          
+        case 'processing':
+          // Continue polling
+          break;
+          
+        default:
+          console.warn('Unknown job status:', progressData.status);
+          break;
+      }
+      
+      // Force change detection
+      this.cdr.detectChanges();
+    },
+    error: (error) => {
+      console.error('Error checking progress:', error);
+      
+      // Don't stop polling immediately on error - could be temporary
+      // But stop after too many consecutive errors
+      if (!this.progressErrorCount) {
+        this.progressErrorCount = 0;
+      }
+      
+      this.progressErrorCount++;
+      
+      if (this.progressErrorCount >= 5) {
+        this.handleUploadError(new Error('Failed to check progress after multiple attempts'));
+        this.stopProgressPolling();
+      }
+    }
+  });
+}
+stopProgressPolling() {
+  if (this.pollInterval) {
+    clearInterval(this.pollInterval);
+    this.pollInterval = null;
+  }
+  this.progressErrorCount = 0;
+}
+
   
   /**
    * Handle successful upload completion
    */
-  handleUploadSuccess(response: any) {
-    this.uploadStatus = 'success';
-    this.isUploading = false;
-    this.uploadProgress = 100;
+handleUploadSuccess(response: any) {
+  console.log('Upload success response:', response);
+  
+  this.uploadStatus = 'success';
+  this.isUploading = false;
+  this.uploadProgress = 100;
+  
+  // Extract statistics
+  const stats = response.stats || {};
+  const successCount = stats.successful || response.loaded || 0;
+  const failureCount = stats.failed || 0;
+  const totalCount = stats.total || successCount + failureCount;
+  
+  // Create appropriate success message
+  if (failureCount > 0) {
+    this.uploadMessage = `Upload completed! ${successCount} of ${totalCount} records processed successfully. ${failureCount} failed.`;
     
-    const successCount = response.stats?.successful || 0;
-    const failureCount = response.stats?.failed || 0;
-    
-    if (failureCount > 0) {
-      this.uploadMessage = `Upload completed with ${successCount} successful and ${failureCount} failed records.`;
+    // Log failures for debugging
+    if (response.failures && response.failures.length > 0) {
       console.warn('Failed records:', response.failures);
-    } else {
-      this.uploadMessage = `Successfully processed ${successCount} records.`;
-      alert('Upload completed successfully!');
     }
     
-    this.file = null;
-    this.fileName = '';
+    // Show warning snackbar
+    this.snackBar.open(
+      `Upload completed with ${failureCount} errors. Check console for details.`,
+      'Close',
+      {
+        duration: 5000,
+        verticalPosition: 'top',
+        horizontalPosition: 'center'
+      }
+    );
+  } else {
+    this.uploadMessage = `Upload completed successfully! ${successCount} records processed.`;
     
-    // Refresh the supplier list
-    this.loadSuppliers();
-    
-    // Hide progress after 5 seconds
-    setTimeout(() => {
-      this.showProgress = false;
-      this.uploadProgress = 0;
-      this.uploadStatus = 'idle';
-      this.cdr.detectChanges();
-    }, 5000);
+    // Show success snackbar
+    this.snackBar.open(
+      `Successfully processed ${successCount} records`,
+      'Close',
+      {
+        duration: 3000,
+        verticalPosition: 'top',
+        horizontalPosition: 'center'
+      }
+    );
   }
   
+  // Clear file selection
+  this.file = null;
+  this.fileName = '';
+  
+  // Clear file input
+  const fileInput = document.getElementById('fileInput') as HTMLInputElement;
+  if (fileInput) {
+    fileInput.value = '';
+  }
+  
+  // Refresh the supplier list
+  this.loadSuppliers();
+  
+  // Hide progress after 5 seconds
+  setTimeout(() => {
+    this.showProgress = false;
+    this.uploadProgress = 0;
+    this.uploadStatus = 'idle';
+    this.uploadMessage = '';
+    this.cdr.detectChanges();
+  }, 5000);
+}
+
+  handleUploadCancelled() {
+  this.uploadStatus = 'idle';
+  this.isUploading = false;
+  this.uploadMessage = 'Upload cancelled';
+  
+  this.snackBar.open('Upload cancelled', 'Close', {
+    duration: 3000,
+    verticalPosition: 'top',
+    horizontalPosition: 'center'
+  });
+  
+  // Hide progress after 3 seconds
+  setTimeout(() => {
+    this.showProgress = false;
+    this.uploadProgress = 0;
+    this.uploadStatus = 'idle';
+    this.uploadMessage = '';
+    this.cdr.detectChanges();
+  }, 3000);
+}
   /**
    * Handle upload error
    */
-  handleUploadError(error: any) {
-    this.uploadStatus = 'error';
-    this.isUploading = false;
-    this.uploadMessage = `Error: ${error.message || 'Upload failed'}`;
-    console.error('Upload error:', error);
-    
-    // Hide progress after 5 seconds
-    setTimeout(() => {
-      this.showProgress = false;
-      this.uploadStatus = 'idle';
-      this.cdr.detectChanges();
-    }, 5000);
+handleUploadError(error: any) {
+  console.error('Upload error:', error);
+  
+  this.uploadStatus = 'error';
+  this.isUploading = false;
+  
+  // Extract error message
+  let errorMessage = 'Upload failed';
+  if (error?.error?.message) {
+    errorMessage = error.error.message;
+  } else if (error?.message) {
+    errorMessage = error.message;
+  } else if (typeof error === 'string') {
+    errorMessage = error;
   }
+  
+  this.uploadMessage = `Error: ${errorMessage}`;
+  
+  // Show error snackbar
+  this.snackBar.open(
+    `Upload failed: ${errorMessage}`,
+    'Close',
+    {
+      duration: 5000,
+      verticalPosition: 'top',
+      horizontalPosition: 'center'
+    }
+  );
+  
+  // Hide progress after 5 seconds
+  setTimeout(() => {
+    this.showProgress = false;
+    this.uploadStatus = 'idle';
+    this.uploadMessage = '';
+    this.cdr.detectChanges();
+  }, 5000);
+}
+
   
   /**
    * Cancel ongoing upload
    */
-  cancelUpload() {
-    if (this.uploadJobId && this.isUploading) {
-      this.supplierService.cancelJob(this.uploadJobId).subscribe({
-        next: () => {
-          this.uploadStatus = 'idle';
-          this.isUploading = false;
-          this.showProgress = false;
-          this.uploadMessage = 'Upload cancelled';
-          
-          if (this.pollInterval) {
-            clearInterval(this.pollInterval);
-          }
-        },
-        error: (error) => {
-          console.error('Error cancelling job:', error);
-        }
-      });
-    }
+ cancelUpload() {
+  if (this.uploadJobId && this.isUploading) {
+    this.supplierService.cancelJob(this.uploadJobId).subscribe({
+      next: () => {
+        console.log('Job cancelled successfully');
+        this.handleUploadCancelled();
+        this.stopProgressPolling();
+      },
+      error: (error) => {
+        console.error('Error cancelling job:', error);
+        this.snackBar.open('Failed to cancel upload', 'Close', {
+          duration: 3000,
+          verticalPosition: 'top',
+          horizontalPosition: 'center'
+        });
+      }
+    });
   }
+}
+
 
   /**
    * Open supplier modal for add/edit

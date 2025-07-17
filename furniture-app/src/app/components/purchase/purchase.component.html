@@ -1,6 +1,6 @@
 <div class="purchase-container">
   <div class="header">
-    <h2>Home / purchases</h2>
+    <h2>CFE-Purchases</h2>
     <div class="search-add">
       <div class="search-box">
         <input
@@ -29,7 +29,7 @@
       </div>
     </div>
   </div>
-
+<!-- <div class="table-responsive"> -->
   <div class="table-container">
     <table>
       <thead>
@@ -38,18 +38,46 @@
             <input 
               type="checkbox" 
               class="large-checkbox" 
-              (change)="selectAll($event)" 
-            />
+              (change)="toggleSelectAll($event)" ><!-- Changed selectAll to toggleSelectAll -->
+            
           </th>
-          <th (click)="sortTable('PurchaseID')">Purchase <br> Request <br> ID</th>
-          <th (click)="sortTable('ProductCode')">Product Code</th>
-          <th (click)="sortTable('SupplierCode')">Supplier Code</th>
-          <th (click)="sortTable('Qty')"> Quantity</th>
-          <th (click)="sortTable('SONumber')">SO Number</th>
-          <th (click)="sortTable('Delivery_date')">Cust Exp Del Date</th>
-          <th (click)="sortTable('POStatus')">PO Status</th>
-          <th (click)="sortTable('Supplier_Date')">Pick Up Date</th>
-          <th (click) = "sortTable('PONumber')">PO Number</th>
+          <!-- Added sorting indicators to each sortable column header -->
+          <th (click)="sortTable('PurchaseID')" [class.sorted]="isSortedBy('PurchaseID')">
+            Purchase <br> Request <br> ID
+            <span class="sort-icon">{{ getSortIcon('PurchaseID') }}</span>
+          </th>
+          <th (click)="sortTable('ProductCode')" [class.sorted]="isSortedBy('ProductCode')">
+            Product Code
+            <span class="sort-icon">{{ getSortIcon('ProductCode') }}</span>
+          </th>
+          <th (click)="sortTable('SupplierCode')" [class.sorted]="isSortedBy('SupplierCode')">
+            Supplier Code
+            <span class="sort-icon">{{ getSortIcon('SupplierCode') }}</span>
+          </th>
+          <th (click)="sortTable('Qty')" [class.sorted]="isSortedBy('Qty')">
+            Quantity
+            <span class="sort-icon">{{ getSortIcon('Qty') }}</span>
+          </th>
+          <th (click)="sortTable('SONumber')" [class.sorted]="isSortedBy('SONumber')">
+            SO Number
+            <span class="sort-icon">{{ getSortIcon('SONumber') }}</span>
+          </th>
+          <th (click)="sortTable('Delivery_date')" [class.sorted]="isSortedBy('Delivery_date')">
+            Cust Exp Del Date
+            <span class="sort-icon">{{ getSortIcon('Delivery_date') }}</span>
+          </th>
+          <th (click)="sortTable('POStatus')" [class.sorted]="isSortedBy('POStatus')">
+            PO Status
+            <span class="sort-icon">{{ getSortIcon('POStatus') }}</span>
+          </th>
+          <th (click)="sortTable('Supplier_Date')" [class.sorted]="isSortedBy('Supplier_Date')">
+            Pick Up Date
+            <span class="sort-icon">{{ getSortIcon('Supplier_Date') }}</span>
+          </th>
+          <th (click) = "sortTable('PONumber')" [class.sorted]="isSortedBy('PONumber')">
+            PO Number
+            <span class="sort-icon">{{ getSortIcon('PONumber') }}</span>
+          </th>
           <th>Actions</th>
         </tr>
       </thead>
@@ -77,26 +105,26 @@
           <td>{{ purchase?.Delivery_date | date:'mediumDate' }}</td>
           <td>
             <span
-  class="po-status-box"
-  [ngClass]="{
-    'status-received': purchase?.POStatus === 'Received',
-    'status-awaiting': purchase?.POStatus === 'Awaiting',
-    'status-not-ordered': purchase?.POStatus === 'Not Ordered',
-    'status-po-created': purchase?.POStatus === 'PO created',
-    'status-confirmed': purchase?.POStatus === 'Confirmed',
-    'status-delayed': purchase?.POStatus === 'Arriving Late',
-    'status-discontinued': purchase?.POStatus === 'Discontinued',
-    'status-out-for-delivery': purchase?.POStatus === 'Out for Delivery',
-    'status-delivered': purchase?.POStatus === 'Delivered',
-    'status-not-delivered': purchase?.POStatus === 'Not Delivered',
-    'status-scheduled-for-delivery': purchase?.POStatus === 'Scheduled for Delivery'
-  }"
->
-  {{ purchase?.POStatus }}
-</span>
-<div *ngIf="purchase?.POStatus === 'Arriving Late' && purchase?.Delayed_Date" class="delayed-date">
-    {{ purchase?.Delayed_Date | date:'mediumDate' }}
-</div>
+              class="po-status-box"
+              [ngClass]="{
+                'status-received': purchase?.POStatus === 'Received',
+                'status-awaiting': purchase?.POStatus === 'Awaiting',
+                'status-not-ordered': purchase?.POStatus === 'Not Ordered',
+                'status-po-created': purchase?.POStatus === 'PO created',
+                'status-confirmed': purchase?.POStatus === 'Confirmed',
+                'status-delayed': purchase?.POStatus === 'Arriving Late',
+                'status-discontinued': purchase?.POStatus === 'Discontinued',
+                'status-out-for-delivery': purchase?.POStatus === 'Out for Delivery',
+                'status-delivered': purchase?.POStatus === 'Delivered',
+                'status-not-delivered': purchase?.POStatus === 'Not Delivered',
+                'status-scheduled-for-delivery': purchase?.POStatus === 'Scheduled for Delivery'
+              }"
+            >
+              {{ purchase?.POStatus }}
+            </span>
+            <div *ngIf="purchase?.POStatus === 'Arriving Late' && purchase?.Delayed_Date" class="delayed-date">
+              {{ purchase?.Delayed_Date | date:'mediumDate' }}
+            </div>
           </td>
           
           <td>{{ purchase?.Supplier_Date | date:'mediumDate' }}</td>
@@ -119,6 +147,7 @@
       </tbody>
     </table>
   </div>
+<!-- </div> -->
 
   <div class="pagination-controls">
     <div class="page-size-selector">
@@ -204,7 +233,7 @@
           name="Supplier_Date" 
           required
           #pickupDate="ngModel"
-           
+            
         />
         <div *ngIf="pickupDate.invalid && pickupDate.touched" class="error-text">
           Pick Up Date is required.
@@ -214,7 +243,7 @@
         <div class="form-group">
           <label for="POStatus">PO Status</label>
           <select id="POStatus" [(ngModel)]="selectedPurchase.POStatus">
-           
+            
             <option value="Not Ordered">Not Ordered</option>
             <option value="PO created">PO Created</option>
             <option value="Awaiting">Awaiting</option>

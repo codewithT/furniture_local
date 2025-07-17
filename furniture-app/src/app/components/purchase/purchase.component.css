@@ -1,9 +1,12 @@
 /* Main Container Styles */
 .purchase-container {
     padding: 20px;
-    max-width: 1500px;
+    max-width: 1600px;
     margin: 0 auto;
     font-family: 'Arial', sans-serif;
+    font-size: medium;
+    overflow: visible;
+     
 }
 
 /* Responsive Design for Larger Screens */
@@ -20,9 +23,9 @@
 
 .header h2 {
     color: #2c3e50;
-    margin-bottom: 20px;
-    font-size: 24px;
-    font-weight: 600;
+    margin-bottom: 5px;
+    font-size: 30px;
+    /* font-weight: 600; */
 }
 
 /* Updated Search and Add Section with Better Responsive Design */
@@ -67,7 +70,7 @@
 
 /* Add Button Styles */
 .add-button, .btn-primary {
-    background-color: #2ecc71;
+    background-color: #48cb7e;
     color: white;
     border: none;
     padding: 10px 20px;
@@ -203,8 +206,19 @@
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     margin-bottom: 20px;
+   
+     
 }
-
+/* Table wrapper for horizontal scrolling */
+/* .table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  margin-bottom: 20px;
+  max-height: 400px;
+  overflow-y: auto;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  position: relative;
+} */
 table {
     width: 100%;
     border-collapse: collapse;
@@ -213,6 +227,10 @@ table {
 
 thead {
     background-color: #f8f9fa;
+       position: sticky;
+   top : 0;
+    background-color: #f8f9fa;
+      z-index: 10; 
 }
 
 th {
@@ -220,7 +238,9 @@ th {
     text-align: left;
     color: #2c3e50;
     font-weight: 600;
-    border-bottom: 2px solid #ddd;
+   
+  
+    border-bottom: 1px solid #c7cfe9;
     white-space: nowrap;
 }
 
@@ -303,7 +323,7 @@ td {
 }
 
 .delete-btn:hover {
-    background-color: #c0392b;
+    background-color: #de5445;
     transform: translateY(-1px);
 }
 
@@ -534,7 +554,7 @@ td {
 }
 
 .status-delayed {
-    background-color: red;
+    background-color: rgb(239, 89, 89);
 }
 
 .status-discontinued {

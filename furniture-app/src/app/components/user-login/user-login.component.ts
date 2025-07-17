@@ -1,14 +1,14 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-user-login',
   standalone: true,
-  imports: [ CommonModule, FormsModule, ReactiveFormsModule ],
+  imports: [ CommonModule, FormsModule, ReactiveFormsModule, RouterModule ],
   templateUrl: './user-login.component.html',
   styleUrls: ['./user-login.component.css']
 })
@@ -34,6 +34,7 @@ export class UserLoginComponent implements OnInit {
     // Check if user is already logged in
     this.authService.isAuthenticated$.subscribe(isAuth => {
       if (isAuth) {
+        
         this.router.navigate(['/u/dashboard']);
       }
     });
@@ -55,7 +56,8 @@ export class UserLoginComponent implements OnInit {
       next: (response) => {
         console.log('Login successful:', response);
         this.isLoading = false;
-        this.router.navigate(['/u/dashboard']);
+        console.log('User data:', response);
+        this.authService.navigateByRole(response.user.role);
       },
       error: (err) => {
         this.isLoading = false;

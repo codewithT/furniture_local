@@ -1,7 +1,7 @@
-import { Component, ViewChild, AfterViewInit, OnInit } from '@angular/core';
+import { Component, ViewChild, AfterViewInit, OnInit, OnDestroy } from '@angular/core';
 import { MatTableDataSource } from '@angular/material/table';
 import { MatPaginator, PageEvent } from '@angular/material/paginator';
-import { MatSort } from '@angular/material/sort';
+import { MatSort, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
 import { MatPaginatorModule } from '@angular/material/paginator';
 import { MatSortModule } from '@angular/material/sort';
@@ -21,6 +21,9 @@ import { MatDialog } from '@angular/material/dialog';
 import { ShowOrderDetailsComponent } from '../show-order-details/show-order-details.component';
 import { environment } from '../../../environments/environment';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { Subscription } from 'rxjs';
+import { UtcToLocalPipe } from '../../pipes/utc-to-local.pipe';
+import { DateUtilityService } from '../../services/date-utility.service';
 
 @Component({
   selector: 'app-manage-order',
@@ -39,11 +42,13 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
     MatPseudoCheckboxModule,
     MatSelectModule,
     MatProgressSpinnerModule,
+    UtcToLocalPipe,
   ],
+  providers: [DateUtilityService],
   templateUrl: './manage-order.component.html',
   styleUrls: ['./manage-order.component.css'],
 })
-export class ManageOrderComponent implements AfterViewInit, OnInit {
+export class ManageOrderComponent implements AfterViewInit, OnInit, OnDestroy {
   displayedColumns: string[] = ['select', 'SONumber', 'Created_date', 'ProductName', 'CustomerEmail', 'Customer_name','Qty', 
     'Delivery_date', 'SOStatus','Total_Paid_Amount','Payment_Status', 'action'];
   dataSource = new MatTableDataSource<Order>([]);
@@ -62,6 +67,9 @@ export class ManageOrderComponent implements AfterViewInit, OnInit {
   isLoading = false;
   
   environment = environment;
+  
+  // Subscription management
+  private sortSubscription?: Subscription;
 
   constructor(
     private manageOrderService: ManageOrderService, 
@@ -75,21 +83,103 @@ export class ManageOrderComponent implements AfterViewInit, OnInit {
   }
 
   ngAfterViewInit() {
-    // IMPORTANT: Disable client-side sorting since we're doing server-side sorting
-    this.dataSource.sort = null;
+    // Wait for the view to initialize completely
+    setTimeout(() => {
+      this.setupSorting();
+    }, 0);
+  }
+
+  private setupSorting(): void {
+    if (!this.sort) {
+      console.error('MatSort not found!');
+      return;
+    }
+
+    // Assign the sort to dataSource (required for visual indicators)
+    this.dataSource.sort = this.sort;
+    
+    // Set initial sort state
+    this.sort.active = this.sortField;
+    this.sort.direction = this.sortOrder as 'asc' | 'desc';
+    
+    console.log('Initial sort setup:', { active: this.sort.active, direction: this.sort.direction });
+    
+    // Clean up any existing subscription
+    if (this.sortSubscription) {
+      this.sortSubscription.unsubscribe();
+    }
     
     // Set up sort change listener for server-side sorting
-    if (this.sort) {
-      this.sort.sortChange.subscribe(() => {
-        this.pageIndex = 0; // Reset to first page when sorting
-        this.sortField = this.sort.active;
-        this.sortOrder = this.sort.direction || 'desc';
+    this.sortSubscription = this.sort.sortChange.subscribe((sortState: Sort) => {
+      console.log('🔄 Sort change event triggered:', sortState);
+      
+      // Reset to first page when sorting
+      this.pageIndex = 0;
+      
+      // Map the column header to the actual database field name
+      const mappedField = this.mapSortField(sortState.active);
+      const newSortOrder = sortState.direction || 'desc';
+      
+      console.log('🔍 Sort mapping:', {
+        clicked: sortState.active,
+        mapped: mappedField,
+        direction: newSortOrder,
+        oldField: this.sortField,
+        oldOrder: this.sortOrder
+      });
+      
+      // Only fetch if something actually changed
+      if (this.sortField !== mappedField || this.sortOrder !== newSortOrder) {
+        this.sortField = mappedField;
+        this.sortOrder = newSortOrder;
         
-        console.log('Sort changed:', this.sortField, this.sortOrder); // Debug log
+        console.log('✅ Fetching orders with new sort:', {
+          field: this.sortField,
+          order: this.sortOrder
+        });
         
         this.fetchOrders();
-      });
+      } else {
+        console.log('⚠️ Sort values unchanged, skipping fetch');
+      }
+    });
+
+    // Override the default sorting behavior to prevent client-side sorting
+    this.dataSource.sortingDataAccessor = () => '';
+    this.dataSource.sortData = (data: Order[]) => {
+      console.log('🚫 Client-side sorting disabled - returning original data');
+      return data;
+    };
+    
+    console.log('✅ Sort setup completed');
+  }
+
+
+  ngOnDestroy(): void {
+    // Clean up subscription
+    if (this.sortSubscription) {
+      this.sortSubscription.unsubscribe();
     }
+  }
+
+  /**
+   * Map frontend column names to backend database field names
+   */
+  private mapSortField(columnName: string): string {
+    const fieldMapping: { [key: string]: string } = {
+      'SONumber': 'SONumber',
+      'Created_date': 'Created_date',
+      'ProductName': 'ProductName',
+      'CustomerEmail': 'CustomerEmail',
+      'Customer_name': 'Customer_name',
+      'Qty': 'Qty',
+      'Delivery_date': 'Delivery_date',
+      'SOStatus': 'SOStatus',
+      'Total_Paid_Amount': 'Total_Paid_Amount',
+      'Payment_Status': 'Payment_Status'
+    };
+    
+    return fieldMapping[columnName] || 'Created_date'; // Default to Created_date if mapping not found
   }
 
   fetchOrders() {
@@ -103,11 +193,12 @@ export class ManageOrderComponent implements AfterViewInit, OnInit {
       sortOrder: this.sortOrder
     };
 
-    console.log('Fetching orders with params:', params); // Debug log
+    console.log('📡 Fetching orders with params:', params);
+    console.log('🌐 Full URL would be:', `${this.manageOrderService['apiUrl']}?page=${params.page}&limit=${params.limit}&search=${params.search}&sortField=${params.sortField}&sortOrder=${params.sortOrder}`);
 
     this.manageOrderService.getOrders(params).subscribe({
       next: (response) => {
-        console.log('Orders received:', response); // Debug log
+        console.log('✅ Orders received:', response);
         
         this.dataSource.data = response.data.map((order: Order) => ({
           ...order,
@@ -118,9 +209,15 @@ export class ManageOrderComponent implements AfterViewInit, OnInit {
         
         this.totalRecords = response.totalRecords;
         this.isLoading = false;
+        
+        console.log('📊 Data updated:', {
+          totalRecords: this.totalRecords,
+          dataLength: this.dataSource.data.length,
+          currentSort: { field: this.sortField, order: this.sortOrder }
+        });
       },
       error: (error) => {
-        console.error('Error fetching orders:', error);
+        console.error('❌ Error fetching orders:', error);
         this.isLoading = false;
       }
     });
@@ -190,6 +287,25 @@ export class ManageOrderComponent implements AfterViewInit, OnInit {
         }
       });
     }
+  }
+
+  /**
+   * Send payment reminders to customers for selected orders
+   */
+  sendPaymentReminders() {
+    const selectedOrders = this.getSelectedOrders();
+    if (selectedOrders.length === 0) {
+      alert('No orders selected!');
+      return;
+    }
+
+    this.manageOrderService.sendPaymentReminders(selectedOrders).subscribe({
+      next: () => alert('Payment reminders sent successfully!'),
+      error: (err) => {
+        console.error('Error sending payment reminders:', err);
+        alert('Failed to send payment reminders!');
+      }
+    });
   }
 
   sendEmailsToCustomers() {

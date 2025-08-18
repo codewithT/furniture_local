@@ -6,6 +6,8 @@ import { MatDialog, MatDialogModule, MatDialogRef } from '@angular/material/dial
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
 import { MatInputModule } from '@angular/material/input';
+import { Observable, of } from 'rxjs';
+import { catchError, map } from 'rxjs/operators';
 
 export interface PendingStatusUpdate {
   product: DeliveryProduct;
@@ -25,12 +27,16 @@ export interface PaginationResponse {
   };
 }
 
+import { UtcToLocalPipe } from '../../pipes/utc-to-local.pipe';
+import { DateUtilityService } from '../../services/date-utility.service';
+
 @Component({
   selector: 'app-schedule-delivery',
   standalone: true,
-  imports: [CommonModule, FormsModule, DatePipe, NgIf, NgFor,
+  imports: [CommonModule, FormsModule, DatePipe, NgIf, NgFor, UtcToLocalPipe,
     MatDatepickerModule, MatDialogModule, MatNativeDateModule, MatInputModule
   ],
+  providers: [DateUtilityService],
   templateUrl: './schedule-delivery.component.html',
   styleUrls: ['./schedule-delivery.component.css']
 })
@@ -238,7 +244,8 @@ export class ScheduleDeliveryComponent implements OnInit, AfterViewInit {
       },
       (error) => {
         if (error.status === 404) {
-          alert('Signature not uploaded yet.');
+          this.selectedSignature = null;
+          console.log('Signature not uploaded yet.');
         } else {
           console.error('Error fetching signature:', error);
         }
@@ -355,7 +362,7 @@ export class ScheduleDeliveryComponent implements OnInit, AfterViewInit {
          this.deliveryProducts = response.data.map(product => ({
   ...product, 
   Transfer_Date: product.Transfer_Date  ? new Date(product.Transfer_Date) : undefined,
-  Delivery_date: product.Delivery_date ? new Date(product.Delivery_date) : undefined
+  Delivery_date: product.Delivery_date || undefined
 }));
 
         
@@ -371,34 +378,9 @@ export class ScheduleDeliveryComponent implements OnInit, AfterViewInit {
     });
   }
 
-openCalendar(dialogTemplate: TemplateRef<any>) {
-  const dialogRef = this.dialog.open(dialogTemplate, { width: '250px' });
-
-  dialogRef.afterClosed().subscribe((result: Date | null) => {
-    if (result instanceof Date && !isNaN(result.getTime())) {
-      // Set time to 12:00 UTC to avoid timezone shifting
-      const utcNoon = new Date(Date.UTC(result.getFullYear(), result.getMonth(), result.getDate(), 12));
-      this.selectedDate = utcNoon.toISOString();
-      this.scheduleDelivery();
-    } else {
-      console.warn('Invalid date selected:', result);
-    }
-  });
-}
-
-
-
-
-  // Updated search method to use backend pagination
-  searchDelivery() {
-    this.currentPage = 1; // Reset to first page when searching
+  searchDeliveryProducts() {
     this.isLoading = true;
     
-    if (!this.searchQuery.trim()) {
-      this.getDeliveryProducts();
-      return;
-    }
-
     const params = {
       page: this.currentPage,
       limit: this.pageSize,
@@ -408,12 +390,11 @@ openCalendar(dialogTemplate: TemplateRef<any>) {
 
     this.scheduleDeliveryService.searchDeliveryProducts(this.searchQuery, params).subscribe({
       next: (response: PaginationResponse) => {
-       this.deliveryProducts = response.data.map(product => ({
-  ...product, 
-  Transfer_Date: product.Transfer_Date  ? new Date(product.Transfer_Date) : undefined,
-  Delivery_date: product.Delivery_date ? new Date(product.Delivery_date) : undefined
-}));
-
+        this.deliveryProducts = response.data.map(product => ({
+          ...product, 
+          Transfer_Date: product.Transfer_Date ? new Date(product.Transfer_Date) : undefined,
+          Delivery_date: product.Delivery_date || undefined
+        }));
         this.totalPages = response.pagination.totalPages;
         this.totalRecords = response.pagination.totalRecords;
         this.currentPage = response.pagination.currentPage;
@@ -426,17 +407,103 @@ openCalendar(dialogTemplate: TemplateRef<any>) {
     });
   }
 
-scheduleDelivery() {
+  openCalendar(dialogTemplate: TemplateRef<any>) {
+    const dialogRef = this.dialog.open(dialogTemplate, { width: '250px' });
+    this.selectedDate = '';
+    dialogRef.afterClosed().subscribe((result: Date | null) => {
+      if (result instanceof Date && !isNaN(result.getTime())) {
+        // Set time to 12:00 UTC to avoid timezone shifting
+        const utcNoon = new Date(Date.UTC(result.getFullYear(), result.getMonth(), result.getDate(), 12));
+        this.selectedDate = utcNoon.toISOString();
+        this.scheduleDelivery();
+      } else {
+        console.warn('Invalid date selected:', result);
+      }
+    });
+  }
+  checkDeliveryDateLimit(date: string): Observable<boolean> {
+    console.log('Checking delivery date limit for:', date);
+    return this.scheduleDeliveryService.checkDeliveryDate(date).pipe(
+      map(response => {
+        console.log('Delivery date limit check response:', response);
+        // Add null check for response
+        if (response && response.isLimitExceeded) {
+          const deliveryCount = response.deliveryCount || 0;
+          const confirm = window.confirm(
+            `Warning: Delivery limit exceeded for ${date}!\n\n` +
+            `Current scheduled deliveries: ${deliveryCount}\n` +
+            `Maximum allowed: 8\n\n` +
+            `Do you want to schedule anyway?`
+          );
+          return confirm;
+        }
+        return true;
+      }),
+      catchError(error => {
+        console.error('Error checking delivery date:', error);
+        // Show error message but allow to proceed
+        const proceed = window.confirm(
+          'Unable to check delivery date limit due to network error.\n\n' +
+          'Do you want to proceed with scheduling anyway?'
+        );
+        return of(proceed);
+      })
+    );
+  }
+
+async scheduleDelivery() {
+  if (!this.selectedDate) {
+    alert('Please select a delivery date');
+    return;
+  }
+
   const selectedItems = this.deliveryProducts.filter(product => product.selected);
-   console.log('Selected items:', selectedItems);
-    selectedItems.forEach(item => item.Transfer_Date = this.selectedDate);
- 
-  // Send array of updates
-  this.scheduleDeliveryService.updateTransferDate(selectedItems).subscribe(
-    () => this.getDeliveryProducts(),
-    (error) => console.error('Error updating transfer date:', error)
-  );
+  console.log('Selected items:', selectedItems);
+
+  // Check if any selected item is already delivered
+  const alreadyDelivered = selectedItems.filter(item => item.SOStatus?.toLowerCase() === 'delivered');
+
+  if (alreadyDelivered.length > 0) {
+    alert(`Some items are already delivered and cannot be scheduled:\n${alreadyDelivered.map(item => item.SONumber).join(', ')}`);
+    return; // stop execution
+  }
+  if (selectedItems.length === 0) {
+    alert('Please select at least one item to schedule delivery');
+    return;
+  }
+
+  // Format the selected date for the API call (YYYY-MM-DD format)
+  const deliveryDate = new Date(this.selectedDate).toISOString().split('T')[0];
+
+  // Check delivery date limit before updating transfer date
+  this.checkDeliveryDateLimit(deliveryDate).subscribe(canProceed => {
+    if (!canProceed) {
+      console.log('User chose not to proceed with scheduling');
+      return;
+    }
+
+    // Proceed with setting the transfer date only if user confirms or limit is not exceeded
+    selectedItems.forEach(item => {
+      item.Transfer_Date = this.selectedDate;
+      item.Delivery_date = this.selectedDate; // Set delivery date same as transfer date
+    });
+
+    this.scheduleDeliveryService.updateTransferDate(selectedItems).subscribe({
+      next: (response) => {
+        console.log('Transfer dates updated successfully:', response);
+        alert('Delivery scheduled successfully!');
+        this.getDeliveryProducts();
+        // Clear selections after successful update
+        this.clearAllSelections();
+      },
+      error: (error) => {
+        console.error('Error updating transfer date:', error);
+        alert('Failed to schedule delivery. Please try again.');
+      }
+    });
+  });
 }
+  
 
   sendTermsAndConditions() {
     console.log('Terms and conditions sent.');
@@ -454,7 +521,7 @@ scheduleDelivery() {
     this.currentPage = 1; // Reset to first page when sorting
     
     if (this.searchQuery.trim()) {
-      this.searchDelivery();
+      this.searchDeliveryProducts();
     } else {
       this.getDeliveryProducts();
     }
@@ -464,7 +531,7 @@ scheduleDelivery() {
   onPageSizeChange() {
     this.currentPage = 1;
     if (this.searchQuery.trim()) {
-      this.searchDelivery();
+      this.searchDeliveryProducts();
     } else {
       this.getDeliveryProducts();
     }
@@ -475,7 +542,7 @@ scheduleDelivery() {
     if (this.currentPage < this.totalPages) {
       this.currentPage++;
       if (this.searchQuery.trim()) {
-        this.searchDelivery();
+        this.searchDeliveryProducts();
       } else {
         this.getDeliveryProducts();
       }
@@ -486,7 +553,7 @@ scheduleDelivery() {
     if (this.currentPage > 1) {
       this.currentPage--;
       if (this.searchQuery.trim()) {
-        this.searchDelivery();
+        this.searchDeliveryProducts();
       } else {
         this.getDeliveryProducts();
       }
@@ -498,7 +565,7 @@ scheduleDelivery() {
     if (page >= 1 && page <= this.totalPages) {
       this.currentPage = page;
       if (this.searchQuery.trim()) {
-        this.searchDelivery();
+        this.searchDeliveryProducts();
       } else {
         this.getDeliveryProducts();
       }
@@ -553,9 +620,7 @@ scheduleDelivery() {
     this.updateSelectAllState();
   }
 
-  /**
-   * Handle select all checkbox for current page
-   */
+  
   selectAll(event: any): void {
     const isChecked = event.target.checked;
     this.deliveryProducts.forEach(deliver => {
@@ -563,9 +628,7 @@ scheduleDelivery() {
     });
   }
 
-  /**
-   * Update the select all checkbox state based on individual selections
-   */
+  
   updateSelectAllState(): void {
     setTimeout(() => {
       const selectAllCheckbox = document.querySelector('thead input[type="checkbox"]') as HTMLInputElement;
@@ -587,23 +650,17 @@ scheduleDelivery() {
     }, 0);
   }
 
-  /**
-   * Get selected rows (from current page only)
-   */
+  
   getSelectedRows(): DeliveryProduct[] {
     return this.deliveryProducts.filter(deliver => deliver.selected);
   }
 
-  /**
-   * Get count of selected rows (from current page only)
-   */
+  
   getSelectedCount(): number {
     return this.deliveryProducts.filter(deliver => deliver.selected).length;
   }
 
-  /**
-   * Clear all selections (current page only)
-   */
+  
   clearAllSelections(): void {
     this.deliveryProducts.forEach(deliver => {
       deliver.selected = false;
@@ -611,9 +668,7 @@ scheduleDelivery() {
     this.updateSelectAllState();
   }
 
-  /**
-   * Select all rows (current page only)
-   */
+  
   selectAllRows(): void {
     this.deliveryProducts.forEach(deliver => {
       deliver.selected = true;
@@ -621,16 +676,12 @@ scheduleDelivery() {
     this.updateSelectAllState();
   }
 
-  /**
-   * Check if any row is selected
-   */
+  
   hasSelectedRows(): boolean {
     return this.getSelectedCount() > 0;
   }
 
-  /**
-   * Check if all rows are selected
-   */
+  
   areAllRowsSelected(): boolean {
     return this.deliveryProducts.length > 0 && this.getSelectedCount() === this.deliveryProducts.length;
   }

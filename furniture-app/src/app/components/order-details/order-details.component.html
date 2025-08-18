@@ -22,37 +22,72 @@
 
         <!-- Product Section -->
         <h3>Products</h3>
-        <table class="product-table">
-            <thead>
-                <tr>
-                    <th>Supplier Code</th>
-                    <th>CFE Product Code</th>
-                    <th>Product Name</th>
-                    <th>Price</th>
-                    <th>Quantity</th>
-                    <th>Total</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody formArrayName="items">
-                <tr *ngFor="let item of items.controls; let i = index" [formGroupName]="i">
-                    <td><input type="text" formControlName="supplierCode" placeholder="Supplier Code" [disabled]="true" /></td>
-                    <td><input type="text" formControlName="productCode" placeholder="Product Code" [disabled]="true" /></td>
-                    <td><input type="text" formControlName="productName" placeholder="Product Name" [disabled]="true" /></td>
-                    <td><input type="number" formControlName="price" placeholder="Price" required /></td>
-                    <td><input type="number" formControlName="quantity" placeholder="Quantity" required /></td>
-                    <td><input type="text" formControlName="total" placeholder="Total" [disabled]="true" /></td>
-                    
-                    <td>
-                        <button type="button" class="delete-btn">🗑</button>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-
-        <!-- <button type="button" class="add-btn">+ Add Item</button> -->
+<table class="product-table">
+    <thead>
+        <tr>
+            <th>In Stock ✔</th>
+            <th>Supplier Code</th>
+            <th>Search by CFE Product Code and name</th>
+            <th>Product Name</th>
+            <th>Price</th>
+            <th>Quantity</th>
+            <th>Total</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody formArrayName="items">
+        <tr *ngFor="let item of items.controls; let i = index" [formGroupName]="i">
+            <td data-label="In Stock ✔">
+                <input type="checkbox" formControlName="selected" (change)="onCheckboxChange(i, $event)"
+                    [checked]="storeProductSupplierIdCodes[i]?.Check" />
+            </td>
+            <td data-label="Supplier Code">
+                <select formControlName="SupplierCode" (change)="handleSupplierSelect($event, i)">
+                    <option value="">-- Select Supplier --</option>
+                    <option *ngFor="let supplier of supplierCodes[i]" [value]="supplier.SupplierCode">
+                        {{supplier.SupplierID}} {{ supplier.SupplierCode }}
+                    </option>
+                </select>
+                <p *ngIf="items.at(i).get('SupplierCode')?.value">
+                    Selected: {{ items.at(i).get('SupplierCode')?.value }}
+                </p>
+            </td>
+            <td class="product-code-cell" data-label="Search by CFE Product Code and name">
+                <div class="product-search-container">
+                    <input type="text" formControlName="ProductCode" placeholder="Search by Code and name" required 
+                        (input)="productSearchTerms[i].next(items.at(i).get('ProductCode')?.value)"
+                        (blur)="hideProductSuggestions(i)" />
+                    <div class="product-suggestions" *ngIf="showProductSuggestions[i]">
+                        <div class="product-suggestion-item" 
+                                *ngFor="let product of productSuggestions[i]"
+                                (mousedown)="onProductSuggestionMouseDown()"
+                                (click)="selectProductSuggestion(product, i)">
+                            {{ product.ProductCode }} - {{ product.ProductName }}
+                        </div>
+                    </div>
+                </div>
+            </td>
+            <td data-label="Product Name"><input type="text" formControlName="ProductName" placeholder="Product Name" required /></td>
+            <td data-label="Price"><input type="number" formControlName="rate" placeholder="Rate" required /></td>
+            <td data-label="Quantity"><input type="number" formControlName="quantity" placeholder="Quantity" required /></td>
+            <td data-label="Total"><input type="text" formControlName="total" placeholder="Total" [disabled]="true"
+                    class="total-field" /></td>
+            <td data-label="Action">
+    <button type="button"
+        class="delete-btn"
+        (click)="deleteProduct(i, items.at(i).get('ProductCode')?.value)"
+        [disabled]="!canDeleteProduct()">
+    </button>
+</td>
+        </tr>
+    </tbody>
+</table>
+<button type="button" (click)="addItem()" class="add-btn">+ Add Item</button>
 
         <!-- Order Summary Section -->
+
+<!-- Update Invoice Button -->
+
         <h3>Order Summary</h3>
         <div class="order-summary">
             <div class="summary-column">
@@ -142,12 +177,13 @@
                 </div>
                                  
             </div>
-            
-        </div>
-
+     </div>
+ 
         <!-- Submit and Action Buttons -->
         <div class="button-group">
             <button type="submit" class="submit-btn">Update Order</button>
+            <button type="button" class="submit-btn" (click)="printInvoice()">Generate Invoice</button>
+
         </div>
     </form>
 </div>

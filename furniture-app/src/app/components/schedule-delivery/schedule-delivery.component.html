@@ -5,7 +5,7 @@
       <div class="search-box">
         <input type="text" [(ngModel)]="searchQuery"
          placeholder="Search Delivery products..."
-          (input)="searchDelivery()" />
+          (input)="searchDeliveryProducts()" />
       </div>
       <button class="btn btn-primary" (click)="openCalendar(calendarDialog)">Schedule Delivery</button>
 
@@ -68,7 +68,7 @@
         <td>{{ deliver?.ProductName }}</td>
         <td>{{ deliver?.Qty }}</td>
         <td>{{ deliver?.SONumber }}</td>
-        <td>{{ deliver?.Delivery_date | date:'mediumDate' }}</td>
+        <td>{{ deliver?.Delivery_date | utcToLocal:'date' }}</td>
         <td>{{ deliver?.Customer_name }}</td>
         
         <td (click)="$event.stopPropagation()">
@@ -81,6 +81,8 @@
             <option value="Out for Delivery">Out for Delivery</option>
             <option value="Not Delivered">Not Delivered</option>
             <option value="Delivered">Delivered</option>
+            <option value="Return-Minor defect">Return- Minor defect</option>
+            <option value="Return-Major defect">Return- Major defect</option>
           </select>
         </td>
         

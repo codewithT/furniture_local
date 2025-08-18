@@ -19,6 +19,8 @@ router.post('/dashboard/fetch-purchase-orders', requireAuth, requireRole('admin'
   let baseQuery = `
     SELECT 
       pm.*,
+      CONCAT(pm.Created_date, 'T', pm.Created_time, 'Z') AS CreatedAt,
+      CONCAT(pm.Changed_date, 'T', pm.Changed_time, 'Z') AS ChangedAt,
       s.SupplierCode, 
       p.ProductCode, 
       st.SONumber, 
@@ -139,19 +141,21 @@ router.post('/dashboard/fetch-product-reports', requireAuth, requireRole('admin'
       MultiplicationFactor,
       FinalPrice,
       Created_by,
+        CONCAT(pm.Created_date, 'T', pm.Created_time, 'Z') AS CreatedAt,
+      CONCAT(pm.Changed_date, 'T', pm.Changed_time, 'Z') AS ChangedAt,
       created_date,
       created_time,
       Changed_by,
       Changed_date,
       Changed_time,
       Time_stamp
-    FROM productmaster 
+    FROM productmaster pm
     WHERE 1=1
   `;
 
   let countQuery = `
     SELECT COUNT(*) AS total 
-    FROM productmaster 
+    FROM productmaster pm
     WHERE 1=1
   `;
 
@@ -328,7 +332,10 @@ router.post('/dashboard/fetch-sales-reports', requireAuth, requireRole('admin'),
       CustomerEmail,
       InternalNote,
       ManualPriceChange,
+      
       Created_by,
+       CONCAT(st.Created_date, 'T', st.Created_time, 'Z') AS CreatedAt,
+      CONCAT(st.Changed_date, 'T', st.Changed_time, 'Z') AS ChangedAt,
       Created_date,
       Created_time,
       Changed_by,
@@ -342,7 +349,7 @@ router.post('/dashboard/fetch-sales-reports', requireAuth, requireRole('admin'),
       Payment_Mode,
       Transfer_Date,
       Signature
-    FROM salestable 
+    FROM salestable st
     WHERE 1=1
   `;
 

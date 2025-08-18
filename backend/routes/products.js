@@ -118,6 +118,7 @@ async function updateJobStatus(jobId, status, percentage, message, stats = null,
   }
 }
 
+
 // Background product file processing function
 async function processProductExcelFile(filePath, jobId, userId) {
   let connection = null;
@@ -148,12 +149,19 @@ async function processProductExcelFile(filePath, jobId, userId) {
     connection = await pool.promise().getConnection();
     await connection.beginTransaction();
     
-    // FIXED: Remove SupplierCode from the insert query fields
+    // Get current UTC timestamp (MySQL compatible format)
+    const utcNow = new Date();
+    const utcDate = utcNow.toISOString().split('T')[0]; // YYYY-MM-DD format
+    const utcTime = utcNow.toISOString().split('T')[1].split('.')[0]; // HH:MM:SS format
+    const utcTimestamp = utcNow.toISOString().replace('T', ' ').replace('Z', '').substring(0, 19); // MySQL DATETIME format: YYYY-MM-DD HH:MM:SS
+    
+    // Updated insert query with UTC timestamp fields
     const insertQuery = `
       INSERT INTO productmaster
       (ProductCode, ProductName, SupplierID, SupplierItemNumber, 
-       SupplierPrice, MultiplicationFactor, FinalPrice, Created_by, isActive, created_date, created_time)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, CURDATE(), CURTIME())
+       SupplierPrice, MultiplicationFactor, FinalPrice, Created_by, isActive, 
+       created_date, created_time, created_timestamp)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)
     `;
     
     const failures = [];
@@ -206,10 +214,11 @@ async function processProductExcelFile(filePath, jobId, userId) {
           supplierPrice, multiplicationFactor, finalPrice
         });
         
-        // FIXED: Remove supplierCode from the values array
+        // Insert with UTC timestamp values
         await connection.query(insertQuery, [
           productCode, productName, supplierID, supplierItemNumber,
-          supplierPrice, multiplicationFactor, finalPrice, userId
+          supplierPrice, multiplicationFactor, finalPrice, userId,
+          utcDate, utcTime, utcTimestamp
         ]);
         
         stats.successful++;
@@ -244,12 +253,12 @@ async function processProductExcelFile(filePath, jobId, userId) {
     connection.release();
     connection = null;
     
-    // Update job status to completed
+    // Update job status to completed with UTC timestamp
     await updateJobStatus(
       jobId, 
       'completed', 
       100, 
-      `Processing complete. ${stats.successful} product records added successfully.`,
+      `Processing complete at ${utcTimestamp}. ${stats.successful} product records added successfully.`,
       stats,
       failures
     );
@@ -257,12 +266,15 @@ async function processProductExcelFile(filePath, jobId, userId) {
   } catch (err) {
     console.error('Error processing product Excel file:', err);
     
+    // Get UTC timestamp for error logging (MySQL compatible)
+    const errorTimestamp = new Date().toISOString().replace('T', ' ').replace('Z', '').substring(0, 19);
+    
     // Update job status to failed
     await updateJobStatus(
       jobId, 
       'failed', 
       0, 
-      `Error: ${err.message}`
+      `Error at ${errorTimestamp}: ${err.message}`
     );
     
     // Try to rollback if connection exists
@@ -280,8 +292,9 @@ async function processProductExcelFile(filePath, jobId, userId) {
       if (err) console.error("Error deleting file:", err);
     });
   }
-}
+};
 
+ 
 // Job progress checking endpoint - can be shared between suppliers and products
  
 router.get('/products/job-progress/:jobId', requireAuth, async (req, res) => {
@@ -426,11 +439,19 @@ router.get('/products', requireAuth, requireRole('admin', 'sales', 'warehouse', 
 router.post('/products/add-product', requireAuth, requireRole('admin'), (req, res) => {
   const product = req.body;
   console.log(product);
+  
+  // Get current UTC timestamp (MySQL compatible format)
+  const utcNow = new Date();
+  const utcDate = utcNow.toISOString().split('T')[0]; // YYYY-MM-DD format
+  const utcTime = utcNow.toISOString().split('T')[1].split('.')[0]; // HH:MM:SS format
+  const utcTimestamp = utcNow.toISOString().replace('T', ' ').replace('Z', '').substring(0, 19); // MySQL DATETIME format: YYYY-MM-DD HH:MM:SS
+  
   const sql = `
   INSERT INTO productmaster (
     ProductCode, ProductName, SupplierID, SupplierItemNumber, SupplierPrice,
-    MultiplicationFactor, FinalPrice, Created_by, isActive, created_date, created_time
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURDATE(), CURTIME())`;
+    MultiplicationFactor, FinalPrice, Created_by, isActive, 
+    created_date, created_time, created_timestamp
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
   const values = [
     product.ProductCode,
@@ -441,41 +462,60 @@ router.post('/products/add-product', requireAuth, requireRole('admin'), (req, re
     product.MultiplicationFactor,
     product.FinalPrice,
     product.Created_by.email,
-    1 
+    1,
+    utcDate,
+    utcTime,
+    utcTimestamp
   ];
 
   pool.getConnection((err, connection) => {
-    if (err) return res.status(500).json({ error: err.message });
+    if (err) {
+      console.error('Database connection error:', err);
+      return res.status(500).json({ error: 'Database connection error' });
+    }
 
     connection.beginTransaction(err => {
       if (err) {
         connection.release();
-        return res.status(500).json({ error: err.message });
+        console.error('Transaction error:', err);
+        return res.status(500).json({ error: 'Transaction error' });
       }
 
       connection.query(sql, values, (err, result) => {
         if (err) {
+          console.error('SQL Error:', err);
           return connection.rollback(() => {
             connection.release();
-            res.status(500).json({ error: err.message });
+            res.status(500).json({ error: 'Error adding product' });
           });
         }
 
         connection.commit(err => {
           if (err) {
+            console.error('Commit error:', err);
             return connection.rollback(() => {
               connection.release();
-              res.status(500).json({ error: err.message });
+              res.status(500).json({ error: 'Error committing transaction' });
             });
           }
 
           connection.release();
-          res.json({ message: 'Product added successfully', productId: result.insertId });
+          res.json({ 
+            message: 'Product added successfully', 
+            productId: result.insertId,
+            createdAt: {
+              date: utcDate,
+              time: utcTime,
+              timestamp: utcTimestamp
+            }
+          });
         });
       });
     });
   });
 });
+
+
 
 // Configure multer for image storage
 const imageStorage = multer.diskStorage({
@@ -514,126 +554,168 @@ const filetypes = /jpeg|jpg|png|gif|webp|heic|heif/;
   }
 });
 
-// UPDATE a product
-router.put('/products/update-product', requireAuth, requireRole('admin'), imageUpload.single('image'), (req, res) => {
-  try {
-    if (!req.body.product) {
-      return res.status(400).json({ error: 'Product data is required' });
-    }
-
-    const product = JSON.parse(req.body.product);
-
-    // Use relative path only (avoid /images duplication)
-    let imagePath = product.Picture;
-    if (req.file) {
-      imagePath = `products/${req.file.filename}`;
-    }
-
-    const changedBy = req.session.user.email || 'system';
-
-    const sql = `
-      UPDATE productmaster 
-      SET ProductCode = ?, 
-          ProductName = ?, 
-          SupplierItemNumber = ?, 
-          Picture = ?, 
-          FinalPrice = ?,
-          SupplierPrice = ?,
-          MultiplicationFactor = ?,
-          Changed_by = ?,
-          Changed_date = CURDATE(), 
-          Changed_time = CURTIME()
-      WHERE ProductID = ?`;
-
-    const values = [
-      product.ProductCode,
-      product.ProductName,
-      product.SupplierItemNumber,
-      imagePath,
-      product.FinalPrice,
-      product.SupplierPrice || 0,
-      product.MultiplicationFactor || 0,
-      changedBy,
-      product.ProductID
-    ];
-
-    pool.getConnection((err, connection) => {
-      if (err) {
-        console.error('Database connection error:', err);
-        return res.status(500).json({ error: 'Database connection error' });
-      }
-
-      connection.beginTransaction(err => {
-        if (err) {
-          connection.release();
-          return res.status(500).json({ error: 'Transaction error' });
-        }
-
-        connection.query(sql, values, (err, result) => {
-          if (err) {
-            return connection.rollback(() => {
-              connection.release();
-              res.status(500).json({ error: 'Error updating product' });
-            });
-          }
-
-          connection.commit(err => {
-            if (err) {
-              return connection.rollback(() => {
-                connection.release();
-                res.status(500).json({ error: 'Error committing transaction' });
-              });
-            }
-
-            connection.release();
-            res.json({ 
-              message: 'Product updated successfully',
-              product: {
-                ...product,
-                Picture: imagePath
-              }
-            });
-          });
-        });
-      });
-    });
-  } catch (error) {
-    console.error('Error processing request:', error);
-    res.status(500).json({ error: 'Error processing request' });
-  }
-});
-
-// Product Image Upload API (Single Image Upload)
-router.post('/products/:productId/image', requireAuth, requireRole('admin'), imageUpload.single('image'), async (req, res) => {
-  const productId = req.params.productId;
-
-  if (!req.file) {
-    return res.status(400).json({ error: 'No image file uploaded' });
-  }
-
-  try {
-    const imagePath = `products/${req.file.filename}`;
-    const changedBy = req.session.user?.email || 'system';
-
-    const updateQuery = `
-      UPDATE productmaster 
-      SET Picture = ?, 
+router.put('/products/update-product', requireAuth, requireRole('admin'), imageUpload.single('image'), (req, res) => { 
+  try { 
+    if (!req.body.product) { 
+      return res.status(400).json({ error: 'Product data is required' }); 
+    } 
+ 
+    const product = JSON.parse(req.body.product); 
+ 
+    // Use relative path only (avoid /images duplication) 
+    let imagePath = product.Picture; 
+    if (req.file) { 
+      imagePath = `products/${req.file.filename}`; 
+    } 
+ 
+    const changedBy = req.session.user.email || 'system'; 
+    
+    // Get current UTC timestamp (MySQL compatible format)
+    const utcNow = new Date();
+    const utcDate = utcNow.toISOString().split('T')[0]; // YYYY-MM-DD format
+    const utcTime = utcNow.toISOString().split('T')[1].split('.')[0]; // HH:MM:SS format
+    const utcTimestamp = utcNow.toISOString().replace('T', ' ').replace('Z', '').substring(0, 19); // MySQL DATETIME format: YYYY-MM-DD HH:MM:SS
+ 
+    const sql = ` 
+      UPDATE productmaster  
+      SET ProductCode = ?,  
+          ProductName = ?,  
+          SupplierItemNumber = ?,  
+          Picture = ?,  
+          FinalPrice = ?, 
+          SupplierPrice = ?, 
+          MultiplicationFactor = ?, 
           Changed_by = ?, 
-          Changed_date = CURDATE(), 
-          Changed_time = CURTIME()
-      WHERE ProductID = ?`;
+          Changed_date = ?,  
+          Changed_time = ?,
+          Changed_timestamp = ?
+      WHERE ProductID = ?`; 
+ 
+    const values = [ 
+      product.ProductCode, 
+      product.ProductName, 
+      product.SupplierItemNumber, 
+      imagePath, 
+      product.FinalPrice, 
+      product.SupplierPrice || 0, 
+      product.MultiplicationFactor || 0, 
+      changedBy,
+      utcDate,
+      utcTime,
+      utcTimestamp,
+      product.ProductID 
+    ]; 
+ 
+    pool.getConnection((err, connection) => { 
+      if (err) { 
+        console.error('Database connection error:', err); 
+        return res.status(500).json({ error: 'Database connection error' }); 
+      } 
+ 
+      connection.beginTransaction(err => { 
+        if (err) { 
+          connection.release(); 
+          return res.status(500).json({ error: 'Transaction error' }); 
+        } 
+ 
+        connection.query(sql, values, (err, result) => { 
+          if (err) { 
+            console.error('SQL Error:', err);
+            return connection.rollback(() => { 
+              connection.release(); 
+              res.status(500).json({ error: 'Error updating product' }); 
+            }); 
+          } 
+ 
+          connection.commit(err => { 
+            if (err) { 
+              return connection.rollback(() => { 
+                connection.release(); 
+                res.status(500).json({ error: 'Error committing transaction' }); 
+              }); 
+            } 
+ 
+            connection.release(); 
+            res.json({  
+              message: 'Product updated successfully', 
+              product: { 
+                ...product, 
+                Picture: imagePath,
+                Changed_date: utcDate,
+                Changed_time: utcTime,
+                Changed_timestamp: utcTimestamp
+              } 
+            }); 
+          }); 
+        }); 
+      }); 
+    }); 
+  } catch (error) { 
+    console.error('Error processing request:', error); 
+    res.status(500).json({ error: 'Error processing request' }); 
+  } 
+}); 
 
-    await pool.promise().query(updateQuery, [imagePath, changedBy, productId]);
-
-    res.json({ 
-      message: 'Product image uploaded successfully', 
-      imagePath: `${req.protocol}://${req.get('host')}/images/${imagePath}` 
-    });
-  } catch (error) {
-    console.error('Error uploading product image:', error);
-    res.status(500).json({ error: 'Failed to upload product image' });
-  }
+router.post('/products/:productId/image', requireAuth, requireRole('admin'), imageUpload.single('image'), async (req, res) => { 
+  const productId = req.params.productId; 
+ 
+  if (!req.file) { 
+    return res.status(400).json({ error: 'No image file uploaded' }); 
+  } 
+ 
+  try { 
+    const imagePath = `products/${req.file.filename}`; 
+    const changedBy = req.session.user?.email || 'system'; 
+    
+    // Get current UTC timestamp (MySQL compatible format)
+    const utcNow = new Date();
+    const utcDate = utcNow.toISOString().split('T')[0]; // YYYY-MM-DD format
+    const utcTime = utcNow.toISOString().split('T')[1].split('.')[0]; // HH:MM:SS format
+    const utcTimestamp = utcNow.toISOString().replace('T', ' ').replace('Z', '').substring(0, 19); // MySQL DATETIME format: YYYY-MM-DD HH:MM:SS
+ 
+    const updateQuery = ` 
+      UPDATE productmaster  
+      SET Picture = ?,  
+          Changed_by = ?,  
+          Changed_date = ?,  
+          Changed_time = ?,
+          Changed_timestamp = ?
+      WHERE ProductID = ?`; 
+ 
+    await pool.promise().query(updateQuery, [
+      imagePath, 
+      changedBy, 
+      utcDate,
+      utcTime,
+      utcTimestamp,
+      productId
+    ]); 
+ 
+    res.json({  
+      message: 'Product image uploaded successfully',  
+      imagePath: `${req.protocol}://${req.get('host')}/images/${imagePath}`,
+      updatedAt: {
+        date: utcDate,
+        time: utcTime,
+        timestamp: utcTimestamp
+      }
+    }); 
+  } catch (error) { 
+    console.error('Error uploading product image:', error); 
+    res.status(500).json({ error: 'Failed to upload product image' }); 
+  } 
 });
+
+// Utility function to get UTC timestamp in different formats (MySQL compatible)
+function getUTCTimestamp() {
+  const utcNow = new Date();
+  return {
+    date: utcNow.toISOString().split('T')[0], // YYYY-MM-DD
+    time: utcNow.toISOString().split('T')[1].split('.')[0], // HH:MM:SS
+    timestamp: utcNow.toISOString().replace('T', ' ').replace('Z', '').substring(0, 19), // MySQL DATETIME format: YYYY-MM-DD HH:MM:SS
+    iso: utcNow.toISOString() // Keep ISO format for API responses if needed
+  };
+}
 
 // DELETE a product (with transaction)
 router.delete('/products/:id', requireAuth, requireRole('admin'), (req, res) => {

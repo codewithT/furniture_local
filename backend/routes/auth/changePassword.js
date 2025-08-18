@@ -1,7 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
-const moment = require('moment');
+// Removed moment.js - using native Date for UTC handling
 const router = express.Router();
 const pool = require('../../config/db');
 const requireAuth = require('../middlewares/authMiddleware');

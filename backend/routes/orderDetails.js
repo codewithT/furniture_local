@@ -91,108 +91,258 @@ router.get('/order-details/:soNumber', requireAuth, requireRole('admin', 'sales'
 // Add this route to your existing router file
 
 // Update order by SONumber
-router.put('/order-details/:soNumber', requireAuth, requireRole('admin', 'sales'), (req, res) => {
+// Robust transactional update for order by SONumber
+router.put('/order-details/:soNumber', requireAuth, requireRole('admin', 'sales'), async (req, res) => {
     const soNumber = req.params.soNumber;
-    const { 
-        paymentStatus, 
-        paymentMode, 
-        shipToParty, 
-        internalNote, 
-        expectedDeliveryDate, 
-        paidAmount,
-        soldToParty
+    const {
+        Delivery_date, POStatus, CustomerEmail, Payment_Status, GST,
+        ShipToParty, SoldToParty, InternalNote, items, Customer_name,
+        Customer_Contact, Payment_Mode, Total_Paid_Amount, DiscountAmount,
+        SubTotal, GrandTotal, PaymentDetails
     } = req.body;
-    console.log('Received request to update order:', req.body);
-    const changedBy = req.session.user.email;
 
+    const created_by = req.session.user.email;
     if (!soNumber) {
         return res.status(400).json({ error: 'SONumber is required' });
     }
 
-    const currentDate = new Date().toISOString().slice(0, 10);
-    const currentTime = new Date().toISOString().slice(11, 19);
-    const formattedTimestamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
+    // Industry standard: Store all dates in UTC using ISO 8601 format
+    const nowUTC = new Date();
+    const nowISO = nowUTC.toISOString();
+    const currentDateUTC = nowISO.slice(0, 10);                    // YYYY-MM-DD in UTC
+    const currentTimeUTC = nowISO.slice(11, 19);                   // HH:MM:SS in UTC
+    const timestampUTC = nowISO.slice(0, 19).replace('T', ' ');    // MySQL datetime format
 
-    const formattedDeliveryDate = expectedDeliveryDate ? 
-        new Date(expectedDeliveryDate).toISOString().slice(0, 10) : null;
+    const deliveryDateUTC = Delivery_date ? new Date(Delivery_date) : nowUTC;
+    const formattedDeliveryDateUTC = deliveryDateUTC.toISOString().slice(0, 19).replace('T', ' ');
 
-    pool.getConnection((err, connection) => {
-        if (err) {
-            console.error('Error acquiring connection:', err);
-            return res.status(500).json({ error: 'Database connection error' });
+    const formattedPayment_Mode = (Payment_Mode === 'Others') ? (PaymentDetails || '') : Payment_Mode;
+
+    const connection = await pool.promise().getConnection();
+
+    try {
+        await connection.beginTransaction();
+
+        // 1. Check existing products
+        const [existingRows] = await connection.query(
+            `SELECT ProductID FROM salestable WHERE SONumber = ? AND isActive = 1`,
+            [soNumber]
+        );
+        const existingProductIDs = existingRows.map(row => row.ProductID);
+
+        const newItems = items.filter(item => !existingProductIDs.includes(item.ProductID));
+        const salesIDMap = new Map();
+
+        const insertSalesQuery = `
+            INSERT INTO salestable 
+            (SONumber, ProductID, SupplierID, Qty, Price, GST, TotalPrice, 
+             SoldToParty, ShipToParty, CustomerEmail, InternalNote, Created_by,
+             Created_date, Created_time, Time_stamp, Delivery_date, Payment_Status,
+             Customer_name, Customer_Contact, Payment_Mode, Total_Paid_Amount, Discount, SOStatus, isActive)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `;
+
+        for (const item of newItems) {
+            const [salesResult] = await connection.query(insertSalesQuery, [
+                soNumber,
+                item.ProductID || null,
+                item.SupplierID || null,
+                item.Qty || 0,
+                item.Price || 0,
+                GST || 0,
+                item.TotalPrice || 0,
+                SoldToParty || 'Internal purpose',
+                ShipToParty || 'Internal purpose',
+                CustomerEmail || '',
+                InternalNote || '',
+                created_by,
+                currentDateUTC,
+                currentTimeUTC,
+                timestampUTC,
+                formattedDeliveryDateUTC,
+                Payment_Status || 'pending',
+                Customer_name || 'not filled',
+                Customer_Contact || 'not filled',
+                formattedPayment_Mode || 'not filled',
+                Total_Paid_Amount || 0,
+                DiscountAmount || 0,
+                POStatus || 'Not Delivered',
+                1 // isActive
+            ]);
+
+            salesIDMap.set(item.ProductID, salesResult.insertId);
         }
 
-        connection.beginTransaction(err => {
-            if (err) {
-                connection.release();
-                return res.status(500).json({ error: 'Transaction error', details: err });
+        // 2. Insert purchase data
+        const purchaseValues = [];
+
+        for (const item of newItems) {
+            if (!item.Check) {
+                const salesId = salesIDMap.get(item.ProductID);
+                purchaseValues.push([
+                    item.ProductID,
+                    item.SupplierID,
+                    0.00,
+                    created_by,
+                    currentDateUTC,
+                    currentTimeUTC,
+                    created_by,
+                    currentDateUTC,
+                    currentTimeUTC,
+                    timestampUTC,
+                    formattedDeliveryDateUTC,
+                    'Not Ordered',
+                    '',
+                    salesId,
+                    null,
+                    null,
+                    1
+                ]);
             }
+        }
 
-            const updateSalesQuery = `
-                UPDATE salestable 
-                SET 
-                    Payment_Status = COALESCE(?, Payment_Status),
-                    Payment_Mode = COALESCE(?, Payment_Mode),
-                    ShipToParty = COALESCE(?, ShipToParty),
-                    InternalNote = COALESCE(?, InternalNote),
-                    Delivery_date = COALESCE(?, Delivery_date),
-                    Total_Paid_Amount = COALESCE(?, Total_Paid_Amount),
-                    SoldToParty = COALESCE(?, SoldToParty), 
-                    Changed_by = ?,
-                    Changed_date = ?,
-                    Changed_time = ?
-                WHERE SONumber = ?
+        if (purchaseValues.length > 0) {
+            const insertPurchaseQuery = `
+                INSERT INTO purchasemaster 
+                (ProductID, SupplierID, RecordMargin, Created_by, Created_date, Created_time,
+                 Changed_by, Changed_date, Changed_time, Time_stamp, Delivery_Date,
+                 POStatus, PONumber, SalesID, Supplier_Date, Delayed_Date, isActive)
+                VALUES ?
             `;
+            await connection.query(insertPurchaseQuery, [purchaseValues]);
+        }
 
-            const salesValues = [
-                paymentStatus || null,
-                paymentMode || null,
-                shipToParty || null,
-                internalNote || null,
-                formattedDeliveryDate,
-                paidAmount || null,
-                 soldToParty || null,
-                changedBy,
-                currentDate,
-                currentTime,
-                soNumber,
-               
-            ];
+        // 3. ✅ Update common order info (UTC formatted)
+        await connection.query(
+            `UPDATE salestable 
+             SET Total_Paid_Amount = ?, 
+                 Payment_Status = ?,
+                 Delivery_date = ?,
+                 InternalNote = ?,
+                 CustomerEmail = ?,
+                 Customer_name = ?,
+                 Customer_Contact = ?,
+                 ShipToParty = ?,
+                 SoldToParty = ?,
+                 Payment_Mode = ?,
+                 InternalNote = ?,
+                 Changed_by = ?, 
+                 Changed_date = ?, 
+                 Changed_time = ?, 
+                 Time_stamp = ? 
+             WHERE SONumber = ? AND isActive = 1`,
+            [
+                Total_Paid_Amount || 0,
+                Payment_Status || 'pending',
+                formattedDeliveryDateUTC,
+                InternalNote || '',
+                CustomerEmail || '',
+                Customer_name || '',
+                Customer_Contact || '',
+                ShipToParty || '',
+                SoldToParty || '',
+                formattedPayment_Mode || '',
+                InternalNote || '',
+                created_by,
+                currentDateUTC,
+                currentTimeUTC,
+                timestampUTC,
+                soNumber
+            ]
+        );
 
-            connection.query(updateSalesQuery, salesValues, (err, salesResult) => {
-                if (err) {
-                    return connection.rollback(() => {
-                        connection.release();
-                        console.error('Error updating sales data:', err);
-                        res.status(500).json({ error: 'Error updating sales data', details: err });
-                    });
-                }
+        await connection.commit();
+        res.json({ message: 'Order updated successfully!', SONumber: soNumber });
 
-                connection.commit(err => {
-                    if (err) {
-                        return connection.rollback(() => {
-                            connection.release();
-                            res.status(500).json({ error: 'Transaction commit error', details: err });
-                        });
-                    }
-
-                    connection.release();
-
-                    if (salesResult.affectedRows === 0) {
-                        return res.status(404).json({ error: 'Order not found or no changes made' });
-                    }
-
-                    res.json({ 
-                        message: 'Order updated successfully!',
-                        soNumber: soNumber,
-                        salesRowsAffected: salesResult.affectedRows,
-                        updatedBy: changedBy.email,
-                        updatedAt: formattedTimestamp
-                    });
-                });
-            });
-        });
-    });
+    } catch (error) {
+        await connection.rollback();
+        console.error('Order update error:', error);
+        res.status(500).json({ error: 'Server error', details: error });
+    } finally {
+        connection.release();
+    }
 });
 
+  
+
+
+
+
+
+// DELETE product from order with business logic
+// DELETE product from order with business logic
+router.delete(
+    '/order-details/:soNumber/product/:productCode',
+    requireAuth,
+    requireRole('admin', 'sales'),
+    async (req, res) => {
+      const { soNumber, productCode } = req.params;
+  
+      try {
+        // Step 1: Get ProductID from productmaster
+        const [productRows] = await pool.promise().query(
+          `SELECT ProductID FROM productmaster WHERE ProductCode = ? LIMIT 1`,
+          [productCode]
+        );
+  
+        if (!productRows.length) {
+          return res.status(404).json({ message: 'Invalid ProductCode: Product not found' });
+        }
+  
+        const productId = productRows[0].ProductID;
+  
+        // Step 2: Get POStatus and Delivery_date from salestable
+        const [orderRows] = await pool.promise().query(
+          `SELECT SOStatus, Delivery_date FROM salestable WHERE SONumber = ? AND ProductID = ? LIMIT 1`,
+          [soNumber, productId]
+        );
+  
+        if (!orderRows.length) {
+          return res.status(404).json({ message: 'Order/Product not found in salestable' });
+        }
+  
+        const { SOStatus, Delivery_date } = orderRows[0];
+        // Check pickup date in UTC
+        const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD in UTC
+        const pickupCrossed = Delivery_date && Delivery_date <= today;
+  
+        if (["Received", "Scheduled for Delivery", "Delivered"].includes(SOStatus) || pickupCrossed) {
+          return res.status(403).json({ message: 'Cannot delete product: PO locked or pickup date crossed.' });
+        }
+  
+        // Step 3: Delete from salestable
+        await pool.promise().query(
+          `DELETE FROM salestable WHERE SONumber = ? AND ProductID = ?`,
+          [soNumber, productId]
+        );
+  
+        return res.json({ success: true, message: 'Product deleted from order.' });
+  
+      } catch (err) {
+        console.error('Delete product error:', err);
+        return res.status(500).json({ message: 'Server error' });
+      }
+    }
+  );
+  
+// // ADD product to order
+// router.post('/order-details/:soNumber/product', requireAuth, requireRole('admin', 'sales'), async (req, res) => {
+//     const { soNumber } = req.params;
+//     const { ProductID, Qty, Price } = req.body;
+//     try {
+//         // Insert new product row for this SONumber
+//         await pool.promise().query(
+//             `INSERT INTO salestable (SONumber, ProductID, Qty, Price, isActive) VALUES (?, ?, ?, ?, 1)`,
+//             [soNumber, ProductID, Qty, Price]
+//         );
+//         res.json({ success: true, message: 'Product added to order.' });
+//     } catch (err) {
+//         console.error('Add product error:', err);
+//         res.status(500).json({ message: 'Server error' });
+//     }
+// });
+
+ 
+
 module.exports = router;
+

@@ -29,6 +29,7 @@ import { UnauthorizedComponent } from './components/unauthorized/unauthorized.co
 import { ResetPasswordComponent } from './components/reset-password/reset-password.component';
 import { ForgotPasswordComponent } from './components/forgot-password/forgot-password.component';
 import { ChangePasswordComponent } from './components/change-password/change-password.component';
+import { UpdatedInvoiceComponent } from './components/updated-invoice/updated-invoice.component';
 export const routes: Routes = [
   { path: '', redirectTo: '/auth/login', pathMatch: 'full' },
   
@@ -128,7 +129,12 @@ export const routes: Routes = [
     component: InvoiceComponent,
     canActivate: [AuthGuard],  // Protect Invoice
   },
-
+    
+  {
+    path: 'updated-invoice/:soNumber',
+    component: UpdatedInvoiceComponent,
+     canActivate: [AuthGuard],  // Protect Updated Invoice
+  },
    
   {
     path: 'confirm/:email',

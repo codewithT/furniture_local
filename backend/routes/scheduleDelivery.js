@@ -3,12 +3,63 @@ const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
 const requireAuth = require('./middlewares/authMiddleware');
-const moment = require('moment');
+// Removed moment.js - using native Date for UTC handling
 const multer = require('multer');
 const storage = multer.memoryStorage();
 const path = require('path');
 const fs = require('fs');
 const requireRole = require('./middlewares/requireRole');
+
+// Updated backend route for checking delivery date limit
+router.get('/delivery/check-date', requireAuth, requireRole('admin', 'warehouse'), (req, res) => {
+  const deliveryDate = req.query.date;
+  
+  if (!deliveryDate) {
+    return res.status(400).json({ error: 'Delivery date is required' });
+  }
+
+  // Validate date format (YYYY-MM-DD)
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+  if (!dateRegex.test(deliveryDate)) {
+    return res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD' });
+  }
+
+  try {
+    const countSql = `
+      SELECT COUNT(*) as count 
+      FROM salestable 
+      WHERE DATE(Transfer_Date) = ? 
+      AND isActive = 1 
+      AND (SOStatus = 'Scheduled for Delivery' 
+           OR SOStatus = 'Out for Delivery' 
+           OR SOStatus = 'Delivered'
+           OR SOStatus = 'Return-Minor defect'
+           OR SOStatus = 'Return-Major defect')
+    `;
+    
+    db.query(countSql, [deliveryDate], (err, results) => {
+      if (err) {
+        console.error('Error checking delivery date:', err);
+        return res.status(500).json({ error: 'Failed to check delivery date' });
+      }
+
+      const deliveryCount = results[0].count;
+      const maxDeliveries = 8; // You can make this configurable
+      
+      res.json({
+        deliveryCount: deliveryCount,
+        maxDeliveries: maxDeliveries,
+        isLimitExceeded: deliveryCount >= maxDeliveries,
+        message: deliveryCount >= maxDeliveries 
+          ? `Delivery limit exceeded: ${deliveryCount}/${maxDeliveries}` 
+          : `Deliveries scheduled: ${deliveryCount}/${maxDeliveries}`
+      });
+    });
+  } catch (err) {
+    console.error('Error checking delivery date:', err);
+    res.status(500).json({ error: 'Failed to check delivery date' });
+  }
+});
 
 // Main delivery route with pagination
 router.get('/delivery', requireAuth, requireRole('admin', 'warehouse'), (req, res) => {
@@ -49,7 +100,9 @@ router.get('/delivery', requireAuth, requireRole('admin', 'warehouse'), (req, re
       OR st.SOStatus = 'Out for Delivery' 
       OR st.SOStatus = 'Delivered'
       OR st.SOStatus = 'Not Delivered' 
-      OR st.SOStatus = 'Scheduled for Delivery')
+      OR st.SOStatus = 'Scheduled for Delivery'
+      OR st.SOStatus = 'Return-Minor defect'
+      OR st.SOStatus = 'Return-Major defect')
     AND st.isActive = 1
     ORDER BY ${validSortBy} ${validSortOrder}
     LIMIT ? OFFSET ?`;
@@ -210,30 +263,88 @@ router.get('/delivery/search/:query', requireAuth, requireRole('admin', 'warehou
 router.put('/delivery/updateTransferDate', requireAuth, requireRole('admin', 'warehouse'), (req, res) => {
   const updates = req.body;
   console.log('Received updates:', updates);
+  
   if (!Array.isArray(updates) || updates.length === 0) {
     return res.status(400).json({ error: 'Invalid request data' });
   }
 
-  let queries = updates.map(update => {
-    return new Promise((resolve, reject) => {
-           // Convert to UTC safely
-      const formattedDate = moment.utc(update.Transfer_Date).format('YYYY-MM-DD HH:mm:ss');
+  // First, check delivery date limits for all items being updated
+  const deliveryDates = [...new Set(updates.map(update => 
+    new Date(update.Transfer_Date).toISOString().slice(0, 10)
+  ))];
 
-      const sql = `UPDATE salestable st
-        SET 
-        st.Transfer_Date = ?,
-        st.SOStatus = 'Scheduled for Delivery'
-        WHERE st.SalesID = ?`;
-      db.query(sql, [formattedDate, update.SalesID], (err, result) => {
-        if (err) reject(err);
-        resolve(result);
+  // Check each unique delivery date
+  const dateCheckPromises = deliveryDates.map(date => {
+    return new Promise((resolve, reject) => {
+      const countSql = `
+        SELECT COUNT(*) as count 
+        FROM salestable 
+        WHERE DATE(Delivery_date) = ? 
+        AND isActive = 1 
+        AND (SOStatus = 'Scheduled for Delivery' 
+             OR SOStatus = 'Out for Delivery' 
+             OR SOStatus = 'Delivered')
+      `;
+      
+      db.query(countSql, [date], (err, results) => {
+        if (err) {
+          reject({ date, error: err });
+        } else {
+          resolve({ 
+            date, 
+            count: results[0].count,
+            wouldExceed: (results[0].count + updates.filter(u => 
+              new Date(u.Transfer_Date).toISOString().slice(0, 10) === date
+            ).length) > 8
+          });
+        }
       });
     });
   });
 
-  Promise.all(queries)
-    .then(results => res.json({ success: true, message: 'Transfer dates updated', results }))
-    .catch(error => res.status(500).json({ error: 'Database error', details: error }));
+  Promise.all(dateCheckPromises)
+    .then(dateChecks => {
+      // Log the date checks for debugging
+      console.log('Date checks:', dateChecks);
+
+      // Proceed with updates regardless of limits (since frontend already confirmed)
+      let queries = updates.map(update => {
+        return new Promise((resolve, reject) => {
+          // Convert to UTC for database storage
+          const formattedDate = new Date(update.Transfer_Date).toISOString().slice(0, 19).replace('T', ' ');
+
+          const sql = `UPDATE salestable st
+            SET 
+            st.Transfer_Date = ?,
+            st.Delivery_date = ?, 
+            st.SOStatus = 'Scheduled for Delivery'
+            WHERE st.SalesID = ?`;
+            
+          db.query(sql, [formattedDate, formattedDate, update.SalesID], (err, result) => {
+            if (err) reject(err);
+            resolve(result);
+          });
+        });
+      });
+
+      Promise.all(queries)
+        .then(results => {
+          res.json({ 
+            success: true, 
+            message: 'Transfer dates updated successfully', 
+            results,
+            dateChecks // Include date check info in response
+          });
+        })
+        .catch(error => {
+          console.error('Database error during update:', error);
+          res.status(500).json({ error: 'Database error during update', details: error });
+        });
+    })
+    .catch(error => {
+      console.error('Error checking delivery dates:', error);
+      res.status(500).json({ error: 'Error checking delivery dates', details: error });
+    });
 });
 
 const upload = multer({ storage: storage });
@@ -286,7 +397,8 @@ router.get('/delivery/:salesID', requireAuth, requireRole('admin', 'warehouse'),
 // Update delivery status
 router.put('/delivery/updateSOStatus', requireAuth, requireRole('admin', 'warehouse'), (req, res) => {
   const { salesID, newStatus } = req.body;
-
+  console.log('Received updates:', req.body);
+  
   if (!salesID || !newStatus) {
     return res.status(400).json({ error: 'SalesID and status are required' });
   }
@@ -373,5 +485,6 @@ router.put('/delivery/uploadDeliveryPicture', uploadDeliveryPicture.single('deli
     });
   });
 });
+
 
 module.exports = router;

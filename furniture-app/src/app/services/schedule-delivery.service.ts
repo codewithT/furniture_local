@@ -17,7 +17,7 @@ export interface DeliveryProduct {
   Qty: number;
   Payment_Status: string;
   Transfer_Date?: string | Date; // Changed to string or Date
-  Delivery_date?: string | Date;
+  Delivery_date?: string; // Keep as string for utcToLocal pipe
   Signature?: Blob;
   Delivery_Picture?: string;
 }
@@ -42,6 +42,14 @@ export interface PaginationParams {
   sortBy?: string;
   sortOrder?: 'ASC' | 'DESC';
 }
+
+export interface DeliveryDateCheckResponse {
+  deliveryCount: number;
+  maxDeliveries: number;
+  isLimitExceeded: boolean;
+  message: string;
+}
+
 
 @Injectable({
   providedIn: 'root'
@@ -122,9 +130,13 @@ export class ScheduleDeliveryService {
       SalesID: product.SalesID,
       Transfer_Date: product.Transfer_Date
     }));
-
+  
+    console.log('Updating transfer dates:', payload);
+  
     return this.http.put(`${this.apiUrl}/updateTransferDate`, payload, this.httpOptions)
-      .pipe(catchError(this.handleError<any>('Update Transfer Date', [])));
+      .pipe(
+        catchError(this.handleError<any>('Update Transfer Date', null))
+      );
   }
 
   uploadSignature(formData: FormData): Observable<any> {
@@ -160,6 +172,23 @@ export class ScheduleDeliveryService {
     );
   }
 
+  checkDeliveryDate(date: string): Observable<DeliveryDateCheckResponse> {
+    // Ensure date is in YYYY-MM-DD format
+    const formattedDate = new Date(date).toISOString().split('T')[0];
+    
+    return this.http.get<DeliveryDateCheckResponse>(
+      `${this.apiUrl}/check-date?date=${formattedDate}`, 
+      this.httpOptions
+    ).pipe(
+      catchError(this.handleError<DeliveryDateCheckResponse>('Check delivery date', {
+        deliveryCount: 0,
+        maxDeliveries: 8,
+        isLimitExceeded: false,
+        message: 'Unable to check delivery date'
+      }))
+    );
+  }
+  
   // Handle HTTP errors
   private handleError<T>(operation = 'operation', result?: T) {
     return (error: any): Observable<T> => {

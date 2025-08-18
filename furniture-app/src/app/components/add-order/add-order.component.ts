@@ -24,7 +24,7 @@ export class AddOrderComponent implements OnInit {
   productSuggestions: { [index: number]: any[] } = {};
   showProductSuggestions: { [index: number]: boolean } = {};
   suppressBlur: boolean = false;
-  
+  soNumber: string = '';
   constructor(private fb: FormBuilder,
     private addOrderService: AddOrderService,
     private authService: AuthService,
@@ -487,7 +487,7 @@ initializeForm() {
         companyContact: 'Phone: (555) 123-4567, Email: sales@cfe.com',
         
         invoiceDate: currentDate,
-        invoiceNumber: 'INV-' + Math.floor(Math.random() * 10000),
+        invoiceNumber: 'INV-' + this.soNumber,
         paymentTerms: orderData.paymentStatus === 'Full Paid' ? 'Paid in Full' : 'Due in 30 days',
         
         billTo: {
@@ -591,6 +591,7 @@ submitOrder() {
     this.addOrderService.submitCheckedOrder(finalData).subscribe(
       (response) => {
         console.log('Order response:', response);
+        this.soNumber = response.SONumber; // Store the Sale Order Number
         alert(`Order placed successfully with Sale Order Number: ${response.SONumber}`);
       },
       (error) => {

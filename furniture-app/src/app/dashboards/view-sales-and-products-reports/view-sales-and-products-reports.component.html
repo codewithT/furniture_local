@@ -200,8 +200,8 @@
               </span>
             </td>
             <td>{{ report.Payment_Mode || '-' }}</td>
-            <td>{{ formatDate(report.Delivery_date) }}</td>
-            <td>{{ formatDate(report.Transfer_Date) }}</td>
+            <td>{{ report.Delivery_date | utcToLocal:'date' }}</td>
+            <td>{{ report.Transfer_Date | utcToLocal:'date' }}</td>
             <td>{{ formatCurrency(report.SupplierPrice) }}</td>
             <td>{{ formatCurrency(report.FinalPrice) }}</td>
           </tr>

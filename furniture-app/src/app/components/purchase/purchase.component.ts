@@ -1,14 +1,17 @@
-import { CommonModule, DatePipe, NgFor, NgIf } from '@angular/common';
-import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { PurchaseService } from '../../services/purchase.service';
 import { Purchase } from '../../models/purchases.model';
 import { AddOrderService } from '../../services/addOrder.service';
+import { UtcToLocalPipe } from '../../pipes/utc-to-local.pipe';
+import { DateUtilityService } from '../../services/date-utility.service';
 
 @Component({
   selector: 'app-purchase',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, UtcToLocalPipe],
+  providers: [DateUtilityService],
   templateUrl: './purchase.component.html',
   styleUrls: ['./purchase.component.css']
 })
@@ -191,7 +194,8 @@ export class PurchaseComponent implements OnInit {
       return;
     }
 
-    // Function to format dates to ISO string (UTC)
+    // Function to format dates to ISO string while preserving local date
+    // This ensures the date selected by user is sent as-is without timezone conversion
     const formatToISO = (date: string | Date | null | undefined) => {
       if (!date) return null;
       try {
@@ -201,7 +205,16 @@ export class PurchaseComponent implements OnInit {
           console.warn('Invalid date detected:', date);
           return null; // Return null for invalid dates
         }
-        return d.toISOString();
+        // Format as YYYY-MM-DD HH:mm:ss in local time (not UTC)
+        // This preserves the date/time as entered by the user
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const hours = String(d.getHours()).padStart(2, '0');
+        const minutes = String(d.getMinutes()).padStart(2, '0');
+        const seconds = String(d.getSeconds()).padStart(2, '0');
+        
+        return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
       } catch (e) {
         console.error('Error formatting date:', date, e);
         return null; // Return null if date parsing fails
@@ -285,17 +298,12 @@ export class PurchaseComponent implements OnInit {
       }
     );
   }
-  
+
   sendEmails() {
     const selectedPurchases = this.getSelectedPurchases();
     const confirmedPurchases = selectedPurchases.filter(purchase => purchase.POStatus === "Confirmed");
-    
-    // Check for missing pickup dates
-    const isPickupDateMissing = selectedPurchases.some(purchase => 
-      !purchase.Supplier_Date || purchase.Supplier_Date === ''
-    );
 
-    if (isPickupDateMissing) {
+    if (this.isPickupDateMissing(selectedPurchases)) {
       alert("Please select a pickup date for all selected purchases before sending emails.");
       return;
     }
@@ -310,22 +318,33 @@ export class PurchaseComponent implements OnInit {
       return;
     }
 
-    console.log("Selected for sending emails:", selectedPurchases);
     this.purchaseService.sendMail(selectedPurchases).subscribe(
-      () => {
-        alert('Emails sent successfully!');
-        // A small delay before reloading to allow backend to process
-        setTimeout(() => {
+      (resp) => {
+        if (resp && resp.insufficientPayment) {
+          if (confirm(resp.message + "\n\nDo you want to send anyway?")) {
+            this.purchaseService.sendMail(selectedPurchases, true).subscribe(
+              () => {
+                alert('Emails sent successfully!');
+                this.loadPurchases();
+              },
+              err => alert('Failed to send emails: ' + err.error.message)
+            );
+          } else {
+            alert('Email sending cancelled.');
+          }
+        } else {
+          alert('Emails sent successfully!');
           this.loadPurchases();
-        }, 2000); 
+        }
       },
-      (error) => {
-        console.error('Error sending email:', error);
-        alert('Failed to send emails. Please check console for details.');
-      }
+      err => alert('Failed to send emails: ' + err.error.message)
     );
   }
-  
+
+  private isPickupDateMissing(purchases: Purchase[]): boolean {
+    return purchases.some(p => !p.Supplier_Date || p.Supplier_Date === '');
+  }
+
   onPageSizeChange(event: Event) {
     const target = event.target as HTMLSelectElement;
     if (target) {

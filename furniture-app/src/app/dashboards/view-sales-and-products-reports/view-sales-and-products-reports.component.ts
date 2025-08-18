@@ -2,6 +2,8 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DashboardService } from '../../services/dashboard.service';
+import { UtcToLocalPipe } from '../../pipes/utc-to-local.pipe';
+import { DateUtilityService } from '../../services/date-utility.service';
 
 // Interface for the combined report item from API
 interface SalesProductReportItem {
@@ -37,8 +39,9 @@ interface SalesProductReportItem {
 
 @Component({
   selector: 'app-sales-and-products-reports',
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, UtcToLocalPipe],
   standalone: true,
+  providers: [DateUtilityService],
   templateUrl: './view-sales-and-products-reports.component.html',
   styleUrls: ['./view-sales-and-products-reports.component.css']
 })
@@ -96,7 +99,8 @@ export class SalesAndProductsReportsComponent implements OnInit {
   // Delivery date range
 
   constructor(
-    private dashboardService: DashboardService
+    private dashboardService: DashboardService,
+    private dateUtility: DateUtilityService
   ) {}
 
   ngOnInit() {
@@ -328,35 +332,17 @@ export class SalesAndProductsReportsComponent implements OnInit {
   }
 
   // Helper methods for display
- // Helper methods for display
-formatCurrency(amount: number | null | undefined): string {
-  if (amount === null || amount === undefined) return '-';
-  return new Intl.NumberFormat('en-CA', { // 'en-CA' = English (Canada)
-    style: 'currency',
-    currency: 'CAD'
-  }).format(amount);
-}
-
-
-  formatDate(date: string | null | undefined): string {
-    if (!date) return '-';
-    try {
-      return new Date(date).toLocaleDateString('en-IN');
-    } catch {
-      return date;
-    }
+  formatCurrency(amount: number | null | undefined): string {
+    if (amount === null || amount === undefined) return '-';
+    return new Intl.NumberFormat('en-CA', { // 'en-CA' = English (Canada)
+      style: 'currency',
+      currency: 'CAD'
+    }).format(amount);
   }
 
-  formatDateTime(date: string | null | undefined, time: string | null | undefined): string {
-    if (!date) return '-';
-    try {
-      const dateStr = time ? `${date} ${time}` : date;
-      return new Date(dateStr).toLocaleString('en-IN');
-    } catch {
-      return date + (time ? ` ${time}` : '');
-    }
-  }
+  
 
+ 
   formatNumber(num: number | null | undefined): string {
     if (num === null || num === undefined) return '-';
     return num.toLocaleString('en-IN');

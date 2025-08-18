@@ -1,92 +1,79 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../config/db'); // Assuming db is a connection pool
-const moment = require("moment");
+const pool = require('../config/db'); // MySQL2 pool with .promise()
 
-// GET Purchase Orders for a Supplier
+// ✅ GET Purchase Orders for a Supplier
 router.get("/confirm/:email", async (req, res) => {
-    const email = decodeURIComponent(req.params.email);  
+    const email = decodeURIComponent(req.params.email);
     console.log("Fetching purchase orders for:", email);
 
-    db.getConnection((err, connection) => {
-        if (err) {
-            console.error("Database connection error:", err);
-            return res.status(500).json({ error: "Database connection failed" });
-        }
-
-        const query = `
+    const query = `
         SELECT pm.PurchaseID, pm.PONumber, st.Qty, pm.Supplier_Date, prom.SupplierItemNumber,
-        prom.ProductName
+               prom.ProductName
         FROM purchasemaster pm
         JOIN productmaster prom ON pm.ProductID = prom.ProductID
         JOIN supplier sup ON pm.SupplierID = sup.SupplierID
         JOIN salestable st ON pm.SalesID = st.SalesID
-        WHERE sup.EmailAddress = ? AND (pm.POStatus = 'Awaiting' || pm.POStatus ='Arriving Late') AND pm.isActive = 1
-        ORDER BY pm.PurchaseID DESC`;
-        
-        connection.query(query, [email], (error, results) => {
-            connection.release();
+        WHERE sup.EmailAddress = ? 
+          AND (pm.POStatus = 'Awaiting' OR pm.POStatus = 'Arriving Late') 
+          AND pm.isActive = 1
+        ORDER BY pm.PurchaseID DESC
+    `;
 
-            if (error) {
-                console.error("Query error:", error);
-                return res.status(500).json({ error: "Error fetching purchase orders" });
-            }
-            
-            res.json(results);
-        });
-    });
+    try {
+        const [results] = await pool.promise().query(query, [email]);
+        res.json(results);
+    } catch (error) {
+        console.error("Error fetching purchase orders:", error);
+        res.status(500).json({ error: "Error fetching purchase orders" });
+    }
 });
 
-// POST update purchase confirmations
+// ✅ POST update purchase confirmations
 router.post("/confirm/:email", async (req, res) => {
     const email = decodeURIComponent(req.params.email);
-    const confirmations = req.body; // Format: { "1": { "status": "YES", "delayedDate": "2024-08-20" } }
+    const confirmations = req.body; // { "1": { "status": "YES", "delayedDate": "2024-08-20" } }
 
     console.log("Received confirmations:", confirmations);
 
-    db.getConnection(async (err, connection) => {
-        if (err) return res.status(500).json({ error: "Database connection failed" });
+    const queries = Object.keys(confirmations).map((purchaseID) => {
+        const { status, delayedDate } = confirmations[purchaseID];
+        let poStatus = "Awaiting";
 
-        try {
-            const queries = Object.keys(confirmations).map((purchaseID) => {
-                const { status, delayedDate } = confirmations[purchaseID];
-
-                let poStatus = "Awaiting";
-                let queryParams = [];
-
-                if (status === "YES") {
-                    poStatus = "Confirmed";
-                    queryParams = [poStatus, purchaseID];
-                } else if (status === "NO") {
-                    poStatus = "Discontinued";
-                    queryParams = [poStatus, purchaseID];
-                } else if (status === "DELAYED" && delayedDate) {
-                    poStatus = "Arriving Late";
-
-                    queryParams = [poStatus, delayedDate, purchaseID];
-                    return connection.promise().query(
-                        `UPDATE purchasemaster SET POStatus = ?, Delayed_Date = ?, Supplier_Date = NULL 
-                        WHERE PurchaseID = ? AND isActive = 1`,
-                        queryParams
-                    );
-                }
-
-                return connection.promise().query(
-                    `UPDATE purchasemaster SET POStatus = ? WHERE PurchaseID = ? AND isActive = 1`,
-                    queryParams
-                );
-            });
-
-            await Promise.all(queries);
-            connection.release();
-            res.json({ message: "Order statuses updated successfully" });
-
-        } catch (error) {
-            connection.release();
-            console.error("Error updating purchase statuses:", error);
-            res.status(500).json({ error: "Database update failed", details: error.message });
+        if (status === "YES") {
+            poStatus = "Confirmed";
+            return pool.promise().query(
+                `UPDATE purchasemaster 
+                 SET POStatus = ? 
+                 WHERE PurchaseID = ? AND isActive = 1`,
+                [poStatus, purchaseID]
+            );
+        } else if (status === "NO") {
+            poStatus = "Discontinued";
+            return pool.promise().query(
+                `UPDATE purchasemaster 
+                 SET POStatus = ? 
+                 WHERE PurchaseID = ? AND isActive = 1`,
+                [poStatus, purchaseID]
+            );
+        } else if (status === "DELAYED" && delayedDate) {
+            poStatus = "Arriving Late";
+            return pool.promise().query(
+                `UPDATE purchasemaster 
+                 SET POStatus = ?, Delayed_Date = ?, Supplier_Date = NULL 
+                 WHERE PurchaseID = ? AND isActive = 1`,
+                [poStatus, delayedDate, purchaseID]
+            );
         }
     });
+
+    try {
+        await Promise.all(queries);
+        res.json({ message: "Order statuses updated successfully" });
+    } catch (error) {
+        console.error("Error updating purchase statuses:", error);
+        res.status(500).json({ error: "Database update failed", details: error.message });
+    }
 });
 
 module.exports = router;

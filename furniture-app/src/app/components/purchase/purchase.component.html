@@ -102,7 +102,7 @@
           <td>{{ purchase?.SupplierCode }}</td>
           <td>{{ purchase?.Qty }}</td>
           <td>{{ purchase?.SONumber }}</td>
-          <td>{{ purchase?.Delivery_date | date:'mediumDate' }}</td>
+          <td>{{ purchase?.Delivery_date | utcToLocal:'date' }}</td>
           <td>
             <span
               class="po-status-box"

@@ -293,11 +293,10 @@
           <th>Delivery Date</th>
           <th>Customer Contact</th>
           <th>Created By</th>
-          <th>Created Date</th>
-          <th>Created Time</th>
+          <th>Created At</th>
           <th>Changed By</th>
-          <th>Changed Date</th>
-          <th>Changed Time</th>
+          <th>Changed At</th>
+        
         </tr>
       </thead>
       <tbody>
@@ -324,14 +323,42 @@
             </span>
           </td>
           <td>{{ sale?.Payment_Mode }}</td>
-          <td>{{ sale?.Delivery_date | date:'mediumDate' }}</td>
+          <td>{{ sale?.Delivery_date | utcToLocal:'date' }}</td>
           <td>{{ sale?.Customer_Contact }}</td>
           <td>{{ sale?.Created_by }}</td>
-          <td>{{ sale?.Created_date | date:'mediumDate' }}</td>
-          <td>{{ sale?.Created_time }}</td>
+          <!-- Created At -->
+          <td class="datetime-cell">
+            <div class="datetime-display">
+              <ng-container *ngIf="sale?.CreatedAt; else useCreatedDatetime">
+                {{ sale.CreatedAt | utcToLocal:'datetime' }}
+              </ng-container>
+              <ng-template #useCreatedDatetime>
+                <ng-container *ngIf="sale?.created_date">
+                  {{ sale.created_date | utcToLocal:'date' }}
+                  <span *ngIf="sale?.created_time">
+                    {{ sale.created_time | utcToLocal:'time' }}
+                  </span>
+                </ng-container>
+              </ng-template>
+            </div>
+          </td>
           <td>{{ sale?.Changed_by }}</td>
-          <td>{{ sale?.Changed_date | date:'mediumDate' }}</td>
-          <td>{{ sale?.Changed_time }}</td>
+          <!-- Changed At -->
+          <td class="datetime-cell">
+            <div class="datetime-display">
+              <ng-container *ngIf="sale?.ChangedAt; else useChangedDatetime">
+                {{ sale.ChangedAt | utcToLocal:'datetime' }}
+              </ng-container>
+              <ng-template #useChangedDatetime>
+                <ng-container *ngIf="sale?.Changed_date">
+                  {{ sale.Changed_date | utcToLocal:'date' }}
+                  <span *ngIf="sale?.Changed_time" >
+                    {{ sale.Changed_time | utcToLocal:'time' }}
+                  </span>
+                </ng-container>
+              </ng-template>
+            </div>
+          </td>
         </tr>
         <tr *ngIf="!salesReports || salesReports.length === 0">
           <td colspan="19" class="no-data">No sales reports found</td>

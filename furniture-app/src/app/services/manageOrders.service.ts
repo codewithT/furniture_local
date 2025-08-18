@@ -62,6 +62,16 @@ export class ManageOrderService {
       params: httpParams
     };
 
+    // Debug log to see what's being sent
+    console.log('API Request URL:', this.apiUrl);
+    console.log('API Request Params:', {
+      page: params?.page,
+      limit: params?.limit,
+      search: params?.search,
+      sortField: params?.sortField,
+      sortOrder: params?.sortOrder
+    });
+
     return this.http.get<PaginatedResponse<Order>>(this.apiUrl, options)
       .pipe(catchError(this.handleError<PaginatedResponse<Order>>('get orders', {
         data: [],
@@ -78,9 +88,20 @@ export class ManageOrderService {
       .pipe(catchError(this.handleError<any>('Error Deleting Sale Order', [])));
   }
     
+  /**
+   * Send generic order emails (existing)
+   */
   sendMails(orders: Order[]): Observable<any> {
     return this.http.post<any>(`${this.apiUrl}/send-mails`, { orders }, this.httpOptions)
       .pipe(catchError(this.handleError<any>('Error sending mails', [])));
+  }
+
+  /**
+   * Send payment reminder emails for selected orders
+   */
+  sendPaymentReminders(orders: Order[]): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/send-payment-reminders`, { orders }, this.httpOptions)
+      .pipe(catchError(this.handleError<any>('Error sending payment reminders', [])));
   }
 
   updateOrder(order: Order): Observable<any> {
@@ -91,6 +112,12 @@ export class ManageOrderService {
     return this.http.put(`${this.apiUrl}/update-payment-status`, updatePaymentStatus, this.httpOptions)
       .pipe(catchError(this.handleError<any>('Error updating payment status', [])));
   }
+  
+  deleteProductFromOrder(soNumber: string, productCode: string): Observable<any> {
+    return this.http.delete<any>(`${this.apiUrl}/order-details/${soNumber}/product/${productCode}`, this.httpOptions)
+      .pipe(catchError(this.handleError<any>('Error deleting product from order', [])));
+  }
+
     
   private handleError<T>(operation = 'operation', result?: T) {
     return (error: any): Observable<T> => {

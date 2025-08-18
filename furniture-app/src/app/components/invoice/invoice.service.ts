@@ -18,4 +18,16 @@ export class InvoiceService {
   getInvoiceData(): Observable<any> {
     return this.invoiceData$;
   }
+
+  // Generate new invoice for a sales order (calls backend API)
+  generateNewInvoice(soNumber: string) {
+    // TODO: Replace with actual HttpClient call when backend is ready
+    // return this.http.post(`/api/order-details/${soNumber}/invoice`, {});
+    return new Observable(observer => {
+      setTimeout(() => {
+        observer.next({ success: true });
+        observer.complete();
+      }, 1000);
+    });
+  }
 }

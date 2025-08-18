@@ -2,11 +2,14 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DashboardService } from '../../services/dashboard.service';
+import { UtcToLocalPipe } from '../../pipes/utc-to-local.pipe';
+import { DateUtilityService } from '../../services/date-utility.service';
 
 @Component({
   selector: 'app-view-product-reports',
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, UtcToLocalPipe],
   standalone: true,
+  providers: [DateUtilityService],
   templateUrl: './view-products-reports.component.html',
   styleUrls: ['./view-products-reports.component.css']
 })
@@ -47,11 +50,29 @@ export class ViewProductsReportsComponent implements OnInit {
     Created_By: ''
   };
 
+  // Timezone info for display
+  timezoneInfo = {
+    offset: '',
+    abbreviation: '',
+    name: ''
+  };
+
   constructor(
-    private dashboardService: DashboardService
-  ) {}
+    private dashboardService: DashboardService,
+    private dateUtilityService: DateUtilityService
+  ) {
+    // Get timezone information for display
+    this.timezoneInfo = {
+      offset: this.dateUtilityService.getTimezoneOffset(),
+      abbreviation: this.dateUtilityService.getTimezoneAbbreviation(),
+      name: this.dateUtilityService.getTimezoneName()
+    };
+  }
 
   ngOnInit() {
+    console.log('Current timezone:', this.timezoneInfo);
+    console.log('Current local time:', new Date().toLocaleString());
+    console.log('Current UTC time:', new Date().toISOString());
     this.loadProducts();
   }
 
@@ -59,17 +80,85 @@ export class ViewProductsReportsComponent implements OnInit {
     this.loading = true;
     this.error = null;
 
+    // Convert local date filters to UTC for server query
+    const serverFilters = { ...this.filters };
+    
+    // Convert date filters to UTC if they exist
+    if (serverFilters.CreatedStartDate) {
+      try {
+        const localDate = new Date(serverFilters.CreatedStartDate + 'T00:00:00');
+        serverFilters.CreatedStartDate = localDate.toISOString().split('T')[0];
+      } catch (error) {
+        console.warn('Error converting CreatedStartDate:', error);
+      }
+    }
+    
+    if (serverFilters.CreatedEndDate) {
+      try {
+        const localDate = new Date(serverFilters.CreatedEndDate + 'T23:59:59');
+        serverFilters.CreatedEndDate = localDate.toISOString().split('T')[0];
+      } catch (error) {
+        console.warn('Error converting CreatedEndDate:', error);
+      }
+    }
+
+    if (serverFilters.ChangedStartDate) {
+      try {
+        const localDate = new Date(serverFilters.ChangedStartDate + 'T00:00:00');
+        serverFilters.ChangedStartDate = localDate.toISOString().split('T')[0];
+      } catch (error) {
+        console.warn('Error converting ChangedStartDate:', error);
+      }
+    }
+    
+    if (serverFilters.ChangedEndDate) {
+      try {
+        const localDate = new Date(serverFilters.ChangedEndDate + 'T23:59:59');
+        serverFilters.ChangedEndDate = localDate.toISOString().split('T')[0];
+      } catch (error) {
+        console.warn('Error converting ChangedEndDate:', error);
+      }
+    }
+
     const requestData = {
-      filters: this.filters,
+      filters: serverFilters,
       page: this.currentPage,
       pageSize: this.pageSize
     };
 
+    console.log('Request filters:', serverFilters);
+
     this.dashboardService.getProductReportsData(requestData).subscribe({
       next: (response: any) => {
-        console.log('Response from backend:', response);
-        if (response && response.data) {
+        if (response?.data) {
           this.products = response.data;
+          
+          // Enhanced debugging for date conversions
+          if (this.products.length > 0) {
+            const sample = this.products[0];
+            console.log('=== SAMPLE PRODUCT DATA ===');
+            console.log('Raw sample:', sample);
+            console.log('');
+            
+            // Test all date fields
+            const dateFields = [
+              'CreatedAt', 'ChangedAt', 'created_date', 'created_time', 
+              'Changed_date', 'Changed_time', 'Time_stamp'
+            ];
+            
+            dateFields.forEach(field => {
+              const rawValue = sample[field];
+              if (rawValue) {
+                console.log(`${field}:`);
+                console.log(`  Raw: "${rawValue}"`);
+                console.log(`  Formatted (datetime): "${this.dateUtilityService.formatUtcToLocal(rawValue, 'datetime')}"`);
+                console.log(`  Formatted (date): "${this.dateUtilityService.formatUtcToLocal(rawValue, 'date')}"`);
+                console.log(`  Formatted (time): "${this.dateUtilityService.formatUtcToLocal(rawValue, 'time')}"`);
+                console.log(`  Is Valid: ${this.dateUtilityService.isValidDate(rawValue)}`);
+                console.log('');
+              }
+            });
+          }
           
           if (response.pagination) {
             this.currentPage = response.pagination.currentPage;
@@ -78,12 +167,10 @@ export class ViewProductsReportsComponent implements OnInit {
             this.totalRecords = response.pagination.totalRecords;
           }
         } else {
-          // Fallback for old response format
           this.products = Array.isArray(response) ? response : [];
           this.totalRecords = this.products.length;
           this.totalPages = 1;
         }
-        
         this.loading = false;
       },
       error: (err) => {
@@ -185,34 +272,65 @@ export class ViewProductsReportsComponent implements OnInit {
     this.downloadCsv(csvContent, 'products-reports.csv');
   }
   generateCsvContent(): string {
-    const headers = [
-      'ProductID', 'ProductCode', 'ProductName', 'SupplierID', 
-      'SupplierItemNumber', 'SupplierPrice', 'MultiplicationFactor', 
-      'FinalPrice', 'CreatedDate', 'ChangedDate', 'Created_By',
+    if (!this.products.length) return '';
+    
+    const headers = Object.keys(this.products[0]);
+    const dateFields = ['CreatedAt', 'ChangedAt', 'created_date', 'created_time', 'Changed_date', 'Changed_time', 'Time_stamp'];
+    
+    const csvRows = [
+      headers.join(','),
+      ...this.products.map(row =>
+        headers.map(field => {
+          let value = row[field] ?? '';
+          
+          // Format date fields for CSV export
+          if (dateFields.includes(field) && value) {
+            if (this.dateUtilityService.isValidDate(value)) {
+              value = this.dateUtilityService.formatUtcToLocal(value, 'datetime');
+            }
+          }
+          
+          return `"${String(value).replace(/"/g, '""')}"`;
+        }).join(',')
+      )
     ];
     
-    const rows = this.products.map(product => [
-      product.ProductID, product.ProductCode, product.ProductName, 
-      product.SupplierID, product.SupplierItemNumber, 
-      product.SupplierPrice, product.MultiplicationFactor, 
-      product.FinalPrice, product.CreatedDate, product.ChangedDate
-    ]);
-    
-    const csvContent = [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
-    return csvContent;
+    return csvRows.join('\r\n');
   }
 
   downloadCsv(content: string, filename: string) {
-    const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    if (link.download !== undefined) { // feature detection
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute('download', filename);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+    try {
+      const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      
+      if (link.download !== undefined) {
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', filename);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url); // Clean up
+      }
+    } catch (error) {
+      console.error('Error downloading CSV:', error);
+      this.error = 'Failed to download CSV file';
     }
+  }
+
+  // Helper method to format dates in templates
+  formatDate(dateString: string | null | undefined, format: 'date' | 'time' | 'datetime' | 'short' | 'medium' | 'long' = 'medium'): string {
+    return this.dateUtilityService.formatUtcToLocal(dateString, format);
+  }
+
+  // Helper method to check if date is valid
+  isValidDate(dateString: string | null | undefined): boolean {
+    return this.dateUtilityService.isValidDate(dateString);
+  }
+
+  // Helper method to get relative time
+  getRelativeTime(dateString: string | null | undefined): string {
+    return this.dateUtilityService.getRelativeTime(dateString);
   }
 }

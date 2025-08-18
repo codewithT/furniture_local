@@ -2,11 +2,14 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DashboardService } from '../../services/dashboard.service';
+import { UtcToLocalPipe } from '../../pipes/utc-to-local.pipe';
+import { DateUtilityService } from '../../services/date-utility.service';
 
 @Component({
   selector: 'app-view-sales-reports',
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, UtcToLocalPipe],
   standalone: true,
+  providers: [DateUtilityService],
   templateUrl: './view-sales-reports.component.html',
   styleUrls: ['./view-sales-reports.component.css']
 })

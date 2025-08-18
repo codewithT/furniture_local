@@ -8,36 +8,51 @@ const requireRole = require('./middlewares/requireRole');
  
 const transporter = require('../utils/transpoter_email');  
 
-// GET Orders - Use Pool
-router.get('/manageOrders', requireAuth, requireRole('admin', 'sales'), (req, res) => {
-    const {
+// GET Orders - Using pool.promise
+router.get(
+  '/manageOrders',
+  requireAuth,
+  requireRole('admin', 'sales'),
+  async (req, res) => {
+    try {
+      const {
         page = 1,
         limit = 10,
         search = '',
         sortField = 'Created_date',
-        sortOrder = 'desc'
-    } = req.query;
+        sortOrder = 'desc',
+      } = req.query;
 
-    const offset = (parseInt(page) - 1) * parseInt(limit);
-    const limitNum = parseInt(limit);
+      const offset = (parseInt(page) - 1) * parseInt(limit);
+      const limitNum = parseInt(limit);
 
-    // Validate sort order
-    const validSortOrder = sortOrder.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
-    
-    // Valid sortable fields to prevent SQL injection
-    const validSortFields = [
-        'Created_date', 'SONumber', 'ProductName', 'CustomerEmail', 
-        'Customer_name', 'Qty', 'Delivery_date', 'SOStatus', 
-        'Total_Paid_Amount', 'Payment_Status'
-    ];
-    
-    const validSortField = validSortFields.includes(sortField) ? sortField : 'Created_date';
+      // ✅ Validate sort order
+      const validSortOrder =
+        sortOrder.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
 
-    // Build WHERE clause for search
-    let whereClause = '';
-    let searchParams = [];
-    
-    if (search && search.trim()) {
+      // ✅ Whitelist sortable fields to prevent SQL injection
+      const validSortFields = [
+        'Created_date',
+        'SONumber',
+        'ProductName',
+        'CustomerEmail',
+        'Customer_name',
+        'Qty',
+        'Delivery_date',
+        'SOStatus',
+        'Total_Paid_Amount',
+        'Payment_Status',
+      ];
+
+      const validSortField = validSortFields.includes(sortField)
+        ? sortField
+        : 'Created_date';
+
+      // ✅ Build WHERE clause for search
+      let whereClause = '';
+      let searchParams = [];
+
+      if (search && search.trim()) {
         const searchTerm = `%${search.trim()}%`;
         whereClause = `WHERE (
             st.SONumber LIKE ? OR 
@@ -46,13 +61,19 @@ router.get('/manageOrders', requireAuth, requireRole('admin', 'sales'), (req, re
             st.Customer_name LIKE ? OR
             st.Payment_Status LIKE ?
         ) AND st.isActive = 1`;
-        searchParams = [searchTerm, searchTerm, searchTerm, searchTerm, searchTerm];
-    } else {
-        whereClause = 'WHERE st.isActive = 1'; // Default to active records
-    }
+        searchParams = [
+          searchTerm,
+          searchTerm,
+          searchTerm,
+          searchTerm,
+          searchTerm,
+        ];
+      } else {
+        whereClause = 'WHERE st.isActive = 1'; // ✅ Default to active records
+      }
 
-    // Main query for data
-    const dataQuery = `
+      // ✅ Main query for paginated data
+      const dataQuery = `
         SELECT 
             st.SalesID, 
             st.SONumber, 
@@ -76,138 +97,181 @@ router.get('/manageOrders', requireAuth, requireRole('admin', 'sales'), (req, re
         ${whereClause}
         ORDER BY ${validSortField} ${validSortOrder}
         LIMIT ? OFFSET ?
-    `;
+      `;
 
-    // FIXED: Count query should match the same JOINs as data query
-    const countQuery = `
+      // ✅ Count query (must match joins + where)
+      const countQuery = `
         SELECT COUNT(*) as total
         FROM salestable st
         JOIN productmaster pm ON st.ProductID = pm.ProductID
         ${whereClause}
-    `;
+      `;
 
-    console.log('Data Query:', dataQuery);
-    console.log('Count Query:', countQuery);
-    console.log('Search Params:', searchParams);
+      // Execute queries
+      const [countResults] = await pool
+        .promise()
+        .query(countQuery, [...searchParams]);
 
-    pool.getConnection((err, connection) => {
-        if (err) {
-            console.error('Error acquiring connection:', err);
-            return res.status(500).json({ error: 'Database connection error' });
-        }
+      const totalRecords = countResults[0].total;
+      const totalPages = Math.ceil(totalRecords / limitNum);
 
-        // Execute count query first
-        const countParams = [...searchParams];
-        connection.query(countQuery, countParams, (err, countResults) => {
-            if (err) {
-                connection.release();
-                console.error('Error fetching count:', err);
-                return res.status(500).json({ error: 'Database query error' });
-            }
+      const [dataResults] = await pool
+        .promise()
+        .query(dataQuery, [...searchParams, limitNum, offset]);
 
-            const totalRecords = countResults[0].total;
-            const totalPages = Math.ceil(totalRecords / limitNum);
+      // ✅ Send paginated response
+      res.json({
+        data: dataResults,
+        totalRecords,
+        currentPage: parseInt(page),
+        totalPages,
+        hasNext: parseInt(page) < totalPages,
+        hasPrev: parseInt(page) > 1,
+        pageSize: limitNum,
+      });
+    } catch (err) {
+      console.error('Error fetching orders:', err);
+      res.status(500).json({ error: 'Database query error' });
+    }
+  }
+);
 
-            // Execute data query
-            const dataParams = [...searchParams, limitNum, offset];
-            connection.query(dataQuery, dataParams, (err, dataResults) => {
-                connection.release();
-
-                if (err) {
-                    console.error('Error fetching data:', err);
-                    return res.status(500).json({ error: 'Database query error' });
-                }
-
-                // Return paginated response
-                res.json({
-                    data: dataResults,
-                    totalRecords: totalRecords,
-                    currentPage: parseInt(page),
-                    totalPages: totalPages,
-                    hasNext: parseInt(page) < totalPages,
-                    hasPrev: parseInt(page) > 1,
-                    pageSize: limitNum
-                });
-            });
-        });
-    });
-});
 
 // update payment status
-router.put('/manageOrders/update-payment-status', requireAuth, requireRole('admin', 'sales'), (req, res) => {
-    const { SalesID, Payment_Status } = req.body;
-
-    if (!SalesID || !Payment_Status) {
+router.put('/manageOrders/update-payment-status',
+  requireAuth, requireRole('admin', 'sales'),
+  async (req, res) => {
+    try {
+      const { SalesID, Payment_Status } = req.body;
+      if (!SalesID || !Payment_Status) {
         return res.status(400).json({ message: "SalesID and Payment_Status are required" });
-    }
-    const changedBy = req.session.user.email; 
-    
-    // Get current date and time
-    const currentDate = new Date();
-    const changedDate = currentDate.toISOString().slice(0, 10); // YYYY-MM-DD
-    const changedTime = currentDate.toTimeString().slice(0, 8); // HH:MM:SS
+      }
 
+      const changedBy = req.session?.user?.email || "system";
 
-    const query = `
-   UPDATE salestable 
+      // UTC date & time split
+      const now = new Date().toISOString();
+      const changedDate = now.slice(0, 10);  // YYYY-MM-DD
+      const changedTime = now.slice(11, 19); // HH:MM:SS
+
+      const query = `
+        UPDATE salestable 
         SET Payment_Status = ?, Changed_by = ?, Changed_date = ?, Changed_time = ?
         WHERE SalesID = ?
-    `;
+      `;
 
-    pool.getConnection((err, connection) => {
-        if (err) {
-            console.error("Error acquiring connection:", err);
-            return res.status(500).json({ message: "Database connection error" });
-        }
+      const [result] = await pool.promise().query(query, [
+        Payment_Status, changedBy, changedDate, changedTime, SalesID
+      ]);
 
-        connection.query(query, [Payment_Status, changedBy, changedDate, changedTime, SalesID], (err, result) => {
-            connection.release(); // Release connection
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ message: "Order not found" });
+      }
 
-            if (err) {
-                console.error("Error updating Payment_Status:", err);
-                return res.status(500).json({ message: "Database update error" });
-            }
+      res.status(200).json({ message: "Payment status updated successfully" });
+    } catch (err) {
+      console.error("Error updating Payment_Status:", err);
+      res.status(500).json({ message: "Database update error" });
+    }
+  }
+);
 
-            if (result.affectedRows === 0) {
-                return res.status(404).json({ message: "Order not found" });
-            }
-
-            res.status(200).json({ message: "Payment status updated successfully" });
-        });
-    });
-});
 // Delete a Sales Order by SalesID
-router.delete('/manageOrders/:salesID', requireAuth, requireRole('admin', 'sales'), (req, res) => {
-    const { salesID } = req.params;
+router.delete(
+  '/manageOrders/:salesID',
+  requireAuth,
+  requireRole('admin', 'sales'),
+  async (req, res) => {
+    try {
+      const { salesID } = req.params;
 
-    const query = `UPDATE salestable st SET st.isActive =0 WHERE st.SalesID = ?`;
+      const query = `UPDATE salestable SET isActive = 0 WHERE SalesID = ?`;
 
-    pool.getConnection((err, connection) => {
-        if (err) {
-            console.error('Error acquiring connection:', err);
-            return res.status(500).json({ error: 'Database connection error' });
-        }
+      const [result] = await pool.promise().query(query, [salesID]);
 
-        connection.query(query, [salesID], (err, result) => {
-            connection.release();
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ error: 'Sales Order not found' });
+      }
 
-            if (err) {
-                console.error('Error deleting sales order:', err);
-                return res.status(500).json({ error: 'Database query error' });
-            }
+      res.json({ message: `Sales Order with ID ${salesID} deleted successfully` });
+    } catch (err) {
+      console.error('Error deleting sales order:', err);
+      res.status(500).json({ error: 'Database query error' });
+    }
+  }
+);
 
-            if (result.affectedRows === 0) {
-                return res.status(404).json({ error: 'Sales Order not found' });
-            }
- 
-            res.json({ message: `Sales Order with ID ${salesID} deleted successfully` });
-        });
-    });
-});
 
  
 
 // POST Send Mails with Pool
+// ===================== Send Payment Reminder Emails =====================
+router.post('/manageOrders/send-payment-reminders', requireAuth, requireRole('admin', 'sales'), async (req, res) => {
+    const selectedOrders = req.body.orders;
+
+    if (!selectedOrders || selectedOrders.length === 0) {
+        return res.status(400).json({ message: "No orders selected" });
+    }
+
+    const soNumbers = selectedOrders.map(o => o.SONumber);
+
+    try {
+        const [rows] = await pool.promise().query(
+            `SELECT 
+                SONumber,
+                SUM(TotalPrice)   AS sumPrice,
+                SUM(Discount)     AS sumDiscount,
+                MAX(GST)   AS gstPercent,
+                MAX(Total_Paid_Amount) AS paidAmount,
+                MAX(CustomerEmail)     AS CustomerEmail
+             FROM salestable
+             WHERE SONumber IN (?)
+             GROUP BY SONumber`,
+            [soNumbers]
+        );
+
+        const emailPromises = rows.map(orderRow => {
+            const sumPrice = parseFloat(orderRow.sumPrice || 0);
+            const sumDiscount = parseFloat(orderRow.sumDiscount || 0);
+            const gstPercent = parseFloat(orderRow.gstPercent || 0);
+            const paidAmount = parseFloat(orderRow.paidAmount || 0);
+
+            const taxableAmount = sumPrice - sumDiscount;
+            const gstAmount = (taxableAmount * gstPercent) / 100;
+            const grandTotal = taxableAmount + gstAmount;
+            const pendingAmount = grandTotal - paidAmount;
+
+            if (pendingAmount <= 0) return Promise.resolve(); // skip fully paid
+
+            const mailOptions = {
+                from: process.env.USER_GMAIL,
+                to: orderRow.CustomerEmail,
+                subject: "Payment Reminder – Calgary Furniture Emporium",
+                text: `Please make your pending payment to Calgary Furniture Emporium, so that we are able to complete your delivery on time. Invoice number: ${orderRow.SONumber}, pending amount - ${pendingAmount.toFixed(2)} CAD.`
+            };
+
+            return new Promise(resolve => {
+                transporter.sendMail(mailOptions, (error, info) => {
+                    if (error) {
+                        console.error(`Error sending payment reminder for SONumber ${orderRow.SONumber}:`, error);
+                    } else {
+                        console.log(`Payment reminder sent for SONumber ${orderRow.SONumber}:`, info.response);
+                    }
+                    resolve();
+                });
+            });
+        });
+
+        await Promise.all(emailPromises);
+        return res.status(200).json({ message: 'Payment reminders sent successfully' });
+    } catch (err) {
+        console.error('Error sending payment reminders:', err);
+        return res.status(500).json({ message: 'Failed to send payment reminders' });
+    }
+});
+
+
+// ===================== Existing Send Mails =====================
 router.post('/manageOrders/send-mails', requireAuth, requireRole('admin', 'sales'), async (req, res) => {
     const selectedOrders = req.body.orders;
     console.log(selectedOrders);

@@ -3,15 +3,21 @@ const router = express.Router();
 const pool = require('../config/db'); // Assuming db is a connection pool
 const requireAuth = require('./middlewares/authMiddleware');
 const nodemailer = require("nodemailer");
-const moment = require("moment");
+// Removed moment.js - using native Date for UTC handling
 const requireRole = require('./middlewares/requireRole');
 
 const transporter = require('../utils/transpoter_email'); 
 
- // Inserting date/time with UTC conversion:
-const currentDateUTC = moment.utc().format("YYYY-MM-DD");
-const currentTimeUTC = moment.utc().format("HH:mm:ss");
-const timestampUTC = moment.utc().format("YYYY-MM-DD HH:mm:ss");
+// Industry standard: Helper functions for UTC date/time formatting
+const getUTCDateTime = () => {
+  const now = new Date();
+  const iso = now.toISOString();
+  return {
+    date: iso.slice(0, 10),              // YYYY-MM-DD
+    time: iso.slice(11, 19),             // HH:mm:ss
+    datetime: iso.slice(0, 19).replace('T', ' ')  // MySQL datetime format
+  };
+};
 
 // Get all purchases with pagination
 router.get('/purchase', requireAuth, requireRole('admin', 'purchase'), (req, res) => {
@@ -166,11 +172,15 @@ router.post('/purchase/addPurchase', requireAuth, requireRole('admin', 'purchase
         VALUES ?
     `;
 
-    const currentDate = new Date().toISOString().slice(0, 10);
-    const currentTime = new Date().toISOString().slice(11, 19);
-    const formattedTimestamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
+    // Use UTC for all timestamps to ensure consistency
+    const utc = getUTCDateTime();
+    const currentDate = utc.date;
+    const currentTime = utc.time;
+    const formattedTimestamp = utc.datetime;
+    
+    // Add 21 days to current date for delivery
     const deliveryDate = new Date();
-    deliveryDate.setDate(deliveryDate.getDate() + 21);  
+    deliveryDate.setUTCDate(deliveryDate.getUTCDate() + 21);
     const formattedDeliveryDate = deliveryDate.toISOString().slice(0, 10);
 
     pool.getConnection((err, connection) => {
@@ -295,15 +305,21 @@ router.put('/purchase/:id', requireAuth, requireRole('admin', 'purchase'), (req,
     const purchaseId = req.params.id;
     const { SONumber, Delivery_date, POStatus, SupplierCode, Supplier_Date, Qty, Delayed_Date } = req.body;
     const changedBy = req.session.user?.email;
-
+    
     if (!purchaseId) {
         return res.status(400).json({ error: "Purchase ID is required" });
     }
 
-    const formatedDate = Delivery_date ? moment.utc(Delivery_date).format("YYYY-MM-DD HH:mm:ss") : null;
-    const formatedSupplierDate = Supplier_Date ? moment.utc(Supplier_Date).format("YYYY-MM-DD HH:mm:ss") : null;
-    const formatedDelayedDate = Delayed_Date ? moment.utc(Delayed_Date).format("YYYY-MM-DD HH:mm:ss") : null;
-
+    // Convert dates to UTC for storage
+    // Frontend sends dates which need to be converted to UTC
+    const formatedDate = Delivery_date ? new Date(Delivery_date).toISOString().slice(0, 19).replace('T', ' ') : null;
+    const formatedSupplierDate = Supplier_Date ? new Date(Supplier_Date).toISOString().slice(0, 19).replace('T', ' ') : null;
+    const formatedDelayedDate = Delayed_Date ? new Date(Delayed_Date).toISOString().slice(0, 19).replace('T', ' ') : null;
+    
+    // Current timestamp in UTC
+    const utc = getUTCDateTime();
+    const formatedChangedDate = utc.datetime;
+    const formatedChangedTime = utc.time;
     const query = `
         UPDATE purchasemaster pm
         JOIN salestable sales ON pm.SalesID = sales.SalesID
@@ -318,9 +334,9 @@ router.put('/purchase/:id', requireAuth, requireRole('admin', 'purchase'), (req,
             pm.Changed_time = ?
         WHERE pm.PurchaseID = ?
     `;
-
+    console.log(formatedChangedDate);
     const values = [SONumber, formatedDate, POStatus, Qty,
-        formatedSupplierDate, formatedDelayedDate, changedBy, currentDateUTC, currentTimeUTC, purchaseId];
+        formatedSupplierDate, formatedDelayedDate, changedBy, formatedChangedDate, formatedChangedTime, purchaseId];
 
     pool.getConnection((err, connection) => {
         if (err) return res.status(500).json({ error: "DB connection error" });
@@ -449,14 +465,50 @@ router.get('/purchase/search', requireAuth, requireRole('admin', 'purchase'), as
   }
 });
 
-// Send purchase order emails
 router.post("/purchase/send-mails", requireAuth, requireRole('admin', 'purchase'), async (req, res) => {
+    const { sendAnyway } = req.query;
     const selectedPurchases = req.body;
-    console.log(selectedPurchases);
+
     if (!selectedPurchases || selectedPurchases.length === 0) {
         return res.status(400).json({ message: "No purchases selected" });
     }
 
+    // If sendAnyway is not true, perform the payment check
+    if (sendAnyway !== 'true') {
+        try {
+            // Derive SalesID via purchasemaster to avoid relying on frontend to send it
+            const purchaseIds = selectedPurchases.map(p => p.PurchaseID);
+            if (!purchaseIds.length) {
+                return res.status(400).json({ message: "No PurchaseIDs provided" });
+            }
+
+            const [salesRows] = await pool.promise().query(
+                `SELECT st.SalesID, st.Total_Paid_Amount, st.TotalPrice
+                 FROM salestable st
+                 JOIN purchasemaster pm ON pm.SalesID = st.SalesID
+                 WHERE pm.PurchaseID IN (?)`,
+                [purchaseIds]
+            );
+
+            const insufficientPayments = salesRows.filter(row => {
+                const grandTotal = parseFloat(row.TotalPrice) || 0;
+                const paid = parseFloat(row.Total_Paid_Amount) || 0;
+                return grandTotal > 0 && (paid / grandTotal) < 0.5;
+            });
+
+            if (insufficientPayments.length > 0) {
+                return res.status(200).json({
+                    insufficientPayment: true,
+                    message: "Amount paid is less than 50% , cannot send PO to supplier"
+                });
+            }
+        } catch (err) {
+            console.error('Payment verification error:', err);
+            return res.status(500).json({ message: 'Failed to verify payment status' });
+        }
+    }
+
+    // Proceed with sending emails if check passes or is bypassed
     try {
         const emailQueries = selectedPurchases.map((purchase) => {
             return new Promise((resolve, reject) => {
@@ -488,7 +540,7 @@ router.post("/purchase/send-mails", requireAuth, requireRole('admin', 'purchase'
 
                         const supplierItemNumber = results[0].SupplierItemNumber;
                         const supplierDate = purchase?.Supplier_Date
-                        ? moment.utc(purchase.Supplier_Date).format("YYYY-MM-DD") : null;  
+                        ? new Date(purchase.Supplier_Date).toISOString().slice(0, 10) : null;  
                         const productName = results[0].ProductName;
                         resolve({ purchase, supplierEmail, supplierItemNumber, poNumber, orderedQty ,
                             supplierDate, productName, soNumber

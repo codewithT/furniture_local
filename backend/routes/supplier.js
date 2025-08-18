@@ -172,6 +172,12 @@ async function processExcelFile(filePath, jobId, userId) {
     connection = await pool.promise().getConnection();
     await connection.beginTransaction();
     
+    // Get current UTC timestamp (MySQL compatible format) - used for all records in this batch
+    const utcNow = new Date();
+    const utcDate = utcNow.toISOString().split('T')[0]; // YYYY-MM-DD format
+    const utcTime = utcNow.toISOString().split('T')[1].split('.')[0]; // HH:MM:SS format
+    const utcTimestamp = utcNow.toISOString().replace('T', ' ').replace('Z', '').substring(0, 19); // MySQL DATETIME format
+    
     // Check for duplicate supplier codes before processing
     const supplierCodes = sheetData.map(row => row.SupplierCode).filter(code => code);
     if (supplierCodes.length > 0) {
@@ -187,11 +193,12 @@ async function processExcelFile(filePath, jobId, userId) {
       }
     }
     
-    // Insert query
+    // Insert query with UTC timestamp fields
     const insertQuery = `
       INSERT INTO supplier 
-      (SupplierCode, SupplierName, SupplierAddress, isActive, Created_by, Created_date, Created_time, EmailAddress)
-      VALUES (?, ?, ?, 1, ?, CURDATE(), CURTIME(), ?)
+      (SupplierCode, SupplierName, SupplierAddress, isActive, Created_by, 
+       Created_date, Created_time, Created_timestamp, EmailAddress)
+      VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?)
     `;
     
     const failures = [];
@@ -242,9 +249,10 @@ async function processExcelFile(filePath, jobId, userId) {
           throw new Error(`Supplier code '${supplierCode}' already exists`);
         }
         
-        // Insert record
+        // Insert record with UTC timestamp
         await connection.query(insertQuery, [
-          supplierCode, supplierName, supplierAddress, userId, emailAddress || null
+          supplierCode, supplierName, supplierAddress, userId, 
+          utcDate, utcTime, utcTimestamp, emailAddress || null
         ]);
         
         stats.successful++;
@@ -286,10 +294,10 @@ async function processExcelFile(filePath, jobId, userId) {
     connection.release();
     connection = null;
     
-    // Update job status to completed
+    // Update job status to completed with UTC timestamp
     const completionMessage = stats.failed > 0 
-      ? `Processing complete. ${stats.successful} records added successfully, ${stats.failed} failed.`
-      : `Processing complete. ${stats.successful} records added successfully.`;
+      ? `Processing complete at ${utcTimestamp}. ${stats.successful} records added successfully, ${stats.failed} failed.`
+      : `Processing complete at ${utcTimestamp}. ${stats.successful} records added successfully.`;
     
     await updateJobStatus(
       jobId, 
@@ -305,12 +313,15 @@ async function processExcelFile(filePath, jobId, userId) {
   } catch (err) {
     console.error('Error processing Excel file:', err);
     
+    // Get UTC timestamp for error logging (MySQL compatible)
+    const errorTimestamp = new Date().toISOString().replace('T', ' ').replace('Z', '').substring(0, 19);
+    
     // Update job status to failed
     await updateJobStatus(
       jobId, 
       'failed', 
       0, 
-      `Error: ${err.message}`
+      `Error at ${errorTimestamp}: ${err.message}`
     );
     
     // Try to rollback if connection exists
@@ -472,9 +483,17 @@ router.post('/supplier', requireAuth, requireRole('admin', 'purchase'), async (r
   if (EmailAddress && !validateEmail(EmailAddress)) {
     return res.status(400).json({ error: "Invalid email format" });
   }
+  
   console.log("User email:", req.user);
+  
   // Get user email from auth middleware
   const creater = Created_by.email;
+  
+  // Get current UTC timestamp (MySQL compatible format)
+  const utcNow = new Date();
+  const utcDate = utcNow.toISOString().split('T')[0]; // YYYY-MM-DD format
+  const utcTime = utcNow.toISOString().split('T')[1].split('.')[0]; // HH:MM:SS format
+  const utcTimestamp = utcNow.toISOString().replace('T', ' ').replace('Z', '').substring(0, 19); // MySQL DATETIME format
   
   pool.getConnection((err, connection) => {
     if (err) {
@@ -490,11 +509,14 @@ router.post('/supplier', requireAuth, requireRole('admin', 'purchase'), async (r
       }
 
       const query = `INSERT INTO supplier 
-      (SupplierCode, SupplierName, SupplierAddress, Created_by, EmailAddress, Created_date, Created_time,
-      isActive) 
-      VALUES (?, ?, ?, ?, ?, CURDATE(), CURTIME(), ?)`;
+      (SupplierCode, SupplierName, SupplierAddress, Created_by, EmailAddress, 
+       Created_date, Created_time, Created_timestamp, isActive) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
-      connection.query(query, [SupplierCode, SupplierName, SupplierAddress, creater, EmailAddress || null, 1], (err, result) => {
+      connection.query(query, [
+        SupplierCode, SupplierName, SupplierAddress, creater, EmailAddress || null, 
+        utcDate, utcTime, utcTimestamp, 1
+      ], (err, result) => {
         if (err) {
           return connection.rollback(() => {
             connection.release();
@@ -519,7 +541,12 @@ router.post('/supplier', requireAuth, requireRole('admin', 'purchase'), async (r
             SupplierCode,
             SupplierName,
             SupplierAddress,
-            EmailAddress
+            EmailAddress,
+            createdAt: {
+              date: utcDate,
+              time: utcTime,
+              timestamp: utcTimestamp
+            }
           });
         });
       });
@@ -531,7 +558,9 @@ router.post('/supplier', requireAuth, requireRole('admin', 'purchase'), async (r
 router.put('/supplier/:id', requireAuth, requireRole('admin', 'purchase'), (req, res) => {
   const { id } = req.params;
   const { SupplierCode, SupplierName, SupplierAddress, EmailAddress, Changed_by } = req.body;
+  
   console.log("Update supplier data:", req.body);
+  
   // Validate required fields
   if (!SupplierCode || !SupplierName || !SupplierAddress) {
     return res.status(400).json({ error: "Missing required fields" });
@@ -541,9 +570,17 @@ router.put('/supplier/:id', requireAuth, requireRole('admin', 'purchase'), (req,
   if (EmailAddress && !validateEmail(EmailAddress)) {
     return res.status(400).json({ error: "Invalid email format" });
   }
+  
   console.log("User email:", Changed_by.email);
+  
   // Get user email from auth middleware
   const changed_by = Changed_by.email;
+  
+  // Get current UTC timestamp (MySQL compatible format)
+  const utcNow = new Date();
+  const utcDate = utcNow.toISOString().split('T')[0]; // YYYY-MM-DD format
+  const utcTime = utcNow.toISOString().split('T')[1].split('.')[0]; // HH:MM:SS format
+  const utcTimestamp = utcNow.toISOString().replace('T', ' ').replace('Z', '').substring(0, 19); // MySQL DATETIME format
   
   pool.getConnection((err, connection) => {
     if (err) {
@@ -560,10 +597,13 @@ router.put('/supplier/:id', requireAuth, requireRole('admin', 'purchase'), (req,
 
       const query = `UPDATE supplier 
           SET SupplierCode = ?, SupplierName = ?, SupplierAddress = ?, Changed_by = ?, 
-          Changed_date = CURDATE(), Changed_time = CURTIME(), EmailAddress = ? 
+          Changed_date = ?, Changed_time = ?, Changed_timestamp = ?, EmailAddress = ? 
           WHERE SupplierID = ?`;
 
-      connection.query(query, [SupplierCode, SupplierName, SupplierAddress, changed_by, EmailAddress || null, id], (err, result) => {
+      connection.query(query, [
+        SupplierCode, SupplierName, SupplierAddress, changed_by, 
+        utcDate, utcTime, utcTimestamp, EmailAddress || null, id
+      ], (err, result) => {
         if (err || result.affectedRows === 0) {
           return connection.rollback(() => {
             connection.release();
@@ -582,13 +622,29 @@ router.put('/supplier/:id', requireAuth, requireRole('admin', 'purchase'), (req,
           }
 
           connection.release();
-          res.json({ msg: "Supplier updated successfully" });
+          res.json({ 
+            msg: "Supplier updated successfully",
+            updatedAt: {
+              date: utcDate,
+              time: utcTime,
+              timestamp: utcTimestamp
+            }
+          });
         });
       });
     });
   });
 });
-
+// Utility function for consistent UTC timestamp generation across the application (MySQL compatible)
+function getUTCTimestamp() {
+  const utcNow = new Date();
+  return {
+    date: utcNow.toISOString().split('T')[0], // YYYY-MM-DD
+    time: utcNow.toISOString().split('T')[1].split('.')[0], // HH:MM:SS
+    timestamp: utcNow.toISOString().replace('T', ' ').replace('Z', '').substring(0, 19), // MySQL DATETIME format: YYYY-MM-DD HH:MM:SS
+    iso: utcNow.toISOString() // Keep ISO format for API responses if needed
+  };
+}
 // Delete a supplier
 router.delete('/supplier/:id', requireAuth, requireRole('admin', 'purchase'), (req, res) => {
   const { id } = req.params;

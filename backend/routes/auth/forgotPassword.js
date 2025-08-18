@@ -1,7 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
-const moment = require('moment');
+// Removed moment.js - using native Date for UTC handling
 const router = express.Router();
 const pool = require('../../config/db'); // Your DB connection pool
  const nodemailer = require('nodemailer');
@@ -30,7 +30,8 @@ router.post('/forgot-password', (req, res) => {
         }
 
         const token = uuidv4();
-        const expiresAt = moment().add(1, 'hour').valueOf(); // expires in 1 hour
+        // Token expires in 1 hour (store as timestamp in milliseconds)
+        const expiresAt = Date.now() + (60 * 60 * 1000); // expires in 1 hour
 
         const insertTokenQuery = `
             INSERT INTO password_resets (email, token, expires_at) VALUES (?, ?, ?)

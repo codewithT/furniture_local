@@ -89,9 +89,16 @@ addPurchase(purchase : Purchase) : Observable<any>{
   }
 
 
-  sendMail(purchases : Purchase[]):Observable<any>{
-    return this.http.post<any>(`${this.apiUrl}/send-mails`, purchases,  this.httpOptions)
-    .pipe(catchError(this.handleError<any>('error sending mails', [])));
+  sendMail(purchases: Purchase[], sendAnyway: boolean = false): Observable<any> {
+    let params = new HttpParams();
+    if (sendAnyway) {
+      params = params.set('sendAnyway', 'true');
+    }
+
+    return this.http.post<any>(`${this.apiUrl}/send-mails`, purchases, {
+      ...this.httpOptions,
+      params
+    }).pipe(catchError(this.handleError<any>('error sending mails', [])));
   }
 
   saveToSendMail(purchases : Purchase[]) : Observable<any>{

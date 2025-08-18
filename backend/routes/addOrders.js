@@ -4,74 +4,6 @@ const pool = require('../config/db'); // Ensure db.js exports a MySQL pool insta
 const requireAuth = require('./middlewares/authMiddleware');
 const requireRole = require('./middlewares/requireRole');
 
-// Search supplier codes based on product codes
-router.get('/supplier/:productCode', requireAuth, requireRole('admin', 'sales'), async (req, res) => {
-    const productCode = req.params.productCode;
-    const query = `
-      SELECT sm.SupplierID, sm.SupplierCode 
-      FROM supplier sm
-      JOIN productmaster pm ON pm.SupplierID = sm.SupplierID
-      WHERE pm.ProductCode like ?;
-    `;
-
-    pool.getConnection((err, connection) => {
-        if (err) {
-            console.error('Error acquiring connection:', err);
-            return res.status(500).json({ error: 'Database connection error' });
-        }
-
-        connection.query(query, [`%${productCode}%` ], (err, results) => {
-            connection.release();  
-            if (err) {
-                console.error('Error fetching data:', err);
-                return res.status(500).json({ error: 'Database error' });
-            }
-
-            res.json(results);
-        });
-    });
-});
-
-// Fetch ProductID based on ProductCode and SupplierID
-router.post('/supplier/getProductID', requireAuth, requireRole('admin', 'sales'), (req, res) => {
-    let { ProductCode, SupplierID } = req.body;
-    
-    // Trim ProductCode
-    ProductCode = ProductCode?.trim();
-
-    if (!ProductCode || !SupplierID) {
-        return res.status(400).json({ error: 'ProductCode and SupplierID are required' });
-    }
-
-    const query = `
-        SELECT ProductID, ProductName, FinalPrice, SupplierID
-        FROM productmaster 
-        WHERE ProductCode = ? AND SupplierID = ? AND isActive = 1
-    `;
-
-    pool.getConnection((err, connection) => {
-        if (err) {
-            console.error('Error acquiring connection:', err);
-            return res.status(500).json({ error: 'Database connection error' });
-        }
-
-        connection.query(query, [ProductCode, SupplierID], (err, results) => {
-            connection.release(); // Release the connection back to the pool
-
-            if (err) {
-                console.error('Database query error:', err);
-                return res.status(500).json({ error: 'Database query error' });
-            }
-
-            if (results.length === 0) {
-                return res.status(404).json({ message: 'No matching product found' });
-            }
-
-            res.status(200).json(results);
-        });
-    });
-});
-
 router.post('/addOrders/submit-purchase', requireAuth, requireRole('admin', 'sales'), (req, res) => {
     console.log('Received request to submit purchase order:', req.body);
 
@@ -102,13 +34,18 @@ router.post('/addOrders/submit-purchase', requireAuth, requireRole('admin', 'sal
         VALUES ?
     `;
 
-    const deliveryDateUTC = Delivery_date ? new Date(Delivery_date) : new Date();
-const formattedDeliveryDate = deliveryDateUTC.toISOString().slice(0, 19).replace('T', ' '); // 'YYYY-MM-DD HH:mm:ss'
-
-const now = new Date();
-const currentDate = now.toISOString().slice(0, 10);         // 'YYYY-MM-DD'
-const currentTime = now.toTimeString().slice(0, 8);         // 'HH:mm:ss'
-const formattedTimestamp = now.toISOString().slice(0, 19).replace('T', ' '); // full timestamp for Time_stamp
+    // Industry standard: Store all dates in UTC using ISO 8601 format
+    const now = new Date();
+    const nowISO = now.toISOString();
+    
+    // Convert delivery date to UTC if provided, otherwise use current UTC time
+    const deliveryDateUTC = Delivery_date ? new Date(Delivery_date).toISOString() : nowISO;
+    const formattedDeliveryDate = deliveryDateUTC.slice(0, 19).replace('T', ' '); // MySQL datetime format
+    
+    // Current date/time in UTC for database storage
+    const currentDate = nowISO.slice(0, 10);         // 'YYYY-MM-DD' in UTC
+    const currentTime = nowISO.slice(11, 19);        // 'HH:mm:ss' in UTC
+    const formattedTimestamp = nowISO.slice(0, 19).replace('T', ' '); // MySQL datetime format
 
     const recordMargin = 0;
     const formattedPayment_Mode = (Payment_Mode === 'Others') ? (PaymentDetails || '') : Payment_Mode;
@@ -234,6 +171,75 @@ const formattedTimestamp = now.toISOString().slice(0, 19).replace('T', ' '); // 
         );
     });
 });
+// Search supplier codes based on product codes
+router.get('/supplier/:productCode', requireAuth, requireRole('admin', 'sales'), async (req, res) => {
+    const productCode = req.params.productCode;
+    const query = `
+      SELECT sm.SupplierID, sm.SupplierCode 
+      FROM supplier sm
+      JOIN productmaster pm ON pm.SupplierID = sm.SupplierID
+      WHERE pm.ProductCode like ?;
+    `;
+
+    pool.getConnection((err, connection) => {
+        if (err) {
+            console.error('Error acquiring connection:', err);
+            return res.status(500).json({ error: 'Database connection error' });
+        }
+
+        connection.query(query, [`%${productCode}%` ], (err, results) => {
+            connection.release();  
+            if (err) {
+                console.error('Error fetching data:', err);
+                return res.status(500).json({ error: 'Database error' });
+            }
+
+            res.json(results);
+        });
+    });
+});
+
+// Fetch ProductID based on ProductCode and SupplierID
+router.post('/supplier/getProductID', requireAuth, requireRole('admin', 'sales'), (req, res) => {
+    let { ProductCode, SupplierID } = req.body;
+    
+    // Trim ProductCode
+    ProductCode = ProductCode?.trim();
+
+    if (!ProductCode || !SupplierID) {
+        return res.status(400).json({ error: 'ProductCode and SupplierID are required' });
+    }
+
+    const query = `
+        SELECT ProductID, ProductName, FinalPrice, SupplierID
+        FROM productmaster 
+        WHERE ProductCode = ? AND SupplierID = ? AND isActive = 1
+    `;
+
+    pool.getConnection((err, connection) => {
+        if (err) {
+            console.error('Error acquiring connection:', err);
+            return res.status(500).json({ error: 'Database connection error' });
+        }
+
+        connection.query(query, [ProductCode, SupplierID], (err, results) => {
+            connection.release(); // Release the connection back to the pool
+
+            if (err) {
+                console.error('Database query error:', err);
+                return res.status(500).json({ error: 'Database query error' });
+            }
+
+            if (results.length === 0) {
+                return res.status(404).json({ message: 'No matching product found' });
+            }
+
+            res.status(200).json(results);
+        });
+    });
+});
+
+
 
 // Search products by code
 router.get('/product-search/:searchTerm', requireAuth, requireRole('admin', 'sales'), (req, res) => {

@@ -11,14 +11,31 @@
     animation: slideUpFade 0.8s ease-out;
 }
 
-/* Search Input Styles */
+/* Search Container */
+.search-container {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.search-container mat-form-field {
+    flex: 1;
+    min-width: 300px;
+}
+
+.send-email-btn {
+    white-space: nowrap;
+    min-width: 160px;
+}
+
 /* Search Input Styles */
 mat-form-field {
     width: 100%;
     margin-bottom: 20px;
 }
 
-/* Ensure label and placeholder don't overlap */
 .mat-form-field-appearance-outline .mat-form-field-label {
     margin-top: 0;
     top: 34px;
@@ -51,45 +68,32 @@ input.mat-input-element::placeholder {
     margin: 0;
     padding-bottom: 0;
 } 
+
 /* Input text styles */
 input.mat-input-element {
     padding: 12px 0;
     font-size: 14px;
 }
 
-/* Responsive styles for search input */
-@media screen and (max-width: 768px) {
-    mat-form-field {
-        margin-bottom: 15px;
-    }
-
-    input.mat-input-element {
-        padding: 8px 0;
-        font-size: 13px;
-    }
-
-    ::placeholder {
-        font-size: 13px;
-    }
-
-    .mat-form-field-label {
-        font-size: 14px;
-    }
+/* Loading Container */
+.loading-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 12px;
+    margin: 20px 0;
 }
 
-@media screen and (max-width: 576px) {
-    input.mat-input-element {
-        font-size: 12px;
-    }
-
-    ::placeholder {
-        font-size: 12px;
-    }
-
-    .mat-form-field-label {
-        font-size: 13px;
-    }
+.loading-container p {
+    margin-top: 15px;
+    font-size: 16px;
+    color: #666;
+    font-weight: 500;
 }
+
 /* Animations */
 @keyframes slideUpFade {
     from {
@@ -137,46 +141,200 @@ h2 {
     animation: slideUpFade 0.6s ease-out;
 }
 
+/* Table Container - CRITICAL FIX */
+.mat-table-container {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+}
+
 /* Table Styles */
 .mat-elevation-z8 {
     width: 100%;
-    border-radius: 15px;
-    overflow: hidden;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08) !important;
+    border-radius: 0; /* Remove border radius from table itself */
+    overflow: visible; /* Important for sort arrows */
+    box-shadow: none !important; /* Remove shadow from table, container handles it */
     background: white;
+    min-width: 1200px; /* Ensure minimum width for all columns */
+}
+
+/* CRITICAL: Sort Header Fixes */
+.mat-sort-header-container {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    cursor: pointer !important;
+    user-select: none !important;
+    position: relative !important;
+}
+
+.mat-sort-header-button {
+    border: none !important;
+    background: none !important;
+    color: inherit !important;
+    cursor: pointer !important;
+    display: flex !important;
+    align-items: center !important;
+    padding: 0 !important;
+    font: inherit !important;
+    outline: none !important;
+    width: 100% !important;
+}
+
+.mat-sort-header-arrow {
+    height: 12px !important;
+    width: 12px !important;
+    min-width: 12px !important;
+    position: relative !important;
+    display: flex !important;
+    opacity: 1 !important;
+    transition: transform 225ms cubic-bezier(0.4, 0.0, 0.2, 1), opacity 225ms cubic-bezier(0.4, 0.0, 0.2, 1) !important;
+}
+
+/* Ensure sort arrow visibility */
+.mat-sort-header-sorted .mat-sort-header-arrow {
+    opacity: 1 !important;
+    transform: translateY(0px) !important;
 }
 
 /* Header Styles */
 th.mat-header-cell {
-    background: linear-gradient(90deg, #1e3c72, #2a5298);
+    background: linear-gradient(90deg, #1e3c72, #2a5298) !important;
     color: white !important;
     padding: 20px 15px !important;
-    font-size: 15px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
     border-bottom: none !important;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 10 !important;
+    white-space: nowrap !important;
 }
-.payment-status-column mat-form-field {
-    width: 120px; /* Adjust as needed */
-  }
+
+/* Specific column widths */
+.mat-column-select {
+    width: 60px !important;
+    min-width: 60px !important;
+    max-width: 60px !important;
+}
+
+.mat-column-SONumber {
+    width: 120px !important;
+    min-width: 120px !important;
+}
+
+.mat-column-Created_date {
+    width: 120px !important;
+    min-width: 120px !important;
+}
+
+.mat-column-ProductName {
+    width: 200px !important;
+    min-width: 200px !important;
+}
+
+.mat-column-CustomerEmail {
+    width: 180px !important;
+    min-width: 180px !important;
+}
+
+.mat-column-Customer_name {
+    width: 150px !important;
+    min-width: 150px !important;
+}
+
+.mat-column-Qty {
+    width: 80px !important;
+    min-width: 80px !important;
+}
+
+.mat-column-Delivery_date {
+    width: 130px !important;
+    min-width: 130px !important;
+}
+
+.mat-column-SOStatus {
+    width: 120px !important;
+    min-width: 120px !important;
+}
+
+.mat-column-Total_Paid_Amount {
+    width: 150px !important;
+    min-width: 150px !important;
+}
+
+.mat-column-Payment_Status {
+    width: 140px !important;
+    min-width: 140px !important;
+}
+
+.mat-column-action {
+    width: 120px !important;
+    min-width: 120px !important;
+}
+
 /* Cell Styles */
 td.mat-cell {
     padding: 16px 15px !important;
-    font-size: 14px;
-    color: #2c3e50;
+    font-size: 14px !important;
+    color: #2c3e50 !important;
     border-bottom: 1px solid #e8e8e8 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
 }
 
 /* Row Styles */
+tr.mat-header-row {
+    background: transparent !important;
+}
+
 tr.mat-row {
     animation: tableRowFade 0.5s ease-out;
     transition: all 0.3s ease;
+    background: white;
 }
 
 tr.mat-row:hover {
-    background: rgba(41, 98, 255, 0.02);
-    transform: translateX(5px);
+    background: rgba(41, 98, 255, 0.02) !important;
+    transform: translateX(2px);
+}
+
+tr.mat-row:nth-child(even) {
+    background: rgba(248, 250, 255, 0.5);
+}
+
+tr.mat-row:nth-child(even):hover {
+    background: rgba(41, 98, 255, 0.04) !important;
+}
+
+/* Payment Status Column */
+.payment-status-column mat-form-field {
+    width: 120px;
+    margin-bottom: 0;
+}
+
+.payment-status-column .mat-form-field-wrapper {
+    margin: 0;
+    padding-bottom: 0;
+}
+
+/* Checkbox Styles */
+.mat-checkbox {
+    margin-right: 8px;
+}
+
+.mat-checkbox-frame {
+    border-color: #2962ff;
+}
+
+.mat-checkbox-checked .mat-checkbox-background {
+    background-color: #2962ff;
 }
 
 /* Payment Status Styles */
@@ -213,43 +371,98 @@ tr.mat-row:hover {
 }
 
 /* Button Styles */
-button[mat-button] {
-    background: linear-gradient(45deg, #2962ff, #2979ff);
+button[mat-button], button[mat-raised-button] {
+    background: linear-gradient(45deg, #2962ff, #2979ff) !important;
     color: white !important;
     padding: 8px 20px !important;
     border-radius: 25px !important;
-    font-weight: 500;
-    letter-spacing: 0.5px;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 12px rgba(41, 98, 255, 0.2);
+    font-weight: 500 !important;
+    letter-spacing: 0.5px !important;
+    transition: all 0.3s ease !important;
+    box-shadow: 0 4px 12px rgba(41, 98, 255, 0.2) !important;
+    border: none !important;
 }
 
-button[mat-button]:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 15px rgba(41, 98, 255, 0.3);
-    background: linear-gradient(45deg, #1e88e5, #2962ff);
+button[mat-button]:hover, button[mat-raised-button]:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 15px rgba(41, 98, 255, 0.3) !important;
+    background: linear-gradient(45deg, #1e88e5, #2962ff) !important;
 }
-/* Add this to your existing CSS */
-.mat-table-container {
-    width: 100%;
-    overflow-x: auto;
-    overflow-y: hidden;
-  }
-  
-  /* Make the table take full width inside the scrollable container */
-  .mat-table-container table {
-    min-width: 100%;
-    width: max-content;
-  }
+
+/* Menu Trigger Button */
+button[matMenuTriggerFor] {
+    background: linear-gradient(45deg, #2962ff, #2979ff) !important;
+    color: white !important;
+    border: none !important;
+    padding: 8px 16px !important;
+    border-radius: 20px !important;
+    font-weight: 500 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    transition: all 0.3s ease !important;
+}
+
+button[matMenuTriggerFor]:hover {
+    background: linear-gradient(45deg, #1e88e5, #2962ff) !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 12px rgba(41, 98, 255, 0.3) !important;
+}
+
+/* Dropdown Menu Styles */
+.mat-menu-panel {
+    border-radius: 12px !important;
+    margin-top: 8px !important;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15) !important;
+    overflow: hidden !important;
+}
+
+.mat-menu-item {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 12px 16px !important;
+    font-size: 14px !important;
+    transition: all 0.2s ease !important;
+}
+
+.mat-menu-item .mat-icon {
+    margin-right: 8px !important;
+    font-size: 20px !important;
+    color: #666 !important;
+}
+
+.mat-menu-item:hover {
+    background-color: rgba(41, 98, 255, 0.08) !important;
+    color: #2962ff !important;
+}
+
+.mat-menu-item:hover .mat-icon {
+    color: #2962ff !important;
+}
+
+/* No Data Message */
+.no-data-message {
+    text-align: center;
+    padding: 40px 20px;
+    color: #666;
+    font-size: 16px;
+    font-weight: 500;
+    background: rgba(248, 250, 255, 0.8);
+    border-radius: 12px;
+    margin: 20px 0;
+}
+
 /* Paginator Styles */
 mat-paginator {
-    background: transparent !important;
-    border-radius: 0 0 15px 15px;
-    margin-top: 20px;
+    background: white !important;
+    border-radius: 0 0 15px 15px !important;
+    margin-top: 0 !important;
+    border-top: 1px solid #e8e8e8;
 }
 
 .mat-paginator-container {
-    min-height: 48px;
+    min-height: 56px !important;
     padding: 0 16px !important;
     justify-content: center !important;
 }
@@ -262,22 +475,39 @@ mat-paginator {
     h2 {
         font-size: 28px;
     }
+    
+    .search-container {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .search-container mat-form-field {
+        min-width: auto;
+        width: 100%;
+    }
+    
+    .send-email-btn {
+        min-width: auto;
+        width: 100%;
+        margin-bottom: 10px;
+    }
 }
 
 @media screen and (max-width: 992px) {
     td.mat-cell,
     th.mat-header-cell {
         padding: 14px 12px !important;
+        font-size: 13px !important;
     }
     h2 {
-        font-size: 50px;
+        font-size: 24px;
     }
 }
 
 @media screen and (max-width: 768px) {
     .container {
         padding: 15px;
-        margin: 15px auto;
+        margin: 5px auto;
     }
     
     h2 {
@@ -286,8 +516,8 @@ mat-paginator {
 
     td.mat-cell,
     th.mat-header-cell {
-        padding: 12px 10px !important;
-        font-size: 13px;
+        padding: 12px 8px !important;
+        font-size: 12px !important;
     }
 
     .status {
@@ -295,16 +525,20 @@ mat-paginator {
         font-size: 12px;
     }
 
-    button[mat-button] {
+    button[mat-button], button[mat-raised-button] {
         padding: 6px 16px !important;
-        font-size: 12px;
+        font-size: 12px !important;
+    }
+    
+    .mat-table-container {
+        overflow-x: scroll;
     }
 }
 
 @media screen and (max-width: 576px) {
     .container {
         padding: 10px;
-        margin: 10px;
+        margin: 5px;
     }
 
     h2 {
@@ -314,33 +548,32 @@ mat-paginator {
 
     td.mat-cell,
     th.mat-header-cell {
-        padding: 10px 8px !important;
-        font-size: 12px;
+        padding: 10px 6px !important;
+        font-size: 11px !important;
     }
 
     .status {
-        padding: 4px 10px;
-        font-size: 11px;
+        padding: 4px 8px;
+        font-size: 10px;
     }
 }
 
 /* Custom Scrollbar */
-.container::-webkit-scrollbar {
-    width: 8px;
+.mat-table-container::-webkit-scrollbar {
     height: 8px;
 }
 
-.container::-webkit-scrollbar-track {
+.mat-table-container::-webkit-scrollbar-track {
     background: #f1f1f1;
     border-radius: 4px;
 }
 
-.container::-webkit-scrollbar-thumb {
+.mat-table-container::-webkit-scrollbar-thumb {
     background: #2962ff;
     border-radius: 4px;
 }
 
-.container::-webkit-scrollbar-thumb:hover {
+.mat-table-container::-webkit-scrollbar-thumb:hover {
     background: #1e88e5;
 }
 
@@ -363,112 +596,60 @@ mat-paginator {
     }
 }
 
-/* Dropdown Menu Styles */
-.mat-menu-panel {
-    border-radius: 8px !important;
-    margin-top: 8px;
-  }
-  
-  .mat-menu-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 10px;
-    font-size: 14px;
-  }
-  
-  .mat-menu-item .mat-icon {
-    margin-right: 8px;
-    font-size: 20px;
-  }
-  
-  /* Action Button Styles */
-  [matMenuTriggerFor] {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
-  
-  [matMenuTriggerFor] .mat-icon {
-    font-size: 20px;
-    margin-left: 4px;
-  }
-  
-  /* Hover effects */
-  .mat-menu-item:hover {
-    background-color: rgba(41, 98, 255, 0.04);
-  }
-  
-  /* Mobile responsiveness */
-  @media screen and (max-width: 768px) {
-    .mat-menu-item {
-      padding: 8px 12px;
-      font-size: 13px;
+/* CRITICAL: Force sort header pointer events */
+.mat-sort-header-disabled {
+    cursor: default !important;
+    pointer-events: none !important;
+}
+
+.mat-sort-header:not(.mat-sort-header-disabled) {
+    cursor: pointer !important;
+    pointer-events: all !important;
+}
+
+/* Ensure sort arrows are always visible for sortable columns */
+.mat-sort-header:not(.mat-sort-header-disabled) .mat-sort-header-arrow {
+    opacity: 0.54 !important;
+}
+
+.mat-sort-header:not(.mat-sort-header-disabled):hover .mat-sort-header-arrow {
+    opacity: 1 !important;
+}
+
+.mat-sort-header-sorted .mat-sort-header-arrow {
+    opacity: 1 !important;
+}
+
+/* Fix for responsive form fields */
+@media screen and (max-width: 768px) {
+    mat-form-field {
+        margin-bottom: 15px;
     }
-    
-    .mat-menu-item .mat-icon {
-      font-size: 18px;
+
+    input.mat-input-element {
+        padding: 8px 0;
+        font-size: 13px;
     }
-  }
-  /* Container Styles */
-.container {
-    max-width: 95%;
-    margin: 20px auto;
-    padding: 24px;
-    background: linear-gradient(135deg, #f8faff, #e8f1ff);
-    box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
-    border-radius: 20px;
-    overflow-x: auto;
-    animation: slideUpFade 0.8s ease-out;
+
+    ::placeholder {
+        font-size: 13px;
+    }
+
+    .mat-form-field-label {
+        font-size: 14px;
+    }
 }
 
-/* Search Input Styles */
-mat-form-field {
-    width: 100%;
-    margin-bottom: 20px;
-}
+@media screen and (max-width: 576px) {
+    input.mat-input-element {
+        font-size: 12px;
+    }
 
-.mat-form-field-appearance-outline .mat-form-field-label {
-    margin-top: 0;
-    top: 34px;
-}
+    ::placeholder {
+        font-size: 12px;
+    }
 
-.mat-form-field-appearance-outline.mat-form-field-can-float.mat-form-field-should-float .mat-form-field-label {
-    transform: translateY(-1.1em) scale(0.75);
-    width: 133.33333%;
+    .mat-form-field-label {
+        font-size: 13px;
+    }
 }
-
-/* Dropdown Menu Styles */
-.mat-menu-panel {
-    border-radius: 8px !important;
-    margin-top: 8px;
-}
-
-.mat-menu-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 16px;
-    font-size: 14px;
-}
-
-.mat-menu-item .mat-icon {
-    margin-right: 8px;
-    font-size: 20px;
-}
-
-/* Action Button Styles */
-[matMenuTriggerFor] {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-[matMenuTriggerFor] .mat-icon {
-    font-size: 20px;
-    margin-left: 4px;
-}
-.send-email-btn {
-    white-space: nowrap;
-  }
- 

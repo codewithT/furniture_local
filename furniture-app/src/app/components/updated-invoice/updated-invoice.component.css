@@ -1,0 +1,432 @@
+/* invoice.component.css */
+.invoice-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+    font-family: Arial, sans-serif;
+    color: #333;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    background-color: #fff;
+  }
+  
+  .logo img {
+    max-width: 100px;
+    height: auto;
+  }
+  
+  .print-controls {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  
+  .print-btn {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    cursor: pointer;
+    border-radius: 4px;
+    font-weight: bold;
+  }
+  
+  .print-btn:hover {
+    background-color: #45a049;
+  }
+  
+  .back-btn {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    cursor: pointer;
+    border-radius: 4px;
+    font-weight: bold;
+  }
+  
+  .back-btn:hover {
+    background-color: #0069d9;
+  }
+  
+  .header {
+    display: flex;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #f0f0f0;
+    padding-bottom: 15px;
+    align-items: center;
+  }
+  
+  .company-info {
+    display: flex;
+    flex-direction: column;
+    margin-left: 20px;
+    flex-grow: 1;
+  }
+  
+  .header h1 {
+    margin: 0;
+    color: #333;
+    font-size: 24px;
+  }
+  
+  .company-details {
+    text-align: left;
+  }
+  
+  .company-details p {
+    margin: 2px 0;
+    font-size: 14px;
+  }
+  
+  .invoice-header {
+    display: flex;
+    justify-content: flex-end; /* Aligns the invoice header to the right */
+    margin-bottom: 20px;
+    align-items: flex-start;
+    text-align: right; /* Ensures the text is right-aligned */
+    flex-direction: column;
+}
+
+  
+  .invoice-title h2 {
+    margin: 0;
+    font-size: 30px;
+    color: #333;
+    font-weight: bold;
+  }
+  
+  .invoice-meta {
+    text-align: right;
+  }
+  
+  .meta-item {
+    margin-bottom: 8px;
+  }
+  
+  .meta-item span:first-child {
+    font-weight: bold;
+    margin-right: 10px;
+  }
+  
+  .client-info {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #f0f0f0;
+    padding-bottom: 15px;
+  }
+  
+  .bill-to, .ship-to {
+    width: 48%;
+    box-sizing: border-box;
+  }
+  
+  .bill-to h3, .ship-to h3 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 16px;
+    color: #666;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 5px;
+  }
+  
+  .bill-to p, .ship-to p {
+    margin: 3px 0;
+    font-size: 14px;
+  }
+  
+  .invoice-items {
+    margin-bottom: 20px;
+  }
+  
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  
+  th, td {
+    padding: 8px 10px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+  }
+  
+  th {
+    background-color: #f8f8f8;
+    font-weight: bold;
+    color: #555;
+  }
+  
+  td {
+    font-size: 14px;
+  }
+  
+  tbody tr:hover {
+    background-color: #f9f9f9;
+  }
+  
+  /* Make invoice summary more compact */
+  .invoice-summary {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  
+  .terms {
+    width: 58%;
+    padding-right: 20px;
+    box-sizing: border-box;
+  }
+  
+  .terms h4 {
+    margin-top: 0;
+    margin-bottom: 5px;
+    color: #555;
+  }
+  
+  .terms p {
+    margin: 5px 0;
+    font-size: 12px;
+    line-height: 1.3;
+    color: #666;
+  }
+  
+  .totals {
+    width: 38%;
+    border-left: 1px solid #f0f0f0;
+    padding-left: 20px;
+    box-sizing: border-box;
+  }
+  
+  .total-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 5px 0;
+    font-size: 14px;
+  }
+  
+  .total-row span:first-child {
+    color: #666;
+  }
+  
+  .balance-due {
+    font-weight: bold;
+    font-size: 16px;
+    border-top: 2px solid #333;
+    margin-top: 10px;
+    padding-top: 10px;
+  }
+  
+  .balance-due span {
+    color: #000;
+  }
+  
+  .signature {
+    margin-top: 30px;
+    border-top: 1px dashed #ccc;
+    padding-top: 15px;
+    font-size: 14px;
+  }
+  
+  /* Print-specific styles */
+  /* General Print-Specific Styles */
+@media print {
+    .print-controls {
+        display: none !important;
+    }
+
+    body {
+        margin: 0;
+        padding: 0;
+        background-color: #fff !important;
+        font-size: 12px !important;
+        color: #000 !important;
+    }
+
+    /* Ensure Full-Width Content */
+    .invoice-container {
+        max-width: none !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 10px !important;
+        box-shadow: none !important;
+        background-color: #fff !important;
+    }
+
+    /* Print Page Setup */
+    @page {
+        size: A4 portrait;
+        margin: 0.5cm;
+    }
+
+    /* Header Formatting */
+    .header {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: flex-start !important;
+        width: 100% !important;
+    }
+
+    .company-info {
+        width: 50% !important;
+        text-align: left !important;
+    }
+
+    .invoice-header {
+        width: 50% !important;
+        text-align: right !important;
+    }
+
+    /* Client Information Section (Bill-To & Ship-To) */
+    .client-info {
+        display: flex !important;
+        flex-direction: row !important;
+        justify-content: space-between !important;
+        page-break-inside: avoid;
+    }
+
+    .bill-to,
+    .ship-to {
+        width: 48% !important;
+        display: inline-block !important;
+        vertical-align: top !important;
+    }
+
+    /* Invoice Details Spacing */
+    .header,
+    .invoice-header,
+    .client-info,
+    .invoice-summary {
+        margin-bottom: 15px !important;
+        padding-bottom: 10px !important;
+    }
+
+    /* Table Adjustments */
+    table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        margin-bottom: 0 !important;
+    }
+
+    th,
+    td {
+        padding: 5px 8px !important;
+        border: 1px solid #000 !important;
+        text-align: left !important;
+    }
+
+    /* Keep Invoice Items & Summary Together */
+    .invoice-items {
+        page-break-before: avoid !important;
+        page-break-inside: avoid !important;
+        margin-bottom: 15px !important;
+    }
+
+    .invoice-items + .invoice-summary {
+        page-break-before: avoid !important;
+    }
+
+    /* Invoice Summary Formatting */
+    .invoice-summary {
+        display: flex !important;
+        flex-direction: row !important;
+        justify-content: space-between !important;
+    }
+
+    .terms {
+        width: 58% !important;
+        text-align: left !important;
+    }
+
+    .totals {
+        width: 38% !important;
+        text-align: right !important;
+    }
+
+    /* Signature Section */
+    .signature {
+        margin-top: 15px !important;
+        padding-top: 10px !important;
+        text-align: left !important;
+    }
+
+    /* Reduce Excessive Spacing */
+    p,
+    h1,
+    h2,
+    h3,
+    h4 {
+        margin-top: 0 !important;
+        margin-bottom: 5px !important;
+    }
+
+    /* Prevent Empty Space at the End */
+    .invoice-container {
+        min-height: 0 !important;
+        max-height: 100% !important;
+    }
+}
+
+  
+  /* Responsive styles */
+  @media (max-width: 1000px) {
+    .invoice-container {
+      padding: 10px;
+    }
+    
+    .header {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    
+    .company-info {
+      margin-left: 0;
+      margin-top: 10px;
+    }
+    
+    .company-details {
+      text-align: left;
+    }
+    
+    .invoice-header {
+      flex-direction: column;
+    }
+    
+    .invoice-meta {
+      text-align: left;
+      margin-top: 15px;
+    }
+    
+    .client-info {
+      flex-direction: column;
+    }
+    
+    .bill-to, .ship-to {
+      width: 100%;
+    }
+    
+    .ship-to {
+      margin-top: 20px;
+    }
+    
+    .invoice-summary {
+      flex-direction: column;
+    }
+    
+    .terms, .totals {
+      width: 100%;
+    }
+    
+    .totals {
+      border-left: none;
+      padding-left: 0;
+      margin-top: 20px;
+      border-top: 1px solid #f0f0f0;
+      padding-top: 20px;
+    }
+  
+    /* Make buttons stack on mobile */
+    .print-controls {
+      flex-direction: column;
+      gap: 10px;
+    }
+  }

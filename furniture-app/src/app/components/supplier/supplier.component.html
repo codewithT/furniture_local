@@ -1,46 +1,45 @@
-
-<div class = "header">
-    <h2>CFE-Suppliers</h2>
+<div class="cfe-container">
+  <div class="cfe-header">
+    <h2 class="cfe-animate-fade-in">CFE-Suppliers</h2>
 
     <!-- Search Bar -->
-    <div class="search-container">
-       
-       <div class="supplier-action-bar">
-  <input
-    type="text"
-    class="form-control search-bar"
-    placeholder="Search by Supplier ID, Name, Address"
-    [(ngModel)]="searchTerm"
-    (ngModelChange)="onSearchChange()"
-  />
+    <div class="cfe-search-container">
+      <div class="cfe-search-box">
+        <input
+          type="text"
+          class="cfe-search-input"
+          placeholder="Search by Supplier ID, Name, Address"
+          [(ngModel)]="searchTerm"
+          (ngModelChange)="onSearchChange()"
+        />
+      </div>
 
-  <button class="btn btn-primary" (click)="openModal()">
-    <i class="fas fa-plus"></i> Add Supplier
-  </button>
-
-  <ng-container *ngIf="authService.hasAnyRole(['admin'])">
-    <label for="file-upload" class="file-upload-label">
-      <i class="fas fa-file-upload"></i> Choose File
-    </label>
-    <input id="file-upload" type="file" (change)="onFileChange($event)" accept=".xls,.xlsx" hidden />
-
-            <!-- Upload Button - visible only if file is selected -->
-        <button
-        class="btn upload-btn"
-        *ngIf="file"
-        (click)="uploadExcel()"
-        [disabled]="isUploading"
-        >
-        Upload
+      <div class="cfe-button-group">
+        <button class="cfe-btn-primary" (click)="openModal()">
+          <i class="fas fa-plus"></i> Add Supplier
         </button>
+
+        <ng-container *ngIf="authService.hasAnyRole(['admin'])">
+          <label for="file-upload" class="cfe-btn-secondary">
+            <i class="fas fa-file-upload"></i> Choose File
+          </label>
+          <input id="file-upload" type="file" (change)="onFileChange($event)" accept=".xls,.xlsx" hidden />
+
+          <!-- Upload Button - visible only if file is selected -->
+          <button
+            class="cfe-btn-success"
+            *ngIf="file"
+            (click)="uploadExcel()"
+            [disabled]="isUploading">
+            Upload
+          </button>
         </ng-container>
-        </div>
+      </div>
 
-        <!-- Display selected file name -->
-        <div class="file-name mt-2" *ngIf="fileName">{{ fileName }}</div>
-
-
-            </div>
+      <!-- Display selected file name -->
+      <div class="file-name mt-2" *ngIf="fileName">{{ fileName }}</div>
+    </div>
+  </div>
 
             <!-- Upload Progress Display -->
             <div *ngIf="authService.hasAnyRole([ 'admin'])">
@@ -90,8 +89,8 @@
     </div>
 
     <!-- Supplier Table with Horizontal Scrolling -->
-    <div class="table-responsive">
-        <table class="table table-bordered table-striped">
+    <div class="cfe-table-container">
+        <table class="cfe-table">
             <thead>
                 <tr>
                     <th (click)="sortBy('SupplierID')" style="cursor: pointer;">Serial No

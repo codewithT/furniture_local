@@ -184,13 +184,13 @@ export class PurchaseComponent implements OnInit {
     if (!this.selectedPurchase) return;
     
     // Basic validation for required fields
+    // For adding: only validate ProductCode, SupplierCode, Qty, and POStatus
+    // For editing: also validate SONumber and Delivery_date if they exist in the form
     if (!this.selectedPurchase.POStatus || 
         !this.selectedPurchase.ProductCode ||
         !this.selectedPurchase.SupplierCode ||
-        !this.selectedPurchase.SONumber ||
-        !this.selectedPurchase.Delivery_date ||
         !this.selectedPurchase.Qty) {
-      alert('Please fill all required fields: PO Status, Product Code, Supplier Code, SO Number, Delivery Date, and Quantity.');
+      alert('Please fill all required fields: PO Status, Product Code, Supplier Code, and Quantity.');
       return;
     }
 

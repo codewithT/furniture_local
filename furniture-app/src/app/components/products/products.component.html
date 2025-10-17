@@ -1,28 +1,21 @@
 <!-- components/products/products.component.html -->
-<div class="container mt-4">
+<div class="cfe-container">
 
-  <h2>CFE-Products</h2>
+  <div class="cfe-header">
+    <h2 class="cfe-animate-fade-in">CFE-Products</h2>
+  </div>
  
   <!-- Search Bar and Controls -->
-  <div class="search-container">
-    <div class="row mb-3">
-      <!-- Search Input -->
-      <div class="col-md-6">
-        <input type="text" class="form-control search-bar" placeholder="Search by Product Name or Code" [(ngModel)]="searchTerm"
-        (input)="onSearchChange()">
-      </div>
-      
-  
-      
-      <!-- Action Buttons -->
-      <div *ngIf="authService.hasAnyRole(['admin'])"
-      class="col-md-3">
-        <div class="d-flex justify-content-end">
-          <button class="btn btn-primary me-2" (click)="openAddModal()">Add Product</button>
-          <button 
-          class="btn btn-success" (click)="openUploadExcelModal()">Upload Excel</button>
-        </div>
-      </div>
+  <div class="cfe-search-container">
+    <div class="cfe-search-box">
+      <input type="text" class="cfe-search-input" placeholder="Search by Product Name or Code" [(ngModel)]="searchTerm"
+      (input)="onSearchChange()">
+    </div>
+    
+    <!-- Action Buttons -->
+    <div *ngIf="authService.hasAnyRole(['admin'])" class="cfe-button-group">
+      <button class="cfe-btn-primary" (click)="openAddModal()">Add Product</button>
+      <button class="cfe-btn-success" (click)="openUploadExcelModal()">Upload Excel</button>
     </div>
   </div>
   
@@ -35,9 +28,9 @@
   </div>
   
   <!-- Table Wrapper for Horizontal Scrolling -->
-  <div class="table-wrapper">
+  <div class="cfe-table-container">
     <!-- Product Table -->
-    <table class="table table-bordered table-striped">
+    <table class="cfe-table">
       <thead>
   <tr>
     <th (click)="sortTable('ProductCode')" style="cursor: pointer;">

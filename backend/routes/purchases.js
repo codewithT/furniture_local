@@ -223,7 +223,7 @@ router.post('/purchase/addPurchase', requireAuth, requireRole('admin', 'purchase
                     formattedDeliveryDate,
                     'Internal Order', // Payment_Status - company default
                     'Internal Company', // Customer_name - company default
-                    'Internal', // Customer_Contact - company default
+                    '0000000000', // Customer_Contact - company default (10-digit phone number)
                     'Internal Transfer', // Payment_Mode - company default
                     0, // Total_Paid_Amount - company default
                     1, // isActive - company default

@@ -1,196 +1,180 @@
-<div class="container">
-  <h2>Manage Orders</h2>
-
-  <!-- Search Input -->
-  <div class="search-container">
-    <mat-form-field appearance="outline">
-      <mat-label>Search Orders</mat-label>
-      <input matInput [(ngModel)]="searchTerm" (input)="applySearchFilter()" placeholder="Search by Product Name, Customer Email, SO Number">
-      <mat-icon matSuffix>search</mat-icon>
-    </mat-form-field>
-
-    <button mat-raised-button color="accent" (click)="sendEmailsToCustomers()" class="send-email-btn">
-      <mat-icon>email</mat-icon> Send Email
-    </button>
-
-    <button mat-raised-button color="primary" (click)="sendPaymentReminders()" class="send-email-btn">
-      <mat-icon>mail</mat-icon> Send Payment Reminder
-    </button>
-  </div>
-
-  <!-- Loading indicator -->
-  <div *ngIf="isLoading" class="loading-container">
-    <mat-spinner></mat-spinner>
-    <p>Loading orders...</p>
-  </div>
-  
-  <!-- Table wrapped in scrollable container -->
-  <div class="mat-table-container" *ngIf="!isLoading">
-    <table mat-table [dataSource]="dataSource" matSort class="mat-elevation-z8">
+<div class="cfe-container">
+  <div class="cfe-header">
+    <h2 class="cfe-animate-fade-in">Manage Orders</h2>
+    <div class="cfe-search-container">
+      <div class="cfe-search-box">
+        <input
+          type="text"
+          class="cfe-search-input"
+          [(ngModel)]="searchTerm"
+          placeholder="Search by Product Name, Customer Email, SO Number"
+          (input)="searchOrders()"
+        />
+      </div>
       
-      <!-- Checkbox Column (No sorting) -->
-      <ng-container matColumnDef="select">
-        <th mat-header-cell *matHeaderCellDef class="mat-column-select">
-          <mat-checkbox (change)="toggleAllSelection($event)"></mat-checkbox>
-        </th>
-        <td mat-cell *matCellDef="let order" class="mat-column-select">
-          <mat-checkbox [(ngModel)]="order.selected"></mat-checkbox>
-        </td>
-      </ng-container>
-
-      <!-- SO Number Column (Sortable) -->
-      <ng-container matColumnDef="SONumber">
-        <th mat-header-cell *matHeaderCellDef mat-sort-header="SONumber" class="mat-column-SONumber"> 
-          SO Number 
-        </th>
-        <td mat-cell *matCellDef="let order" class="mat-column-SONumber"> 
-          {{ order.SONumber }} 
-        </td>
-      </ng-container>
-
-      <!-- Created Date Column (Sortable) -->
-      <ng-container matColumnDef="Created_date">
-        <th mat-header-cell *matHeaderCellDef mat-sort-header="Created_date" class="mat-column-Created_date"> 
-          Created Date 
-        </th>
-        <td mat-cell *matCellDef="let order" class="mat-column-Created_date"> 
-          {{ order.Created_date }} 
-        </td>
-      </ng-container>
-
-      <!-- Product Name Column (Sortable) -->
-      <ng-container matColumnDef="ProductName">
-        <th mat-header-cell *matHeaderCellDef mat-sort-header="ProductName" class="mat-column-ProductName"> 
-          Product Name 
-        </th>
-        <td mat-cell *matCellDef="let order" class="mat-column-ProductName" [title]="order.ProductName"> 
-          {{ order.ProductName }} 
-        </td>
-      </ng-container>
-   
-      <!-- Customer Email Column (Sortable) -->
-      <ng-container matColumnDef="CustomerEmail">
-        <th mat-header-cell *matHeaderCellDef mat-sort-header="CustomerEmail" class="mat-column-CustomerEmail"> 
-          Customer<br>Email 
-        </th>
-        <td mat-cell *matCellDef="let order" class="mat-column-CustomerEmail" [title]="order.CustomerEmail"> 
-          {{ order.CustomerEmail }} 
-        </td>
-      </ng-container>
-
-      <!-- Customer Name Column (Sortable) -->
-      <ng-container matColumnDef="Customer_name">
-        <th mat-header-cell *matHeaderCellDef mat-sort-header="Customer_name" class="mat-column-Customer_name"> 
-          Customer<br>Name 
-        </th>
-        <td mat-cell *matCellDef="let order" class="mat-column-Customer_name" [title]="order.Customer_name"> 
-          {{ order.Customer_name }} 
-        </td>
-      </ng-container>
-
-      <!-- Quantity Column (Sortable) -->
-      <ng-container matColumnDef="Qty">
-        <th mat-header-cell *matHeaderCellDef mat-sort-header="Qty" class="mat-column-Qty"> 
-          Qty 
-        </th>
-        <td mat-cell *matCellDef="let order" class="mat-column-Qty"> 
-          {{ order.Qty }} 
-        </td>
-      </ng-container>
-
-      <!-- Delivery Date Column (Sortable) -->
-      <ng-container matColumnDef="Delivery_date">
-        <th mat-header-cell *matHeaderCellDef mat-sort-header="Delivery_date" class="mat-column-Delivery_date"> 
-          Delivery<br>Date 
-        </th>
-        <td mat-cell *matCellDef="let order" class="mat-column-Delivery_date"> 
-          {{ order.Delivery_date | utcToLocal:'date' }} 
-        </td>
-      </ng-container>
-
-      <!-- SO Status Column (Sortable) -->
-      <ng-container matColumnDef="SOStatus">
-        <th mat-header-cell *matHeaderCellDef mat-sort-header="SOStatus" class="mat-column-SOStatus"> 
-          SO Status 
-        </th>
-        <td mat-cell *matCellDef="let order" class="mat-column-SOStatus"> 
-          {{ order.SOStatus }} 
-        </td>
-      </ng-container>
-
-      <!-- Total Paid Amount Column (Sortable) -->
-      <ng-container matColumnDef="Total_Paid_Amount">
-        <th mat-header-cell *matHeaderCellDef mat-sort-header="Total_Paid_Amount" class="mat-column-Total_Paid_Amount"> 
-          Total Paid Amount<br>per SO 
-        </th>
-        <td mat-cell *matCellDef="let order" class="mat-column-Total_Paid_Amount"> 
-          {{ order.Total_Paid_Amount }} 
-        </td>
-      </ng-container>
-
-      <!-- Payment Status Column (Sortable) -->
-      <ng-container matColumnDef="Payment_Status">
-        <th mat-header-cell *matHeaderCellDef mat-sort-header="Payment_Status" class="mat-column-Payment_Status"> 
-          Payment<br>Status 
-        </th>
-        <td mat-cell *matCellDef="let order" class="payment-status-column mat-column-Payment_Status">
-          <mat-form-field appearance="outline">
-            <mat-select [(ngModel)]="order.Payment_Status" (selectionChange)="updatePaymentStatus(order)">
-              <mat-option value="Full Paid">Full Paid</mat-option>
-              <mat-option value="Pending">Pending</mat-option>
-              <mat-option value="Partial">Partial</mat-option>
-            </mat-select>
-          </mat-form-field>
-        </td>
-      </ng-container>
-
-      <!-- Action Column (No sorting) -->
-      <ng-container matColumnDef="action">
-        <th mat-header-cell *matHeaderCellDef class="mat-column-action"> 
-          Action 
-        </th>
-        <td mat-cell *matCellDef="let order" class="mat-column-action">
-          <button mat-button [matMenuTriggerFor]="menu" color="primary">
-            Action <mat-icon>arrow_drop_down</mat-icon>
-          </button>
-          <mat-menu #menu="matMenu">
-            <button mat-menu-item (click)="showOrderDetails(order)">
-              <mat-icon>visibility</mat-icon>
-              <span>Show Details</span>
-            </button>  
-            <button mat-menu-item (click)="showSaleDetails(order)">
-              <mat-icon>visibility</mat-icon>
-              <span>Show Complete Details</span>
-            </button>         
-            <button mat-menu-item (click)="removeOrder(order)">
-              <mat-icon>delete</mat-icon>
-              <span>Remove</span>
-            </button>
-          </mat-menu>
-        </td>
-      </ng-container>
-
-      <!-- Table Header Row -->
-      <tr mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></tr>
-      
-      <!-- Table Data Rows -->
-      <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
-    </table>
-
-    <!-- No data message -->
-    <div *ngIf="dataSource.data.length === 0" class="no-data-message">
-      <p>No orders found</p>
+      <div class="cfe-button-group">
+        <button class="cfe-btn-primary" (click)="sendEmailsToCustomers()">
+          <i class="fas fa-envelope"></i>
+          Send Email
+        </button>
+        
+        <button class="cfe-btn-secondary" (click)="sendPaymentReminders()">
+          <i class="fas fa-bell"></i>
+          Send Payment Reminder
+        </button>
+      </div>
     </div>
   </div>
 
-  <!-- Paginator -->
-  <mat-paginator 
-    *ngIf="!isLoading"
-    [length]="totalRecords" 
-    [pageSize]="pageSize" 
-    [pageSizeOptions]="pageSizeOptions"
-    [pageIndex]="pageIndex"
-    (page)="onPageChange($event)"
-    showFirstLastButtons>
-  </mat-paginator>
+  <!-- Loading indicator -->
+  <div *ngIf="isLoading" class="cfe-loading-container">
+    <div class="cfe-spinner"></div>
+    <p>Loading orders...</p>
+  </div>
+  
+  <!-- Table container -->
+  <div class="cfe-table-container" *ngIf="!isLoading">
+    <table class="cfe-table">
+      
+      <thead>
+        <tr>
+          <th class="checkbox-column">
+            <input 
+              type="checkbox" 
+              class="large-checkbox" 
+              (change)="toggleSelectAll($event)"
+            />
+          </th>
+
+          <th (click)="sortTable('SONumber')" [class.sorted]="isSortedBy('SONumber')">
+            SO Number
+            <span class="sort-icon">{{ getSortIcon('SONumber') }}</span>
+          </th>
+
+          <th (click)="sortTable('Created_date')" [class.sorted]="isSortedBy('Created_date')">
+            Created Date
+            <span class="sort-icon">{{ getSortIcon('Created_date') }}</span>
+          </th>
+
+          <th (click)="sortTable('ProductName')" [class.sorted]="isSortedBy('ProductName')">
+            Product Name
+            <span class="sort-icon">{{ getSortIcon('ProductName') }}</span>
+          </th>
+   
+          <th (click)="sortTable('CustomerEmail')" [class.sorted]="isSortedBy('CustomerEmail')">
+            Customer<br>Email
+            <span class="sort-icon">{{ getSortIcon('CustomerEmail') }}</span>
+          </th>
+
+          <th (click)="sortTable('Customer_name')" [class.sorted]="isSortedBy('Customer_name')">
+            Customer<br>Name
+            <span class="sort-icon">{{ getSortIcon('Customer_name') }}</span>
+          </th>
+
+          <th (click)="sortTable('Qty')" [class.sorted]="isSortedBy('Qty')">
+            Qty
+            <span class="sort-icon">{{ getSortIcon('Qty') }}</span>
+          </th>
+
+          <th (click)="sortTable('Delivery_date')" [class.sorted]="isSortedBy('Delivery_date')">
+            Delivery<br>Date
+            <span class="sort-icon">{{ getSortIcon('Delivery_date') }}</span>
+          </th>
+
+          <th (click)="sortTable('SOStatus')" [class.sorted]="isSortedBy('SOStatus')">
+            SO Status
+            <span class="sort-icon">{{ getSortIcon('SOStatus') }}</span>
+          </th>
+
+          <th (click)="sortTable('Total_Paid_Amount')" [class.sorted]="isSortedBy('Total_Paid_Amount')">
+            Total Paid Amount<br>per SO
+            <span class="sort-icon">{{ getSortIcon('Total_Paid_Amount') }}</span>
+          </th>
+
+          <th (click)="sortTable('Payment_Status')" [class.sorted]="isSortedBy('Payment_Status')">
+            Payment<br>Status
+            <span class="sort-icon">{{ getSortIcon('Payment_Status') }}</span>
+          </th>
+
+          <th>Actions</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        <tr *ngFor="let order of orders" class="clickable-row">
+          <td class="checkbox-column">
+            <input 
+              type="checkbox" 
+              class="large-checkbox" 
+              [(ngModel)]="order.selected" 
+            />
+          </td>
+          <td>{{ order.SONumber }}</td>
+          <td>{{ order.Created_date | utcToLocal:'date' }}</td>
+          <td [title]="order.ProductName">{{ order.ProductName }}</td>
+          <td [title]="order.CustomerEmail">{{ order.CustomerEmail }}</td>
+          <td [title]="order.Customer_name">{{ order.Customer_name }}</td>
+          <td>{{ order.Qty }}</td>
+          <td>{{ order.Delivery_date | utcToLocal:'date' }}</td>
+          <td>{{ order.SOStatus }}</td>
+          <td>{{ order.Total_Paid_Amount }}</td>
+          <td class="payment-status-column">
+            <select [(ngModel)]="order.Payment_Status" (change)="updatePaymentStatus(order)">
+              <option value="Full Paid">Full Paid</option>
+              <option value="Pending">Pending</option>
+              <option value="Partial">Partial</option>
+            </select>
+          </td>
+          <td class="actions">
+            <div class="dropdown" [class.active]="order.dropdownOpen">
+              <button class="dropdown-btn" type="button" (click)="toggleDropdown(order, $event)">
+                Actions ▼
+              </button>
+              <div class="dropdown-content" *ngIf="order.dropdownOpen">
+                <button type="button" (click)="showSaleDetails(order); closeDropdown(order)">
+                  <i class="fas fa-info-circle"></i> Complete Details
+                </button>
+                <button type="button" (click)="removeOrder(order); closeDropdown(order)">
+                  <i class="fas fa-trash"></i> Remove
+                </button>
+              </div>
+            </div>
+          </td>
+        </tr>
+        <tr *ngIf="orders.length === 0">
+          <td colspan="12" class="no-data">No orders found</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Custom Pagination -->
+  <div class="pagination-controls" *ngIf="!isLoading">
+    <div class="page-size-selector">
+      <span>Show:</span>
+      <select [(ngModel)]="pageSize" (change)="onPageSizeChange($event)">
+        <option *ngFor="let size of pageSizeOptions" [value]="size">
+          {{ size }} entries
+        </option>
+      </select>
+    </div>
+
+    <div class="pagination">
+      <button
+        [disabled]="currentPage <= 1"
+        (click)="decrementPage()"
+        class="page-btn"
+      >
+        <i class="fas fa-chevron-left"></i>
+      </button>
+      <span>Page {{ currentPage }} of {{ totalPages }}</span>
+      <button
+        [disabled]="currentPage >= totalPages"
+        (click)="incrementPage()"
+        class="page-btn"
+      >
+        <i class="fas fa-chevron-right"></i>
+      </button>
+    </div>
+  </div>
 </div>

@@ -6,16 +6,42 @@
         <div class="order-details">
             <div class="form-container">
                 <div class="form-group">
-                    <label>Email Address</label>
-                    <input type="text" formControlName="clientEmail" placeholder="Enter Client Email" required />
+                    <label>Customer Email Address <span class="text-danger">*</span></label>
+                    <input type="text" formControlName="clientEmail" placeholder="Enter Client Email"
+                        [ngClass]="{ 'is-invalid': orderForm.get('clientEmail')?.invalid && orderForm.get('clientEmail')?.touched }"
+                        required />
+                    <div class="invalid-feedback"
+                        *ngIf="orderForm.get('clientEmail')?.errors?.['required'] && orderForm.get('clientEmail')?.touched">
+                        Email is required.
+                    </div>
+                    <div class="invalid-feedback"
+                        *ngIf="orderForm.get('clientEmail')?.errors?.['minlength'] && orderForm.get('clientEmail')?.touched">
+                        Email must be valid formats like gmail.com
+                    </div>
                 </div>
                 <div class="form-group">
-                    <label>Customer Name</label>
-                    <input type="text" formControlName="customerName" placeholder="Enter Customer Name" required />
+                    <label>Customer Name <span class="text-danger">*</span></label>
+                    <input type="text" formControlName="customerName" placeholder="Enter Customer Name"
+                        [ngClass]="{ 'is-invalid': orderForm.get('customerName')?.invalid && orderForm.get('customerName')?.touched }"
+                        required />
+                    <div class="invalid-feedback"
+                        *ngIf="orderForm.get('customerName')?.errors?.['required'] && orderForm.get('customerName')?.touched">
+                        Customer name is required.
+                    </div>
                 </div>
                 <div class="form-group">
-                    <label>Customer Contact</label>
-                    <input type="text" formControlName="clientContact" placeholder="Enter Contact Number" required />
+                    <label>Customer Contact <span class="text-danger">*</span></label>
+                    <input type="text" formControlName="clientContact" placeholder="Enter Contact Number"
+                        [ngClass]="{ 'is-invalid': orderForm.get('clientContact')?.invalid && orderForm.get('clientContact')?.touched }"
+                        required />
+                    <div class="invalid-feedback"
+                        *ngIf="orderForm.get('clientContact')?.errors?.['required'] && orderForm.get('clientContact')?.touched">
+                        Contact number is required.
+                    </div>
+                    <div class="invalid-feedback"
+                        *ngIf="orderForm.get('clientContact')?.errors?.['pattern'] && orderForm.get('clientContact')?.touched">
+                        Contact number must be exactly 10 digits.
+                    </div>
                 </div>
             </div>
         </div>
@@ -42,7 +68,8 @@
                     [checked]="storeProductSupplierIdCodes[i]?.Check" />
             </td>
             <td data-label="Supplier Code">
-                <select formControlName="SupplierCode" (change)="handleSupplierSelect($event, i)">
+                <select formControlName="SupplierCode" (change)="handleSupplierSelect($event, i)"
+                    [ngClass]="{ 'is-invalid': items.at(i).get('SupplierCode')?.invalid && items.at(i).get('SupplierCode')?.touched }">
                     <option value="">-- Select Supplier --</option>
                     <option *ngFor="let supplier of supplierCodes[i]" [value]="supplier.SupplierCode">
                         {{supplier.SupplierID}} {{ supplier.SupplierCode }}
@@ -51,10 +78,15 @@
                 <p *ngIf="items.at(i).get('SupplierCode')?.value">
                     Selected: {{ items.at(i).get('SupplierCode')?.value }}
                 </p>
+                <div class="invalid-feedback"
+                    *ngIf="items.at(i).get('SupplierCode')?.errors?.['required'] && items.at(i).get('SupplierCode')?.touched">
+                    Please select a supplier.
+                </div>
             </td>
             <td class="product-code-cell" data-label="Search by CFE Product Code and name">
                 <div class="product-search-container">
                     <input type="text" formControlName="ProductCode" placeholder="Search by Code and name" required 
+                        [ngClass]="{ 'is-invalid': items.at(i).get('ProductCode')?.invalid && items.at(i).get('ProductCode')?.touched }"
                         (input)="productSearchTerms[i].next(items.at(i).get('ProductCode')?.value)"
                         (blur)="hideProductSuggestions(i)" />
                     <div class="product-suggestions" *ngIf="showProductSuggestions[i]">
@@ -65,11 +97,44 @@
                             {{ product.ProductCode }} - {{ product.ProductName }}
                         </div>
                     </div>
+                    <div class="invalid-feedback"
+                        *ngIf="items.at(i).get('ProductCode')?.errors?.['required'] && items.at(i).get('ProductCode')?.touched">
+                        Product code is required.
+                    </div>
                 </div>
             </td>
-            <td data-label="Product Name"><input type="text" formControlName="ProductName" placeholder="Product Name" required /></td>
-            <td data-label="Price"><input type="number" formControlName="rate" placeholder="Rate" required /></td>
-            <td data-label="Quantity"><input type="number" formControlName="quantity" placeholder="Quantity" required /></td>
+            <td data-label="Product Name">
+                <input type="text" formControlName="ProductName" placeholder="Product Name" required 
+                    [ngClass]="{ 'is-invalid': items.at(i).get('ProductName')?.invalid && items.at(i).get('ProductName')?.touched }" />
+                <div class="invalid-feedback"
+                    *ngIf="items.at(i).get('ProductName')?.errors?.['required'] && items.at(i).get('ProductName')?.touched">
+                    Product name is required.
+                </div>
+            </td>
+            <td data-label="Price">
+                <input type="number" formControlName="rate" placeholder="Rate" required 
+                    [ngClass]="{ 'is-invalid': items.at(i).get('rate')?.invalid && items.at(i).get('rate')?.touched }" />
+                <div class="invalid-feedback"
+                    *ngIf="items.at(i).get('rate')?.errors?.['required'] && items.at(i).get('rate')?.touched">
+                    Rate is required.
+                </div>
+                <div class="invalid-feedback"
+                    *ngIf="items.at(i).get('rate')?.errors?.['min'] && items.at(i).get('rate')?.touched">
+                    Rate must be at least 1.
+                </div>
+            </td>
+            <td data-label="Quantity">
+                <input type="number" formControlName="quantity" placeholder="Quantity" required 
+                    [ngClass]="{ 'is-invalid': items.at(i).get('quantity')?.invalid && items.at(i).get('quantity')?.touched }" />
+                <div class="invalid-feedback"
+                    *ngIf="items.at(i).get('quantity')?.errors?.['required'] && items.at(i).get('quantity')?.touched">
+                    Quantity is required.
+                </div>
+                <div class="invalid-feedback"
+                    *ngIf="items.at(i).get('quantity')?.errors?.['min'] && items.at(i).get('quantity')?.touched">
+                    Quantity must be at least 1.
+                </div>
+            </td>
             <td data-label="Total"><input type="text" formControlName="total" placeholder="Total" [disabled]="true"
                     class="total-field" /></td>
             <td data-label="Action">
@@ -111,15 +176,20 @@
             </div>
             <div class="summary-column">
                 <div class="form-group">
-                    <label>Paid Amount</label>
-                    <input type="number" formControlName="paidAmount" placeholder="Enter Paid Amount" />
+                    <label>Paid Amount <span class="text-danger">*</span></label>
+                    <input type="number" formControlName="paidAmount" placeholder="Enter Paid Amount"
+                        [ngClass]="{ 'is-invalid': orderForm.get('paidAmount')?.invalid && orderForm.get('paidAmount')?.touched }" />
+                    <div class="invalid-feedback"
+                        *ngIf="orderForm.get('paidAmount')?.errors?.['required'] && orderForm.get('paidAmount')?.touched">
+                        Paid amount is required.
+                    </div>
                 </div>
                 <div class="form-group">
                     <label>Due Amount</label>
                     <input type="text" formControlName="dueAmount" [disabled]="true" />
                 </div>
                 <div class="form-group">
-                    <label>Payment Status</label>
+                    <label>Payment Status <span class="text-danger">*</span></label>
                     <select formControlName="paymentStatus"
                         [ngClass]="{ 'is-invalid': orderForm.get('paymentStatus')?.invalid && orderForm.get('paymentStatus')?.touched }">
                         <option value="">~~SELECT~~</option>
@@ -133,7 +203,7 @@
                     </div>
                 </div>
                 <div class="form-group">
-                    <label>Mode of Payment</label>
+                    <label>Mode of Payment <span class="text-danger">*</span></label>
                     <select formControlName="paymentMode"
                         [ngClass]="{ 'is-invalid': orderForm.get('paymentMode')?.invalid && orderForm.get('paymentMode')?.touched }">
                         <option value="">-- Select Payment Mode --</option>
@@ -159,8 +229,13 @@
 
             <div class="summary-column">
                   <div class="form-group">
-                    <label>Expected Delivery Date</label>
-                    <input type="date" formControlName="expectedDeliveryDate" />
+                    <label>Expected Delivery Date <span class="text-danger">*</span></label>
+                    <input type="date" formControlName="expectedDeliveryDate"
+                        [ngClass]="{ 'is-invalid': orderForm.get('expectedDeliveryDate')?.invalid && orderForm.get('expectedDeliveryDate')?.touched }" />
+                    <div class="invalid-feedback"
+                        *ngIf="orderForm.get('expectedDeliveryDate')?.errors?.['required'] && orderForm.get('expectedDeliveryDate')?.touched">
+                        Expected delivery date is required.
+                    </div>
                 </div>
                 <div class="form-group">
                     <label>Ship To Party</label>

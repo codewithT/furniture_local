@@ -1,15 +1,19 @@
-<div class="purchase-container">
-  <div class="header">
-    <h2>Product Receive</h2>
+<div class="cfe-container">
+  <div class="cfe-header">
+    <h2 class="cfe-animate-fade-in">Product Receive</h2>
     
-    <!-- Option 1: Search in a dedicated container (Recommended) -->
-    <div class="search-container">
-      <input type="text" 
-             [(ngModel)]="searchQuery" 
-             (keyup.enter)="loadReceivedProducts()" 
-             placeholder="Search by Supplier Code, PO Number, or Product Name" 
-             class="form-control">
-      <button class="btn btn-primary" (click)="loadReceivedProducts()">Search</button>
+    <!-- Search container -->
+    <div class="cfe-search-container">
+      <div class="cfe-search-box">
+        <input type="text" 
+               class="cfe-search-input"
+               [(ngModel)]="searchQuery" 
+               (keyup.enter)="loadReceivedProducts()" 
+               placeholder="Search by Supplier Code, PO Number, or Product Name">
+      </div>
+      <div class="cfe-button-group">
+        <button class="cfe-btn-primary" (click)="loadReceivedProducts()">Search</button>
+      </div>
     </div>
      
   </div>
@@ -34,8 +38,8 @@
   </div>
 
   <!-- Table -->
-  <div class="table-container">
-    <table>
+  <div class="cfe-table-container">
+    <table class="cfe-table">
       <thead>
         <tr>
           <th class="sortable" (click)="sortTable('SupplierCode')" 

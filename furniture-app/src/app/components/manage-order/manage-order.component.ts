@@ -1,219 +1,90 @@
-import { Component, ViewChild, AfterViewInit, OnInit, OnDestroy } from '@angular/core';
-import { MatTableDataSource } from '@angular/material/table';
-import { MatPaginator, PageEvent } from '@angular/material/paginator';
-import { MatSort, Sort } from '@angular/material/sort';
-import { MatTableModule } from '@angular/material/table';
-import { MatPaginatorModule } from '@angular/material/paginator';
-import { MatSortModule } from '@angular/material/sort';
-import { MatButtonModule } from '@angular/material/button';
-import { MatInputModule } from '@angular/material/input';
+import { Component, OnInit, ChangeDetectorRef, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { MatMenuModule } from '@angular/material/menu';
-import { MatIconModule } from '@angular/material/icon';
-import { Router, ActivatedRoute, RouterModule } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { ManageOrderService } from '../../services/manageOrders.service';
-import { MatPseudoCheckboxModule } from '@angular/material/core';
-import { MatCheckboxModule } from '@angular/material/checkbox';
 import { Order } from '../../models/order.model';
-import { MatSelectModule } from '@angular/material/select';
-import { MatDialog } from '@angular/material/dialog';
 import { ShowOrderDetailsComponent } from '../show-order-details/show-order-details.component';
 import { environment } from '../../../environments/environment';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { Subscription } from 'rxjs';
 import { UtcToLocalPipe } from '../../pipes/utc-to-local.pipe';
 import { DateUtilityService } from '../../services/date-utility.service';
 
 @Component({
   selector: 'app-manage-order',
   standalone: true,
-  imports: [
-    MatTableModule, 
-    MatPaginatorModule, 
-    MatSortModule, 
-    MatButtonModule, 
-    MatInputModule, 
-    CommonModule, 
-    FormsModule,
-    MatCheckboxModule,
-    MatMenuModule,
-    MatIconModule,
-    MatPseudoCheckboxModule,
-    MatSelectModule,
-    MatProgressSpinnerModule,
-    UtcToLocalPipe,
-  ],
+  imports: [CommonModule, FormsModule, UtcToLocalPipe],
   providers: [DateUtilityService],
   templateUrl: './manage-order.component.html',
   styleUrls: ['./manage-order.component.css'],
 })
-export class ManageOrderComponent implements AfterViewInit, OnInit, OnDestroy {
-  displayedColumns: string[] = ['select', 'SONumber', 'Created_date', 'ProductName', 'CustomerEmail', 'Customer_name','Qty', 
-    'Delivery_date', 'SOStatus','Total_Paid_Amount','Payment_Status', 'action'];
-  dataSource = new MatTableDataSource<Order>([]);
-
-  @ViewChild(MatPaginator) paginator!: MatPaginator;
-  @ViewChild(MatSort) sort!: MatSort;
-
-  // Pagination properties
+export class ManageOrderComponent implements OnInit {
+  orders: Order[] = [];
   searchTerm: string = '';
-  pageSize = 5;
-  pageIndex = 0;
-  totalRecords = 0;
-  pageSizeOptions: number[] = [5, 10, 20, 50, 100];
-  sortField = 'Created_date';
-  sortOrder = 'desc';
+  currentPage: number = 1;
+  pageSize: number = 10;
+  pageSizeOptions: number[] = [10, 20, 30, 50, 100];
+  totalItems: number = 0;
   isLoading = false;
   
-  environment = environment;
+  // Sorting properties
+  sortColumn: keyof Order | '' = 'Created_date';
+  sortDirection: 'asc' | 'desc' = 'desc';
   
-  // Subscription management
-  private sortSubscription?: Subscription;
+  environment = environment;
 
   constructor(
     private manageOrderService: ManageOrderService, 
     private router: Router, 
     private route: ActivatedRoute,
-    private dialog: MatDialog
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
-    this.fetchOrders();
-  }
-
-  ngAfterViewInit() {
-    // Wait for the view to initialize completely
-    setTimeout(() => {
-      this.setupSorting();
-    }, 0);
-  }
-
-  private setupSorting(): void {
-    if (!this.sort) {
-      console.error('MatSort not found!');
-      return;
-    }
-
-    // Assign the sort to dataSource (required for visual indicators)
-    this.dataSource.sort = this.sort;
-    
-    // Set initial sort state
-    this.sort.active = this.sortField;
-    this.sort.direction = this.sortOrder as 'asc' | 'desc';
-    
-    console.log('Initial sort setup:', { active: this.sort.active, direction: this.sort.direction });
-    
-    // Clean up any existing subscription
-    if (this.sortSubscription) {
-      this.sortSubscription.unsubscribe();
-    }
-    
-    // Set up sort change listener for server-side sorting
-    this.sortSubscription = this.sort.sortChange.subscribe((sortState: Sort) => {
-      console.log('🔄 Sort change event triggered:', sortState);
-      
-      // Reset to first page when sorting
-      this.pageIndex = 0;
-      
-      // Map the column header to the actual database field name
-      const mappedField = this.mapSortField(sortState.active);
-      const newSortOrder = sortState.direction || 'desc';
-      
-      console.log('🔍 Sort mapping:', {
-        clicked: sortState.active,
-        mapped: mappedField,
-        direction: newSortOrder,
-        oldField: this.sortField,
-        oldOrder: this.sortOrder
-      });
-      
-      // Only fetch if something actually changed
-      if (this.sortField !== mappedField || this.sortOrder !== newSortOrder) {
-        this.sortField = mappedField;
-        this.sortOrder = newSortOrder;
-        
-        console.log('✅ Fetching orders with new sort:', {
-          field: this.sortField,
-          order: this.sortOrder
-        });
-        
-        this.fetchOrders();
-      } else {
-        console.log('⚠️ Sort values unchanged, skipping fetch');
-      }
-    });
-
-    // Override the default sorting behavior to prevent client-side sorting
-    this.dataSource.sortingDataAccessor = () => '';
-    this.dataSource.sortData = (data: Order[]) => {
-      console.log('🚫 Client-side sorting disabled - returning original data');
-      return data;
-    };
-    
-    console.log('✅ Sort setup completed');
-  }
-
-
-  ngOnDestroy(): void {
-    // Clean up subscription
-    if (this.sortSubscription) {
-      this.sortSubscription.unsubscribe();
-    }
+    this.loadOrders();
   }
 
   /**
-   * Map frontend column names to backend database field names
+   * Close all dropdowns when clicking outside
    */
-  private mapSortField(columnName: string): string {
-    const fieldMapping: { [key: string]: string } = {
-      'SONumber': 'SONumber',
-      'Created_date': 'Created_date',
-      'ProductName': 'ProductName',
-      'CustomerEmail': 'CustomerEmail',
-      'Customer_name': 'Customer_name',
-      'Qty': 'Qty',
-      'Delivery_date': 'Delivery_date',
-      'SOStatus': 'SOStatus',
-      'Total_Paid_Amount': 'Total_Paid_Amount',
-      'Payment_Status': 'Payment_Status'
-    };
-    
-    return fieldMapping[columnName] || 'Created_date'; // Default to Created_date if mapping not found
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: Event) {
+    this.closeAllDropdowns();
   }
 
-  fetchOrders() {
+  loadOrders() {
     this.isLoading = true;
     
+    // Build sort parameters
+    const sortBy = this.sortColumn || 'Created_date';
+    const sortOrder = this.sortDirection || 'desc';
+    
     const params = {
-      page: this.pageIndex + 1, // Backend expects 1-based page numbers
+      page: this.currentPage,
       limit: this.pageSize,
       search: this.searchTerm.trim(),
-      sortField: this.sortField,
-      sortOrder: this.sortOrder
+      sortField: sortBy,
+      sortOrder: sortOrder
     };
 
     console.log('📡 Fetching orders with params:', params);
-    console.log('🌐 Full URL would be:', `${this.manageOrderService['apiUrl']}?page=${params.page}&limit=${params.limit}&search=${params.search}&sortField=${params.sortField}&sortOrder=${params.sortOrder}`);
 
     this.manageOrderService.getOrders(params).subscribe({
       next: (response) => {
         console.log('✅ Orders received:', response);
         
-        this.dataSource.data = response.data.map((order: Order) => ({
+        this.orders = response.data.map((order: Order) => ({
           ...order,
-          Created_date: this.formatDate(order.Created_date),
-          Delivery_date: this.formatDate(order.Delivery_date),
           selected: false,
         }));
         
-        this.totalRecords = response.totalRecords;
+        this.totalItems = response.totalRecords;
         this.isLoading = false;
+        this.cdr.detectChanges();
         
         console.log('📊 Data updated:', {
-          totalRecords: this.totalRecords,
-          dataLength: this.dataSource.data.length,
-          currentSort: { field: this.sortField, order: this.sortOrder }
+          totalRecords: this.totalItems,
+          dataLength: this.orders.length,
+          currentSort: { field: sortBy, order: sortOrder }
         });
       },
       error: (error) => {
@@ -223,27 +94,44 @@ export class ManageOrderComponent implements AfterViewInit, OnInit, OnDestroy {
     });
   }
 
-  formatDate(dateString: string): string {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+  searchOrders() {
+    this.currentPage = 1; // Reset to first page when searching
+    this.loadOrders();
   }
 
-  applySearchFilter() {
-    this.pageIndex = 0; // Reset to first page when searching
-    this.fetchOrders();
+  onPageSizeChange(event: Event) {
+    const target = event.target as HTMLSelectElement;
+    if (target) {
+      this.pageSize = Number(target.value);
+      this.currentPage = 1; // Reset to first page
+      this.loadOrders();
+    }
   }
 
-  onPageChange(event: PageEvent) {
-    this.pageSize = event.pageSize;
-    this.pageIndex = event.pageIndex;
-    this.fetchOrders();
+  decrementPage() {
+    if (this.currentPage > 1) {
+      this.currentPage--;
+      this.loadOrders();
+      this.cdr.detectChanges();
+    }
+  }
+
+  incrementPage() {
+    if (this.currentPage < this.totalPages) {
+      this.currentPage++;
+      this.loadOrders();
+      this.cdr.detectChanges();
+    }
+  }
+
+  get totalPages(): number {
+    return Math.ceil(this.totalItems / this.pageSize);
   }
 
   getSelectedOrders(): Order[] {
-    const orders = this.dataSource.data.filter((order: Order) => order.selected);
-    console.log(orders);
-    return orders;
+    const selectedOrders = this.orders.filter((order: Order) => order.selected);
+    console.log(selectedOrders);
+    return selectedOrders;
   }
 
   updatePaymentStatus(order: Order) {
@@ -257,11 +145,65 @@ export class ManageOrderComponent implements AfterViewInit, OnInit, OnDestroy {
         console.error("Error updating payment status", error);
       });
   }
-  
-  showOrderDetails(order: Order): void {
-    this.dialog.open(ShowOrderDetailsComponent, {
-      width: '1000px',
-      data: order
+
+  toggleSelectAll(event: Event) {
+    const isChecked = (event.target as HTMLInputElement).checked;
+    this.orders.forEach(order => {
+      order.selected = isChecked;
+    });
+  }
+
+  sortTable(column: keyof Order) {
+    if (this.sortColumn === column) {
+      this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+      this.sortColumn = column;
+      this.sortDirection = 'asc';
+    }
+
+    this.currentPage = 1; // Reset to first page when sorting
+    this.loadOrders();
+  }
+
+  isSortedBy(columnName: keyof Order): boolean {
+    return this.sortColumn === columnName;
+  }
+
+  getSortIcon(columnName: keyof Order): string {
+    if (this.sortColumn === columnName) {
+      return this.sortDirection === 'asc' ? '▲' : '▼';
+    }
+    return '';
+  }
+
+  /**
+   * Toggle dropdown for a specific order
+   */
+  toggleDropdown(order: Order, event: Event) {
+    event.stopPropagation();
+    // Close all other dropdowns
+    this.orders.forEach(o => {
+      if (o !== order) {
+        o.dropdownOpen = false;
+      }
+    });
+    // Toggle the clicked dropdown
+    order.dropdownOpen = !order.dropdownOpen;
+  }
+
+  /**
+   * Close dropdown for a specific order
+   */
+  closeDropdown(order: Order) {
+    order.dropdownOpen = false;
+  }
+
+  /**
+   * Close all dropdowns when clicking outside
+   */
+  closeAllDropdowns() {
+    this.orders.forEach(o => {
+      o.dropdownOpen = false;
     });
   }
 
@@ -279,7 +221,7 @@ export class ManageOrderComponent implements AfterViewInit, OnInit, OnDestroy {
         next: () => {
           console.log(`Order ${order.SalesID} deleted successfully.`);
           alert(`Order ${order.SONumber} deleted successfully.`);
-          this.fetchOrders(); // Refresh order list
+          this.loadOrders(); // Refresh order list
         },
         error: (err) => {
           console.error('Error deleting order:', err);
@@ -326,12 +268,12 @@ export class ManageOrderComponent implements AfterViewInit, OnInit, OnDestroy {
     );
   }
 
-  toggleAllSelection(event: any) {
-    const checked = event.checked;
-    this.dataSource.data.forEach(order => order.selected = checked);
-  }
-
-  performAction(order: Order) {
-    alert(`Performing action on Order #${order.SalesID}`);
+  /**
+   * Data source getter for compatibility
+   */
+  get dataSource() {
+    return {
+      data: this.orders
+    };
   }
 }

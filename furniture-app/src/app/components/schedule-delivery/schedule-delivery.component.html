@@ -1,13 +1,16 @@
-<div class="purchase-container">
-  <div class="header">
-    <h2>Schedule Delivery</h2>
-    <div class="search-add">
-      <div class="search-box">
-        <input type="text" [(ngModel)]="searchQuery"
-         placeholder="Search Delivery products..."
-          (input)="searchDeliveryProducts()" />
+<div class="cfe-container">
+  <div class="cfe-header">
+    <h2 class="cfe-animate-fade-in">Schedule Delivery</h2>
+    <div class="cfe-search-container">
+      <div class="cfe-search-box">
+        <input type="text" 
+               class="cfe-search-input"
+               [(ngModel)]="searchQuery"
+               placeholder="Search Delivery products..."
+               (input)="searchDeliveryProducts()" />
       </div>
-      <button class="btn btn-primary" (click)="openCalendar(calendarDialog)">Schedule Delivery</button>
+      <div class="cfe-button-group">
+        <button class="cfe-btn-primary" (click)="openCalendar(calendarDialog)">Schedule Delivery</button>
 
      <!-- Calendar Dialog Template -->
 <ng-template #calendarDialog>
@@ -27,14 +30,15 @@
   </div>
 </ng-template>
       
-      <button class="send-button" (click)="sendTermsAndConditions()">
-        <i class="fas fa-envelope"></i> Send T&C
-      </button>
+        <button class="cfe-btn-secondary" (click)="sendTermsAndConditions()">
+          <i class="fas fa-envelope"></i> Send T&C
+        </button>
+      </div>
     </div>
   </div>
 
-  <div class="table-container">
-  <table>
+  <div class="cfe-table-container">
+  <table class="cfe-table">
     <thead>
       <tr>
         <th><input type="checkbox" (change)="selectAll($event)" /></th>

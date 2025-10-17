@@ -1,5 +1,6 @@
 export interface Order {
     selected?: boolean;
+    dropdownOpen?: boolean;
     SalesID : number;
     Created_date: string;
     SONumber: string;
@@ -12,4 +13,3 @@ export interface Order {
     Payment_Status: string;
     Total_Paid_Amount: number;
   }
-  

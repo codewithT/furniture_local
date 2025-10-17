@@ -175,8 +175,8 @@ export class OrderDetailsComponent implements OnInit {
       selected: [item?.selected || false],
       SupplierCode: [item?.SupplierCode || '', Validators.required],
       ProductCode: [item?.ProductCode || '', Validators.required],
-      ProductName: [item?.ProductName || '', Validators.required],
-      rate: [item?.Price || 0, [Validators.required, Validators.min(0.01)]],
+      ProductName: [item?.ProductName || '', [Validators.required]],
+      rate: [item?.Price || 0, [Validators.required, Validators.min(1)]],
       quantity: [item?.Qty || 1, [Validators.required, Validators.min(1)]],
       total: [{ value: (item?.Price || 0) * (item?.Qty || 1), disabled: true }]
     });
@@ -462,7 +462,32 @@ export class OrderDetailsComponent implements OnInit {
   // UPDATED METHOD: Just updates the order
   submitOrder() {
     if (this.orderForm.invalid) {
-        alert('Please fill all required fields correctly.');
+        // Debug: Log which fields are invalid
+        console.log('Form is invalid. Checking specific fields...');
+        
+        // Check main form fields
+        Object.keys(this.orderForm.controls).forEach(key => {
+            const control = this.orderForm.get(key);
+            if (control && control.invalid) {
+                console.log(`Invalid field: ${key}`, control.errors);
+            }
+        });
+        
+        // Check items array
+        this.items.controls.forEach((item, index) => {
+            if (item.invalid) {
+                console.log(`Invalid item at index ${index}:`, item.errors);
+                const itemGroup = item as FormGroup;
+                Object.keys(itemGroup.controls).forEach(fieldKey => {
+                    const fieldControl = itemGroup.get(fieldKey);
+                    if (fieldControl && fieldControl.invalid) {
+                        console.log(`  - Invalid field: ${fieldKey}`, fieldControl.errors);
+                    }
+                });
+            }
+        });
+        
+        alert('Please fill all required fields correctly. Check the console for details.');
         // Optionally, mark fields as touched to show errors
         this.orderForm.markAllAsTouched();
         return;
@@ -487,7 +512,32 @@ export class OrderDetailsComponent implements OnInit {
 // Fixed printInvoice() method in OrderDetailsComponent
 printInvoice() {
   if (this.orderForm.invalid) {
-    alert('Please fill all required fields correctly before printing an invoice.');
+    // Debug: Log which fields are invalid
+    console.log('Form is invalid. Checking specific fields...');
+    
+    // Check main form fields
+    Object.keys(this.orderForm.controls).forEach(key => {
+        const control = this.orderForm.get(key);
+        if (control && control.invalid) {
+            console.log(`Invalid field: ${key}`, control.errors);
+        }
+    });
+    
+    // Check items array
+    this.items.controls.forEach((item, index) => {
+        if (item.invalid) {
+            console.log(`Invalid item at index ${index}:`, item.errors);
+            const itemGroup = item as FormGroup;
+            Object.keys(itemGroup.controls).forEach(fieldKey => {
+                const fieldControl = itemGroup.get(fieldKey);
+                if (fieldControl && fieldControl.invalid) {
+                    console.log(`  - Invalid field: ${fieldKey}`, fieldControl.errors);
+                }
+            });
+        }
+    });
+    
+    alert('Please fill all required fields correctly before printing an invoice. Check the console for details.');
     this.orderForm.markAllAsTouched();
     return;
   }

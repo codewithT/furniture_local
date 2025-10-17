@@ -1,28 +1,29 @@
-<div class="purchase-container">
-  <div class="header">
-    <h2>CFE-Purchases</h2>
-    <div class="search-add">
-      <div class="search-box">
+<div class="cfe-container">
+  <div class="cfe-header">
+    <h2 class="cfe-animate-fade-in">CFE-Purchases</h2>
+    <div class="cfe-search-container">
+      <div class="cfe-search-box">
         <input
           type="text"
+          class="cfe-search-input"
           [(ngModel)]="searchQuery"
           placeholder="Search purchase by date(YYYY-MM-DD), Product Code, Supplier Code, PO Number"
           (input)="searchPurchases()"
         />
       </div>
       
-      <div class="button-group">
-        <button class="btn btn-primary" (click)="addPurchase()">
+      <div class="cfe-button-group">
+        <button class="cfe-btn-primary" (click)="addPurchase()">
           <i class="fas fa-plus"></i>
           Add Purchase
         </button>
         
-        <button class="send-button" (click)="createPONumber()">
+        <button class="cfe-btn-secondary" (click)="createPONumber()">
           <i class="fas fa-save"></i>
           Save
         </button>
         
-        <button class="send-button" (click)="sendEmails()">
+        <button class="cfe-btn-secondary" (click)="sendEmails()">
           <i class="fas fa-envelope"></i>
           Send
         </button>
@@ -30,8 +31,8 @@
     </div>
   </div>
 <!-- <div class="table-responsive"> -->
-  <div class="table-container">
-    <table>
+  <div class="cfe-table-container">
+    <table class="cfe-table">
       <thead>
         <tr>
           <th class="checkbox-column">

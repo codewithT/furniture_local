@@ -35,3 +35,164 @@
     margin-top: 20px;
   }
   
+  /* Terms & Conditions Card */
+  .terms-card {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    margin-top: 20px;
+    max-height: 500px;
+    overflow-y: auto;
+  }
+
+  .terms-title {
+    text-align: center;
+    color: #1976d2;
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 18px;
+    font-weight: bold;
+  }
+
+  .terms-intro {
+    font-size: 13px;
+    color: #555;
+    margin-bottom: 15px;
+    font-style: italic;
+    text-align: center;
+  }
+
+  .terms-list {
+    margin: 0;
+    padding-left: 25px;
+    list-style-position: outside;
+  }
+
+  .terms-list li {
+    margin-bottom: 10px;
+    font-size: 12px;
+    line-height: 1.6;
+    color: #444;
+  }
+
+  .terms-list li strong {
+    color: #222;
+    font-weight: 600;
+  }
+
+  .terms-footer {
+    margin-top: 15px;
+    font-size: 12px;
+    color: #555;
+    font-style: italic;
+    text-align: center;
+  }
+
+  /* Responsive adjustments */
+  @media (max-width: 600px) {
+    .terms-card {
+      padding: 15px;
+      max-height: 400px;
+    }
+
+    .terms-list li {
+      font-size: 11px;
+    }
+
+    .terms-title {
+      font-size: 16px;
+    }
+  }
+
+  /* Print Styles */
+  @media print {
+    .dialog-content {
+      background-color: #fff !important;
+      padding: 20px !important;
+    }
+
+    .dialog-title {
+      font-size: 24px !important;
+      margin-bottom: 20px !important;
+      text-align: center !important;
+      color: #000 !important;
+    }
+
+    .order-card, .terms-card {
+      background: #fff !important;
+      box-shadow: none !important;
+      border: 1px solid #333 !important;
+      margin-bottom: 20px !important;
+      page-break-inside: avoid !important;
+    }
+
+    .terms-card {
+      max-height: none !important;
+      overflow: visible !important;
+      page-break-before: always !important;
+    }
+
+    .terms-title {
+      font-size: 18px !important;
+      color: #000 !important;
+      text-decoration: underline !important;
+      margin-bottom: 15px !important;
+    }
+
+    .terms-intro {
+      font-size: 12px !important;
+      margin-bottom: 15px !important;
+    }
+
+    .terms-list {
+      padding-left: 25px !important;
+    }
+
+    .terms-list li {
+      font-size: 11px !important;
+      line-height: 1.5 !important;
+      margin-bottom: 8px !important;
+      page-break-inside: avoid !important;
+      text-align: justify !important;
+    }
+
+    .terms-list li strong {
+      font-weight: bold !important;
+      color: #000 !important;
+    }
+
+    .terms-footer {
+      font-size: 11px !important;
+      margin-top: 15px !important;
+      border-top: 1px solid #333 !important;
+      padding-top: 10px !important;
+    }
+
+    .order-table {
+      width: 100% !important;
+      border-collapse: collapse !important;
+    }
+
+    .order-table td {
+      padding: 8px !important;
+      border: 1px solid #333 !important;
+      font-size: 12px !important;
+    }
+
+    .order-table td:first-child {
+      font-weight: bold !important;
+      background-color: #f0f0f0 !important;
+    }
+
+    /* Hide dialog actions when printing */
+    mat-dialog-actions {
+      display: none !important;
+    }
+
+    /* Page setup */
+    @page {
+      size: A4 portrait;
+      margin: 1cm;
+    }
+  }

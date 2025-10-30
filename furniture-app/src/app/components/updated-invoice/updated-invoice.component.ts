@@ -287,11 +287,14 @@ export class UpdatedInvoiceComponent implements OnInit {
   }
   
   calculateTax(): number {
-    return (this.subTotal - this.discount) * this.taxRate;
+    const currentSubtotal = this.calculateSubtotal();
+    return (currentSubtotal - this.discount) * this.taxRate;
   }
   
   calculateGrandTotal(): number {
-    return this.subTotal - this.discount + this.totalTax + this.shippingHandling;
+    const currentSubtotal = this.calculateSubtotal();
+    const currentTax = this.calculateTax();
+    return currentSubtotal - this.discount + currentTax + this.shippingHandling;
   }
   
   // Utility methods for template

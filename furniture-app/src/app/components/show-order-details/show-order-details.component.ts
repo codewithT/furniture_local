@@ -21,4 +21,8 @@ export class ShowOrderDetailsComponent {
   closeDialog(): void {
     this.dialogRef.close();
   }
+
+  printOrderDetails(): void {
+    window.print();
+  }
 }

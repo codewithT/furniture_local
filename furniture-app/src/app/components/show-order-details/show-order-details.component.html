@@ -45,9 +45,42 @@
         </table>
       </mat-card-content>
     </mat-card>
+
+    <mat-card class="terms-card">
+      <mat-card-content>
+        <h3 class="terms-title">Terms & Conditions</h3>
+        <p class="terms-intro">We kindly ask you to review the following terms, as they outline the guidelines for your shopping experience</p>
+        <ol class="terms-list">
+          <li><strong>Final Sales:</strong> Please note that all sales are considered final, and we are unable to accommodate refunds or exchanges.</li>
+          <li><strong>Deposit Requirement:</strong> For your convenience, we require a minimum deposit of 50% for all orders at the time of purchase.</li>
+          <li><strong>LAYAWAY Orders:</strong> In the case of items placed on "LAYAWAY," we kindly request a 21-day advance notice for scheduling pick-up or delivery.</li>
+          <li><strong>Timely Pick-up or Delivery:</strong> We encourage you to arrange for prompt pick-up or delivery of your orders upon their arrival. In case of any delay, a storage fee of $20 per day (with a grace period of 10 days) will apply.</li>
+          <li><strong>Approval Process:</strong> We seek your understanding that all orders are subject to approval by our company's authorities.</li>
+          <li><strong>Order Cancellations:</strong> We reserve the right to cancel orders in cases where product availability becomes a concern.</li>
+          <li><strong>Manufacturer's Warranty:</strong> Kindly note that any product warranty is subject to the policies set forth by the manufacturer, if applicable.</li>
+          <li><strong>Floor and Clearance Items:</strong> Items labeled as floor models or clearance models are sold in their current condition, "as is."</li>
+          <li><strong>Thorough Inspection:</strong> To ensure your satisfaction, we recommend thoroughly inspecting all goods prior to pick-up or delivery. Claims beyond the manufacturer's warranty can only be made for specified merchandise.</li>
+          <li><strong>Special Inspection Cases:</strong> For items like boxed or wrapped products that cannot be inspected immediately, exchanges are possible if defects are reported via email within 2 days of receipt. Please ensure the original tags and packaging are retained.</li>
+          <li><strong>Delivery Attempts:</strong> Should a delivery attempt fail due to your absence, a redelivery fee may apply.</li>
+          <li><strong>Delivery Timing:</strong> While we aim to provide accurate delivery dates, please understand that unforeseen circumstances might affect these schedules.</li>
+          <li><strong>Wear and Tear:</strong> We regret that we cannot offer warranties or guarantees against regular "wear and tear."</li>
+          <li><strong>Transportation Costs:</strong> Please be aware that the manufacturer's warranty does not cover transportation expenses.</li>
+          <li><strong>Cancellation Fee:</strong> Should you choose to cancel an order post-purchase, a cancellation fee of 20% of the total amount will be applicable.</li>
+          <li><strong>Exclusions from Cancellation:</strong> Notably, special orders and specific deals, such as LAYAWAY, floor models, clearance items, and discontinued merchandise, are exempt from cancellation.</li>
+          <li><strong>Eco-Friendly Practices:</strong> To promote sustainability, we kindly request customers to manage waste and packaging materials themselves, as we do not provide disposal services.</li>
+          <li><strong>Customer Responsibility:</strong> The responsible disposal of furniture and related materials remains the customer's sole responsibility.</li>
+          <li><strong>Deliveries by Third Parties:</strong> Deliveries are facilitated through third-party companies, for which we cannot assume responsibility.</li>
+          <li><strong>Damage Claims:</strong> Regrettably, we cannot accept claims for damages to property during the delivery process.</li>
+          <li><strong>Furniture Fitting:</strong> Please ensure that the purchased items fit within your living space, as we cannot be held accountable for the fitting of products in your home.</li>
+          <li><strong>Unforeseen Circumstances:</strong> While we strive to ensure smooth operations, please understand that certain circumstances beyond our control might impact order fulfillment.</li>
+          <li><strong>Issue Resolution:</strong> To ensure a smooth resolution process, customers agree to contact the store directly and cooperate in resolving any issues. By accepting these terms, customers commit to refraining from posting negative reviews or comments on social media or Google Reviews that could impact the reputation of Calgary Furniture Emporium.</li>
+        </ol>
+        <p class="terms-footer">Thank you for taking the time to acquaint yourself with these terms, which aim to provide transparency and clarity for your shopping journey with us. If you have any questions or require further information, please do not hesitate to contact us.</p>
+      </mat-card-content>
+    </mat-card>
   
     <mat-dialog-actions align="end">
+      <button mat-button (click)="printOrderDetails()" color="accent">Print</button>
       <button mat-button (click)="closeDialog()" color="primary">Close</button>
     </mat-dialog-actions>
   </mat-dialog-content>
-  
